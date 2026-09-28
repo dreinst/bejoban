@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Palet sementara hitam putih. Kalau warna brand sudah pasti, cukup ganti --color-accent. */
+@theme {
+  --color-ink: #0a0a0a;
+  --color-paper: #ffffff;
+  --color-soft: #f4f4f4;
+  --color-line: #e4e4e4;
+  --color-mute: #6b6b6b;
+  --color-accent: #0a0a0a;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+.ticker { animation: ticker 35s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ticker { animation: none; } }
+
+/* Admin: kunci tombol simpan selama foto masih diunggah */
+form:has([data-uploading]) button:not([type='button']) { pointer-events: none; opacity: 0.5; }

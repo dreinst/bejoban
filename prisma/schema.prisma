@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Branch {
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  name      String
+  instagram String    @default("")
+  whatsapp  String    @default("")
+  address   String    @default("")
+  hours     String    @default("08.00 sampai 17.00")
+  mapsUrl   String    @default("")
+  photo     String    @default("")
+  services  String    @default("")
+  sort      Int       @default(0)
+  listings  Listing[]
+  users     User[]
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
+  name         String  @default("")
+  passwordHash String
+  role         String  @default("BRANCH_ADMIN") // OWNER | BRANCH_ADMIN
+  branchId     Int?
+  branch       Branch? @relation(fields: [branchId], references: [id])
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  slug     String    @unique
+  name     String
+  image    String    @default("")
+  sort     Int       @default(0)
+  products Product[]
+}
+
+model Brand {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  logo     String    @default("")
+  sort     Int       @default(0)
+  products Product[]
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  name        String
+  spec        String    @default("")
+  description String    @default("")
+  fitment     String    @default("")
+  images      String    @default("[]")
+  isSample    Boolean   @default(false)
+  active      Boolean   @default(true)
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  brandId     Int?
+  brand       Brand?    @relation(fields: [brandId], references: [id])
+  listings    Listing[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Listing {
+  id           Int     @id @default(autoincrement())
+  productId    Int
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId     Int
+  branch       Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  price        Int     @default(0)
+  comparePrice Int     @default(0)
+  stock        Int     @default(0)
+  available    Boolean @default(true)
+  flashSale    Boolean @default(false)
+
+  @@unique([productId, branchId])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
