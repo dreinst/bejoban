@@ -19,6 +19,29 @@ Halaman admin ada di `/admin`. Ada dua peran:
 
 Produk dengan label **CONTOH** adalah data isian awal. Ganti nama, harga, dan fotonya, lalu hilangkan centang *Tandai sebagai produk contoh*, atau hapus produknya.
 
+## Fitur internal (khusus owner, kecuali Ongkir)
+
+Tiga halaman ini untuk keperluan toko, tidak tampil di web publik. Masih berupa draf untuk dicoba.
+
+### Stok ban
+
+1. Buka **Stok ban**, pilih berkas CSV pricelist atau tempel isinya, lalu tekan *Impor dan ganti stok*. Setiap impor mengganti seluruh stok.
+2. Hasilnya berupa jumlah baris yang masuk dan daftar baris bermasalah (harga kosong, format harga janggal seperti `1.825.0000`, stok bukan angka, merek kosong). Baris itu ditampilkan apa adanya. Harga yang janggal disimpan kosong, jadi perbaiki di pricelist lalu impor lagi.
+3. Berkas pricelist asli berisi harga dan stok nyata. Jangan dimasukkan ke git, simpan di folder `data/`.
+
+### Ongkir
+
+- **Kalkulator** (`/admin/ongkir`, semua admin): pilih ukuran dan jumlah ban dari stok, atau isi berat manual, lalu pilih kota. J&T Cargo dan Baraka tampil berdampingan lengkap dengan berat asli, berat volume, berat ditagih, tarif per kg, packing, total, dan estimasi hari. Tombol *Salin ringkasan untuk WhatsApp* menyalin teks siap tempel.
+- **Tarif dan pengaturan** (owner): tarif per kota diisi dari daftar harga agen karena belum ada sumber tarif otomatis. Bisa tambah, ubah, hapus, atau tempel banyak baris. Atur juga asal kirim, pembagi berat volume tiap ekspedisi, packing per ban, dan berat serta ukuran kemasan per ring (R12 sampai R19).
+- Data awal bertanda CONTOH. Angka contoh selalu tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
+- Kalau tarif satu kota belum ada untuk satu ekspedisi, hasilnya "tarif belum diisi".
+
+### Chatbot
+
+- **Kotak uji**: ketik pesan seperti pelanggan (misalnya `hankook 185/65 R15` atau `ongkir 4 ban 185/65 R15 ke Surabaya`), lalu lihat balasan dan alasan pencocokannya. Bot menjawab hanya dari data stok dan tarif. Kalau pesan tidak memuat ukuran atau merek yang dikenali, hasilnya ditandai *serahkan ke admin*.
+- **Pengaturan**: saklar aktif, jam aktif (WIB), jeda antar balasan, batas balasan per hari, dan daftar nomor internal yang dilayani.
+- **Worker WhatsApp** (`scripts/bot-wa.ts`) membaca WAHA secara berkala dan hanya melayani nomor di daftar. Bawaannya uji kering (hanya mencetak balasan). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, jalankan dengan `npm run bot:wa`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Skrip ini belum pernah dicoba ke WAHA.
+
 ## Ukuran foto
 
 Semua foto yang diunggah otomatis dipotong ke rasio yang benar, diperkecil, lalu disimpan sebagai WebP. Jadi foto dengan rasio berbeda tetap pas di tampilannya. Hasil paling tajam didapat kalau foto aslinya sama atau lebih besar dari ukuran ideal.

@@ -7,6 +7,7 @@ import path from 'path'
 import { db } from '../src/lib/db'
 import { saveImage, type PresetKey } from '../src/lib/images'
 import { slugify } from '../src/lib/format'
+import { ensureSampleRates } from '../src/lib/ongkir/sample'
 
 const A = (f: string) => path.join(__dirname, 'seed-assets', f)
 const ig = (f: string) => A('ig/' + f)
@@ -27,6 +28,7 @@ async function img(file: string, preset: PresetKey, crop?: { top: number; height
 const below = { top: 190, height: 180 }
 
 async function main() {
+  await ensureSampleRates()
   if (await db.user.count()) {
     console.log('Database sudah berisi data, seed dilewati.')
     return

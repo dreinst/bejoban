@@ -1,0 +1,136 @@
+// Pengurai CSV pricelist ban. Modul murni.
+// Format: beberapa kelompok kolom berdampingan (Ukuran Ban, Merk, Harga Jual, Stok, Keterangan),
+// dengan baris judul kelompok ring seperti "R15" atau "R14 (Muatan + MT)".
+import { normalizeSize } from './size'
+
+export type ParsedTire = {
+  groupName: string
+  ring: number
+  sizeRaw: string
+  sizeNorm: string
+  brand: string
+  price: number | null
+  stock: number
+  note: string
+}
+
+export type PriceProblem = {
+  line: number // nomor baris di berkas (mulai 1)
+  group: string
+  size: string
+  brand: string
+  priceRaw: string
+  stockRaw: string
+  reason: string
+  imported: boolean // true kalau barisnya tetap masuk (dengan harga kosong)
+}
+
+export type ParseResult = { rows: ParsedTire[]; problems: PriceProblem[]; skipped: number }
+
+// Parser CSV sederhana: kutip ganda, koma di dalam kutip, CRLF.
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let q = false
+  const t = text.replace(/^﻿/, '')
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i]
+    if (q) {
+      if (c === '"' && t[i + 1] === '"') {
+        cell += '"'
+        i++
+      } else if (c === '"') q = false
+      else cell += c
+    } else if (c === '"') q = true
+    else if (c === ',') {
+      row.push(cell)
+      cell = ''
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && t[i + 1] === '\n') i++
+      row.push(cell)
+      rows.push(row)
+      row = []
+      cell = ''
+    } else cell += c
+  }
+  if (cell || row.length) {
+    row.push(cell)
+    rows.push(row)
+  }
+  return rows
+}
+
+// Hasil: angka, atau alasan kenapa tidak terbaca. Format janggal tidak ditebak.
+export function parsePrice(raw: string): { value: number | null; reason?: string } {
+  const s = raw.replace(/^rp\.?\s*/i, '').replace(/\s+/g, '')
+  if (!s) return { value: null, reason: 'harga kosong' }
+  if (/^\d+$/.test(s) || /^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) {
+    return { value: Number(s.replace(/[.,]/g, '')) }
+  }
+  return { value: null, reason: 'format harga janggal' }
+}
+
+const clean = (s: string | undefined) => (s ?? '').replace(/\s+/g, ' ').trim()
+const RE_GROUP = /^R\s?(\d{2})\b/i
+
+export function parsePricelist(csv: string): ParseResult {
+  const table = parseCsv(csv)
+  // Awal tiap kelompok kolom = kolom yang berisi "Ukuran Ban".
+  const starts: number[] = []
+  for (const r of table) {
+    r.forEach((c, i) => {
+      if (clean(c).toLowerCase() === 'ukuran ban' && !starts.includes(i)) starts.push(i)
+    })
+    if (starts.length) break
+  }
+  const rows: ParsedTire[] = []
+  const problems: PriceProblem[] = []
+  let skipped = 0
+  const group = new Map<number, { name: string; ring: number }>()
+
+  table.forEach((r, idx) => {
+    const line = idx + 1
+    for (const c0 of starts) {
+      const size = clean(r[c0])
+      const brand = clean(r[c0 + 1])
+      const priceRaw = clean(r[c0 + 2])
+      const stockRaw = clean(r[c0 + 3])
+      const note = clean(r[c0 + 4])
+      if (!size && !brand && !priceRaw && !stockRaw) continue
+      if (size.toLowerCase() === 'ukuran ban') continue
+      const g = RE_GROUP.exec(size)
+      if (g && !brand && !priceRaw && !stockRaw) {
+        group.set(c0, { name: size, ring: Number(g[1]) })
+        continue
+      }
+      const cur = group.get(c0) ?? { name: '', ring: 0 }
+      const base = { line, group: cur.name, size, brand, priceRaw, stockRaw }
+      if (!size || !brand) {
+        skipped++
+        problems.push({ ...base, reason: !brand ? 'merek kosong, baris dilewati' : 'ukuran kosong, baris dilewati', imported: false })
+        continue
+      }
+      const parsed = normalizeSize(size)
+      const reasons: string[] = []
+      if (!parsed) reasons.push('ukuran tidak dikenali')
+      const p = parsePrice(priceRaw)
+      if (p.reason) reasons.push(p.reason)
+      let stock = 0
+      if (/^\d+$/.test(stockRaw)) stock = Number(stockRaw)
+      else reasons.push(stockRaw ? 'stok bukan angka, dianggap 0' : 'stok kosong, dianggap 0')
+      rows.push({
+        groupName: cur.name,
+        ring: cur.ring || parsed?.ring || 0,
+        sizeRaw: size,
+        sizeNorm: parsed?.norm ?? size.toLowerCase().replace(/\s+/g, ''),
+        brand,
+        price: p.value,
+        stock,
+        note,
+      })
+      if (reasons.length) problems.push({ ...base, reason: reasons.join('; '), imported: true })
+    }
+  })
+  return { rows, problems, skipped }
+}

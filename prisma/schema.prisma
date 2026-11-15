@@ -88,3 +88,54 @@ model Setting {
   key   String @id
   value String
 }
+
+// Stok ban hasil impor pricelist (data internal, tidak tampil di toko).
+model StockTire {
+  id         Int      @id @default(autoincrement())
+  groupName  String   @default("") // judul kelompok di pricelist, mis. "R13 (Muatan + MT)"
+  ring       Int      @default(0)
+  sizeRaw    String
+  sizeNorm   String // untuk pencarian, mis. "185/65R15"
+  brand      String   @default("") // merek dan model apa adanya dari pricelist
+  price      Int? // null kalau kosong atau formatnya janggal
+  stock      Int      @default(0)
+  note       String   @default("")
+  importedAt DateTime @default(now())
+
+  @@index([sizeNorm])
+  @@index([ring])
+}
+
+// Tarif ekspedisi per kota, diisi admin dari daftar harga agen.
+model ShippingRate {
+  id        Int      @id @default(autoincrement())
+  carrier   String // JNT_CARGO | BARAKA
+  city      String
+  perKg     Int
+  minWeight Float    @default(10)
+  etaDays   String   @default("")
+  note      String   @default("")
+  isSample  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@unique([carrier, city])
+}
+
+// Pesan WhatsApp yang sudah diproses worker, supaya tidak dibalas dua kali.
+model BotProcessed {
+  messageId String   @id
+  createdAt DateTime @default(now())
+}
+
+// Log uji dan log balasan worker.
+model BotLog {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  source    String // UJI | WA_KERING | WA
+  sender    String   @default("")
+  input     String
+  reply     String
+  handoff   Boolean  @default(false)
+  sent      Boolean  @default(false)
+  reason    String   @default("")
+}
