@@ -80,7 +80,7 @@ Semua foto yang diunggah otomatis dipotong ke rasio yang benar, diperkecil, lalu
 | Foto samping hero | 720 × 1280 px | 9:16 | Dipotong penuh | Foto potret seperti cover reel Instagram. |
 | Foto produk | 1200 × 1200 px | 1:1 | Utuh, sisa diberi latar | Produk di tengah, latar polos. Sisa ruang diisi putih otomatis. |
 | Ikon kategori | 400 × 400 px | 1:1 | Utuh, sisa diberi latar | PNG transparan, barang saja tanpa latar. |
-| Logo merek | 400 × 200 px | 2:1 | Utuh, sisa diberi latar | PNG transparan atau SVG. |
+| Logo merek | paling besar 800 × 400 px | bebas | Tepi kosong dipangkas, rasio asli tetap | SVG atau PNG transparan. Di beranda tampil putih satu warna dengan tinggi yang sama. |
 | Kartu rekomendasi mobil | 1400 × 700 px | 2:1 | Dipotong penuh | Mobil dari samping/depan, bagian atas kiri agak kosong untuk judul. |
 | Banner promo | 2400 × 640 px | 15:4 | Dipotong penuh | Banner sangat lebar. Teks penting taruh di tengah agar aman di HP. |
 | Foto toko (panel samping) | 800 × 900 px | 8:9 | Dipotong penuh | Tampak depan bengkel. |

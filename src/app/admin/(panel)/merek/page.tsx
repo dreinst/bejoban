@@ -24,7 +24,7 @@ export default async function Merek() {
   return (
     <div className="max-w-3xl space-y-4">
       <h1 className="text-2xl font-bold text-ink">Merek</h1>
-      <p className="text-sm text-neutral-500">Merek di sini tampil di bagian merek beranda sesuai urutan, nama saja. Logo dipakai di kartu produk.</p>
+      <p className="text-sm text-neutral-500">Merek di sini tampil di bagian merek beranda sesuai urutan. Logo ditampilkan putih satu warna dengan tinggi yang sama, jadi pakai SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama.</p>
       {list.map((b) => (
         <Card key={`${b.id}-${b.logo}-${b.name}-${b.byOrder}`} title={`${b.name} (${b._count.products} produk${b.byOrder ? ', by order' : ''})`}>
           {form(b)}

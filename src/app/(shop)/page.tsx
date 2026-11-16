@@ -38,7 +38,7 @@ export default async function Home() {
   const [c, { branch }] = await Promise.all([getContent(), currentBranch()])
   const [branches, brandRows] = await Promise.all([
     db.branch.findMany({ orderBy: { sort: 'asc' } }),
-    db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, byOrder: true } }),
+    db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, logo: true, byOrder: true } }),
   ])
   const ids: number[] = c.newest.products ?? []
   const products = ids.length ? await listProducts(branch.id, { ids }, {}) : await listProducts(branch.id, {}, { take: 6 })
@@ -180,11 +180,18 @@ export default async function Home() {
       <section className="bg-graphite">
         <div className="mx-auto max-w-[1440px] px-5 py-14 lg:px-20 lg:py-24">
           <Head title={c.brands.title} sub={c.brands.sub} dark />
-          {/* Nama merek dari tabel Brand (menu Merek), urut sort. Tanpa logo, supaya rapi untuk banyak merek. */}
-          <ul className="mx-auto mt-7 grid max-w-[1100px] grid-cols-2 gap-3 lg:mt-12 lg:grid-cols-4 lg:gap-5">
+          {/* Logo merek dari tabel Brand (menu Merek), urut sort, satu warna putih lewat filter CSS.
+              Merek tanpa logo memakai namanya sebagai teks. Desktop 6 per baris, mobile 3, baris terakhir rata tengah. */}
+          <ul className="mx-auto mt-8 flex max-w-[1180px] flex-wrap justify-center gap-x-4 gap-y-8 border-y border-[#2a2a2a] py-8 lg:mt-12 lg:gap-x-10 lg:gap-y-12 lg:py-12">
             {brandRows.map((b) => (
-              <li key={b.id} className="card-d flex h-[88px] flex-col items-center justify-center gap-1.5 px-2 text-center lg:h-[120px]">
-                <span className="font-display text-[17px] font-extrabold uppercase leading-tight tracking-[1.5px] text-white [overflow-wrap:anywhere] lg:text-[26px] lg:tracking-[3px]">{b.name}</span>
+              <li key={b.id} className="flex w-[calc((100%-2rem)/3)] flex-col items-center justify-start gap-2 text-center lg:w-[calc((100%-12.5rem)/6)]">
+                <div className="flex h-10 w-full items-center justify-center lg:h-14">
+                  {b.logo ? (
+                    <img src={b.logo} alt={b.name} loading="lazy" className="h-full w-auto max-w-full object-contain [filter:brightness(0)_invert(1)]" />
+                  ) : (
+                    <span className="font-display text-[15px] font-extrabold uppercase leading-tight tracking-[1px] text-white [overflow-wrap:anywhere] lg:text-[22px] lg:tracking-[2px]">{b.name}</span>
+                  )}
+                </div>
                 {b.byOrder && <span className="rounded border border-[#3a3a3a] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-mute-dark lg:text-[11px]">by order</span>}
               </li>
             ))}
