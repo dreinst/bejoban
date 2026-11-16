@@ -15,7 +15,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 7. Hierarki tombol. Satu tombol utama hitam (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan hitam. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
 8. Unggah gambar ringkas (`ImageField`, `ImagesInput`): pratinjau 56 px, tombol Ganti dan Hapus, satu baris keterangan ukuran dengan tautan "Panduan ukuran".
 9. Kepadatan seragam lewat komponen bersama. Jangan menulis kelas tabel, chip, atau kartu sendiri di halaman.
-10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu. Aksi utama tidak boleh butuh gulir mendatar.
+10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu. Aksi utama tidak boleh butuh gulir mendatar. Aksi baris (Ubah, Hapus) tampil sejajar dalam satu baris di dasar kartu, sakelar tidak boleh pecah dua baris.
 11. Aksesibilitas: label terhubung ke kolom, fokus terlihat, panel dan dialog tertutup dengan Escape lalu fokus kembali ke tombol pemicu, target sentuh minimal 44 px di layar kecil, gerak dimatikan saat `prefers-reduced-motion`.
 
 12. Satu nilai hanya bisa diubah di satu tempat. Tempat lain yang menampilkannya cukup membaca, dengan tautan "Ubah di ..." ke tempat ubahnya. Contoh: Nomor WhatsApp utama diubah di Situs, Tautan WhatsApp; nomor tiap cabang di Pengaturan, Cabang; nomor admin penerima ringkasan bot di Chatbot, Pengaturan bot; sakelar harga di Produk situs.
@@ -29,6 +29,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 | `SettingsGrid`, `Section` | `ui.tsx` | server | Halaman pengaturan: kartu per bagian, dua kolom di layar lebar |
 | `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana status, keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
 | `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris. `hanyaHp` menambah kolom khusus kartu HP, `tanpaBingkai` untuk tabel di dalam `Section` |
+| `BilahSimpan` | `bilah-simpan.tsx` | klien | Bilah simpan di dasar area konten untuk tabel sunting cepat, muncul bila ada baris berubah |
 | `ListToolbar`, `FilterChips`, `Halaman` | `data-table.tsx` | server | Jumlah item, pencarian `?q=`, saringan chip, navigasi `?hal=` untuk daftar panjang |
 | `TextField`, `SelectField`, `TextAreaField`, `CheckField`, `FormGrid`, `FormActions` | `field.tsx` | server | Kolom form berlabel dengan bantuan dan galat |
 | `Drawer`, `Modal`, `ConfirmDialog`, `CloseButton`, `SubmitButton` | `overlay.tsx` | klien | Panel samping, dialog, tombol batal dan simpan. Galat simpan tampil di dalam panel |
@@ -42,7 +43,7 @@ Aturan Next yang pernah jadi bug: kelas dan konstanta yang dipakai halaman serve
 
 ### Pola aksi server
 
-- Form di Drawer dan ConfirmDialog: aksi menyimpan, mencatat `catatAktivitas`, lalu `redirect` ke halaman yang sama dengan `?ok=pesan` atau `?err=pesan`. Toast membaca pesan itu lalu menghapusnya dari alamat. Alamat dengan `?ok=` atau `?err=` membuat Next memasang ulang isi halaman (kunci segmen mengikuti query), jadi keadaan Drawer tidak bisa bertahan di komponennya. `panel-simpan.ts` mencatat isian saat form dikirim. Saat `?ok=` tiba, panel tertutup dan toast sukses muncul. Saat `?err=` tiba, panel yang sama dibuka lagi, isiannya diisi ulang (kecuali kolom tersembunyi dan unggahan foto), galat tampil di dasar panel, dan toast galat ditiadakan. Form di halaman (bukan panel) yang perlu perilaku sama dibungkus `FormPulih`. Dua panel berjudul sama di satu halaman (tombol Tambah di header dan di `Empty`) diberi prop `kunci` yang berbeda.
+- Form di Drawer dan ConfirmDialog: aksi menyimpan, mencatat `catatAktivitas`, lalu `redirect` ke halaman yang sama dengan `?ok=pesan` atau `?err=pesan`. Toast membaca pesan itu lalu menghapusnya dari alamat. Alamat dengan `?ok=` atau `?err=` membuat Next memasang ulang isi halaman (kunci segmen mengikuti query), jadi keadaan Drawer tidak bisa bertahan di komponennya. `panel-simpan.ts` mencatat isian saat form dikirim. Saat `?ok=` tiba, panel tertutup dan toast sukses muncul. Saat `?err=` tiba, panel yang sama dibuka lagi, isiannya diisi ulang (kecuali kolom tersembunyi dan unggahan foto), galat tampil tepat di atas baris tombol simpan (slot `GalatSlot` di `FormActions`, di dasar panel hanya bila form tak punya slot), dan toast galat ditiadakan. Catatan hanya ada di memori tab, tidak mencatat kolom password, dan dihapus setelah dipakai, saat pindah halaman, dan saat keluar. Form di halaman (bukan panel) yang perlu perilaku sama dibungkus `FormPulih`. Dua panel berjudul sama di satu halaman (tombol Tambah di header dan di `Empty`) diberi prop `kunci` yang berbeda.
 - Sunting cepat (`QuickToggle`, `ReorderButtons`): aksi tidak redirect. Aksi memanggil `revalidatePath` lalu mengembalikan `{ ok }` atau `{ err }` untuk toast.
 - Semua aksi tetap cek sesi dan peran di server (`requireOwner`, `requireUser`, `canEditBranch`) dan memvalidasi input sendiri. Aturan hapus dicek ulang di server, tidak hanya di dialog.
 - Logika murni ada di `src/lib/admin/urutan.ts`: `geserUrutan` (tukar dengan tetangga dan rapikan nilai sort jadi 1, 2, 3), `urutanBerikut` (item baru di akhir), `aturanHapus` (boleh dihapus atau tidak, plus kalimat "X dipakai N produk.").
@@ -114,13 +115,13 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Ringkasan | `/admin` | ya | Kartu angka hanya untuk yang perlu ditindaklanjuti. Owner dan admin cabang. |
 | Stok dan harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah. |
 | Stok dan harga, Harga jasa | `/admin/harga-jasa` | ya | Urutan naik turun, form lengkap di panel. |
-| Stok dan harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris lalu satu tombol Simpan. Tambah produk bergaris karena tombol utamanya Simpan. |
+| Stok dan harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris. Bawaan hanya produk yang tampil, chip Disembunyikan (N) untuk sisanya. Satu tombol Simpan ada di bilah bawah (`BilahSimpan`) yang selebar area konten dan hanya muncul bila ada perubahan. Tambah produk bergaris karena tombol utamanya Simpan. |
 | Form produk | `/admin/produk/[id]` | ya | Halaman sendiri karena panjang. Hapus lewat dialog. |
 | Stok dan harga, Perlu dicek | `/admin/peringatan` | ya | Owner dan admin cabang. |
 | Chatbot, Percakapan | `/admin/chatbot` | ya | "Selesai, tidak tersedia" lewat dialog karena bot mengirim kalimat penutup. |
 | Chatbot, Kotak uji | `/admin/chatbot/uji` | ya | Hapus riwayat lewat dialog. |
-| Chatbot, Templat pesan | `/admin/chatbot/templat` | ya | Tabel 12 baris (Ke pelanggan, Ke admin), Ubah per templat di panel samping dengan pratinjau. Kembalikan satu atau semua ke bawaan. |
-| Ongkir, Hitung | `/admin/ongkir` | ya | Setelah dihitung, hasil di atas (total dan estimasi besar, rincian dilipat) dan form dilipat jadi "Ubah perhitungan". Kolom yang tidak dipakai mode terpilih disembunyikan. |
+| Chatbot, Templat pesan | `/admin/chatbot/templat` | ya | Tiga kelompok (Ke pelanggan, Ke admin, Untuk sosial media). Ubah per templat di panel samping dengan pratinjau, Salin untuk sosial media. Kembalikan satu atau semua ke bawaan. |
+| Ongkir, Hitung ongkir | `/admin/ongkir` | ya | Setelah dihitung, hasil di atas (total dan estimasi besar, rincian dilipat) dan form dilipat jadi "Ubah perhitungan". Kolom yang tidak dipakai mode terpilih disembunyikan. |
 | Ongkir, Tarif | `/admin/ongkir/tarif` | ya | Tempel banyak tarif di panel kedua. `?kota=` membuka panel tambah. |
 | Situs, Tampilan beranda | `/admin/konten`, `/admin/konten/[key]` | ya | Urutan tabel sama dengan beranda; bagian yang tidak tampil dilipat di bawah. Ikon dan tujuan tombol berupa pilihan berlabel. |
 | Situs, Merek | `/admin/merek` | ya | Halaman acuan. |
@@ -128,7 +129,7 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Situs, Tautan WhatsApp | `/admin/situs` | ya | Tautan pendek, nomor utama, kalimat pembuka (wajib memuat `{cabang}`). Sakelar harga ada di Produk situs. |
 | Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang langsung melihat formnya (Data cabang saya), tanpa tabel. |
 | Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset kata sandi di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
-| Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. Bot aktif dan jam di atas, angka teknis di Pengaturan lanjutan, peringatan nomor uji kosong. |
+| Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. Bot aktif dan jam di atas, angka teknis di Pengaturan lanjutan, peringatan nomor uji kosong, sambungan WhatsApp, nomor admin per cabang. |
 | Ongkir, Pengaturan | `/admin/ongkir/pengaturan` | ya | Khusus owner. Titik toko dari tautan Google Maps. |
 | Kalender (tanpa tab) | `/admin/kalender` | ya | Disembunyikan dari menu, datanya belum dipakai. Saringan Akan datang, Sudah lewat, Semua. |
 | Akun saya | `/admin/akun` | ya | |
