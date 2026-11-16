@@ -2,7 +2,7 @@ import 'server-only'
 import { db } from './db'
 import type { Session } from './auth'
 
-// Syarat "perlu dicek" yang sama untuk Ringkasan, tab Perlu dicek, dan angka kecil di tab.
+// Syarat "perlu dicek" yang sama untuk Ringkasan, tab Perlu dicek, dan angka kecil di tab (tanpa stok ban habis).
 // Owner melihat semua cabang. Admin cabang hanya cabangnya sendiri.
 export function syaratPerluDicek(s: Pick<Session, 'role' | 'branchId'>) {
   const owner = s.role === 'OWNER'
@@ -22,5 +22,6 @@ export async function hitungPerluDicek(s: Pick<Session, 'role' | 'branchId'>) {
     db.stockTire.count({ where: w.hargaMasalah }),
     db.listing.count({ where: w.produkStok0 }),
   ])
-  return { stokKosong, hargaMasalah, produkStok0, total: stokKosong + hargaMasalah + produkStok0 }
+  // Stok ban habis sering ratusan baris dan tidak butuh tindakan, jadi tidak ikut angka di tab.
+  return { stokKosong, hargaMasalah, produkStok0, total: hargaMasalah + produkStok0 }
 }

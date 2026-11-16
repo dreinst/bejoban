@@ -7,8 +7,10 @@ import { db } from '@/lib/db'
 import { createSession, destroySession, requireOwner, requireUser, canEditBranch, loginBlocked, loginFailed, loginOk } from '@/lib/auth'
 import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
+import { namaPendek } from '@/lib/tire/cabang'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
+import { aksesSimpanProduk, dijualTanpaHarga } from '@/lib/admin/produk'
 import { arahDari, aturanHapus, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
 import type { HasilAksi } from '@/components/admin/row-controls'
 
@@ -35,7 +37,7 @@ export async function login(_: unknown, fd: FormData) {
   const u = await db.user.findUnique({ where: { username } })
   if (!u || !(await bcrypt.compare(str(fd, 'password', 200), u.passwordHash))) {
     loginFailed(key)
-    return { error: 'Username atau password salah.' }
+    return { error: 'Nama pengguna atau kata sandi salah.' }
   }
   if (!u.aktif) return { error: 'Akun ini dinonaktifkan. Hubungi owner.' }
   loginOk(key)
@@ -53,29 +55,17 @@ export async function logout() {
 export async function saveProduct(fd: FormData) {
   const s = await requireUser()
   const id = int(fd, 'id')
+  const akses = aksesSimpanProduk(s.role, id)
+  if (akses === 'tolak') redirect('/admin?e=akses')
+  const balik = `/admin/produk/${id || 'baru'}`
   const name = str(fd, 'name', 200)
-  if (!name) gagal(`/admin/produk/${id || 'baru'}`, 'Nama produk wajib diisi')
-  let images: string[] = []
-  try {
-    images = (JSON.parse(str(fd, 'images', 5000) || '[]') as unknown[]).filter(isMedia).slice(0, 10)
-  } catch {}
-  const data = {
-    name,
-    spec: str(fd, 'spec', 100),
-    fitment: str(fd, 'fitment', 300),
-    description: str(fd, 'description', 5000),
-    images: JSON.stringify(images),
-    active: fd.get('active') === 'on',
-    isSample: fd.get('isSample') === 'on',
-    categoryId: int(fd, 'categoryId') || null,
-    brandId: int(fd, 'brandId') || null,
-  }
-  let slug = slugify(name) || 'produk'
-  const clash = await db.product.findFirst({ where: { slug, NOT: { id } } })
-  if (clash) slug = `${slug}-${Date.now().toString(36)}`
-  const product = id ? await db.product.update({ where: { id }, data: { ...data, slug } }) : await db.product.create({ data: { ...data, slug } })
+  if (akses === 'penuh' && !name) gagal(balik, 'Nama produk wajib diisi')
 
-  for (const b of await db.branch.findMany()) {
+  // Periksa semua harga dulu supaya tidak ada yang tersimpan setengah.
+  const branches = await db.branch.findMany()
+  const lama = id ? await db.listing.findMany({ where: { productId: id } }) : []
+  const rencana: { branchId: number; listing: { price: number; comparePrice: number; available: boolean; flashSale: boolean } }[] = []
+  for (const b of branches) {
     if (!canEditBranch(s, b.id) || !fd.has(`b${b.id}_price`)) continue
     const listing = {
       price: int(fd, `b${b.id}_price`),
@@ -83,16 +73,49 @@ export async function saveProduct(fd: FormData) {
       available: fd.get(`b${b.id}_sell`) === 'on',
       flashSale: fd.get(`b${b.id}_flash`) === 'on',
     }
-    const ref = { productId: product.id, branchId: b.id, pengguna: penggunaDari(s), refId: `produk:${product.id}` }
+    if (dijualTanpaHarga(listing, lama.find((l) => l.branchId === b.id))) gagal(balik, `Isi harga jual cabang ${namaPendek(b.name)}, atau hilangkan centang Dijual`)
+    rencana.push({ branchId: b.id, listing })
+  }
+
+  let product: { id: number; name: string }
+  if (akses === 'penuh') {
+    let images: string[] = []
+    try {
+      images = (JSON.parse(str(fd, 'images', 5000) || '[]') as unknown[]).filter(isMedia).slice(0, 10)
+    } catch {}
+    const data = {
+      name,
+      spec: str(fd, 'spec', 100),
+      fitment: str(fd, 'fitment', 300),
+      description: str(fd, 'description', 5000),
+      images: JSON.stringify(images),
+      active: fd.get('active') === 'on',
+      isSample: fd.get('isSample') === 'on',
+      categoryId: int(fd, 'categoryId') || null,
+      brandId: int(fd, 'brandId') || null,
+    }
+    let slug = slugify(name) || 'produk'
+    const clash = await db.product.findFirst({ where: { slug, NOT: { id } } })
+    if (clash) slug = `${slug}-${Date.now().toString(36)}`
+    product = id ? await db.product.update({ where: { id }, data: { ...data, slug } }) : await db.product.create({ data: { ...data, slug } })
+  } else {
+    // Admin cabang: data produk dipakai semua cabang dan tidak disentuh, hanya harga dan stok cabangnya.
+    const ada = await db.product.findUnique({ where: { id }, select: { id: true, name: true } })
+    if (!ada) redirect('/admin/harga')
+    product = ada
+  }
+
+  for (const { branchId, listing } of rencana) {
+    const ref = { productId: product.id, branchId, pengguna: penggunaDari(s), refId: `produk:${product.id}` }
     if (!listing.available && !listing.price) {
       await hapusListing(ref)
       continue
     }
     // Stok diubah lewat buku stok (src/lib/stok), satu transaksi dengan harga listing.
-    await simpanListing({ ...ref, data: listing, stok: int(fd, `b${b.id}_stock`) })
+    await simpanListing({ ...ref, data: listing, stok: int(fd, `b${branchId}_stock`) })
   }
   await catat(s, id ? 'ubah' : 'tambah', 'produk', { id: product.id })
-  done(`/admin/produk/${product.id}`, `${name} tersimpan`)
+  done(`/admin/produk/${product.id}`, `${product.name} tersimpan`)
 }
 
 export async function deleteProduct(fd: FormData) {
@@ -112,6 +135,8 @@ export async function savePrices(fd: FormData) {
   const branchId = int(fd, 'branchId')
   if (!canEditBranch(s, branchId)) redirect('/admin?e=akses')
   const ids = String(fd.get('ids') ?? '').split(',').map(Number).filter(Boolean)
+  const rencana: { productId: number; listing: { price: number; comparePrice: number; available: boolean; flashSale: boolean } }[] = []
+  const tanpaHarga: number[] = []
   for (const productId of ids) {
     const listing = {
       price: int(fd, `p${productId}_price`),
@@ -120,7 +145,16 @@ export async function savePrices(fd: FormData) {
       flashSale: fd.get(`p${productId}_flash`) === 'on',
     }
     const exists = await db.listing.findUnique({ where: { productId_branchId: { productId, branchId } } })
+    if (dijualTanpaHarga(listing, exists)) tanpaHarga.push(productId)
     if (!exists && !listing.available && !listing.price) continue
+    rencana.push({ productId, listing })
+  }
+  // Tolak semuanya kalau ada yang dijual tanpa harga, supaya tidak tersimpan separuh.
+  if (tanpaHarga.length) {
+    const nama = await db.product.findMany({ where: { id: { in: tanpaHarga } }, select: { name: true }, take: 3 })
+    gagal(`/admin/harga?cabang=${branchId}`, `Isi harga jual dulu atau hilangkan centang Dijual: ${nama.map((n) => n.name).join(', ')}${tanpaHarga.length > 3 ? `, dan ${tanpaHarga.length - 3} lainnya` : ''}`)
+  }
+  for (const { productId, listing } of rencana) {
     await simpanListing({ productId, branchId, data: listing, stok: int(fd, `p${productId}_stock`), pengguna: penggunaDari(s), refId: `harga:${branchId}` })
   }
   await catat(s, 'simpan', 'harga_cabang', { cabang: branchId, produk: ids.length })
@@ -391,10 +425,10 @@ export async function deleteUser(fd: FormData) {
 export async function changePassword(fd: FormData) {
   const s = await requireUser()
   const u = await db.user.findUniqueOrThrow({ where: { id: s.uid } })
-  if (!(await bcrypt.compare(str(fd, 'old', 200), u.passwordHash))) redirect('/admin/akun?err=Password lama salah')
+  if (!(await bcrypt.compare(str(fd, 'old', 200), u.passwordHash))) redirect('/admin/akun?err=Kata sandi lama salah')
   const pw = str(fd, 'new', 200)
-  if (pw.length < 8) redirect('/admin/akun?err=Password baru minimal 8 karakter')
+  if (pw.length < 8) redirect('/admin/akun?err=Kata sandi baru minimal 8 karakter')
   await db.user.update({ where: { id: s.uid }, data: { passwordHash: await bcrypt.hash(pw, 10) } })
   await catat(s, 'ganti_password', 'pengguna', { id: s.uid })
-  done('/admin/akun', 'Password diganti')
+  done('/admin/akun', 'Kata sandi diganti')
 }

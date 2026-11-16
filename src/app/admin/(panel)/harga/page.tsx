@@ -7,6 +7,9 @@ import { Badge, Empty, PageBody, PageHeader } from '@/components/admin/ui'
 import { DataTable, FilterChips, ListToolbar, Thumb } from '@/components/admin/data-table'
 import { inputCls } from '@/components/admin/form-cls'
 import { SubmitButton } from '@/components/admin/overlay'
+import { RupiahInput } from '@/components/admin/rupiah-input'
+import { PeringatanUbah } from '@/components/admin/peringatan-ubah'
+import { namaPendek } from '@/lib/tire/cabang'
 
 const SARINGAN = [
   { key: '', label: 'Semua' },
@@ -42,7 +45,9 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
     const p = new URLSearchParams(Object.entries({ cabang: owner ? String(branchId) : '', q, f, ...patch }).filter(([, v]) => v))
     return `/admin/harga${p.size ? `?${p}` : ''}`
   }
-  const tambah = <Link href="/admin/produk/baru" className="adm-btn-line">+ Tambah produk</Link>
+  // Produk dipakai bersama semua cabang, jadi hanya owner yang menambah.
+  const tambah = owner ? <Link href="/admin/produk/baru" className="adm-btn-line">+ Tambah produk</Link> : undefined
+  const namaCabang = namaPendek(branch.name)
   // Kolom isian: dibungkus supaya lebarnya tetap kecil di tabel dan tidak melebar di kartu 390 px.
   const angka = (name: string, label: string, value: string | number, lebar = 'w-28') => (
     <span className={`inline-block ${lebar} align-middle`}>
@@ -60,7 +65,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
       {owner && (
         <FilterChips
           label="Pilih cabang"
-          items={branches.map((b) => ({ href: url({ cabang: String(b.id) }), label: b.name, active: b.id === branchId }))}
+          items={branches.map((b) => ({ href: url({ cabang: String(b.id) }), label: namaPendek(b.name), active: b.id === branchId }))}
         />
       )}
       <ListToolbar
@@ -72,11 +77,12 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
         <FilterChips label="Saring produk" items={SARINGAN.map((x) => ({ href: url({ f: x.key }), label: x.label, active: f === x.key }))} />
       </ListToolbar>
       {products.length ? (
-        <form action={savePrices} className="space-y-4">
+        <form id="form-harga" action={savePrices} className="space-y-4 pb-20">
+          <PeringatanUbah formId="form-harga" />
           <input type="hidden" name="branchId" value={branchId} />
           <input type="hidden" name="ids" value={products.map((p) => p.id).join(',')} />
           <DataTable
-            caption={`Harga dan stok produk di ${branch.name}`}
+            caption={`Harga dan stok produk di cabang ${namaCabang}`}
             rows={products}
             rowKey={(p) => p.id}
             muted={(p) => !p.active}
@@ -84,33 +90,41 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
             columns={[
               {
                 key: 'produk',
-                header: `Produk (${branch.name})`,
+                header: `Produk (cabang ${namaCabang})`,
                 cell: (p) => (
                   <>
                     <span className="block font-semibold text-ink">{p.name}</span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-mute">
                       {[p.category?.name, p.brand?.name].filter(Boolean).join(' · ')}
                       {!parseImages(p.images).length && <Badge tone="outline">tanpa foto</Badge>}
-                      {p.isSample && <Badge>contoh</Badge>}
+                      {owner && p.isSample && <Badge>contoh</Badge>}
                       {!p.active && <Badge tone="light">disembunyikan</Badge>}
                     </span>
                   </>
                 ),
               },
-              { key: 'harga', header: 'Harga jual', align: 'right', cell: (p) => angka(`p${p.id}_price`, `Harga jual ${p.name}`, p.listings[0]?.price ?? '') },
-              { key: 'coret', header: 'Harga coret', align: 'right', cell: (p) => angka(`p${p.id}_compare`, `Harga coret ${p.name}`, p.listings[0]?.comparePrice || '') },
+              { key: 'harga', header: 'Harga jual', align: 'right', cell: (p) => <RupiahInput name={`p${p.id}_price`} label={`Harga jual ${p.name}`} defaultValue={p.listings[0]?.price ?? ''} /> },
+              { key: 'coret', header: 'Harga coret', align: 'right', cell: (p) => <RupiahInput name={`p${p.id}_compare`} label={`Harga coret ${p.name}`} defaultValue={p.listings[0]?.comparePrice || ''} /> },
               { key: 'stok', header: 'Stok', align: 'right', cell: (p) => angka(`p${p.id}_stock`, `Stok ${p.name}`, p.listings[0]?.stock ?? '', 'w-20') },
               {
                 key: 'dijual',
                 header: 'Dijual',
                 align: 'center',
-                cell: (p) => <input type="checkbox" name={`p${p.id}_sell`} aria-label={`Dijual ${p.name}`} defaultChecked={p.listings[0]?.available ?? false} className="size-5 accent-ink" />,
+                cell: (p) => (
+                  <label className="inline-grid size-6 place-items-center max-md:size-11">
+                    <input type="checkbox" name={`p${p.id}_sell`} aria-label={`Dijual ${p.name}`} defaultChecked={p.listings[0]?.available ?? false} className="size-5 accent-ink" />
+                  </label>
+                ),
               },
               {
                 key: 'flash',
-                header: 'Flash',
+                header: 'Promo kilat',
                 align: 'center',
-                cell: (p) => <input type="checkbox" name={`p${p.id}_flash`} aria-label={`Flash sale ${p.name}`} defaultChecked={p.listings[0]?.flashSale ?? false} className="size-5 accent-ink" />,
+                cell: (p) => (
+                  <label className="inline-grid size-6 place-items-center max-md:size-11">
+                    <input type="checkbox" name={`p${p.id}_flash`} aria-label={`Promo kilat ${p.name}`} defaultChecked={p.listings[0]?.flashSale ?? false} className="size-5 accent-ink" />
+                  </label>
+                ),
               },
             ]}
             actions={(p) => (
@@ -122,8 +136,8 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
           </div>
         </form>
       ) : (
-        <Empty title={q || f ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}>
-          {q || f ? 'Ubah kata pencarian atau pilih saringan Semua.' : 'Tambah produk pertama, lalu atur harga dan stoknya di sini.'}
+        <Empty title={q || f ? 'Tidak ada produk yang cocok' : 'Belum ada produk'} action={q || f ? undefined : tambah}>
+          {q || f ? 'Ubah kata pencarian atau pilih saringan Semua.' : owner ? 'Tambah produk pertama, lalu atur harga dan stoknya di sini.' : 'Produk ditambahkan oleh owner. Setelah ada, harga dan stok cabang kamu diatur di sini.'}
         </Empty>
       )}
     </PageBody>

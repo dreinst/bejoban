@@ -12,23 +12,27 @@ export default async function Akun() {
     <PageBody>
       <PageHeader title="Akun saya" />
       <SettingsGrid>
-        <Section title="Ganti password" description="Password baru minimal 8 karakter.">
+        <Section title="Ganti kata sandi">
           <form action={changePassword}>
             <FormGrid cols={1}>
-              <TextField label="Password lama" name="old" type="password" autoComplete="current-password" required />
-              <TextField label="Password baru" hint="Minimal 8 karakter." name="new" type="password" autoComplete="new-password" minLength={8} required />
+              <TextField label="Kata sandi lama" name="old" type="password" autoComplete="current-password" required />
+              <TextField label="Kata sandi baru" hint="Minimal 8 karakter." name="new" type="password" autoComplete="new-password" minLength={8} required />
             </FormGrid>
-            <FormActions><SubmitButton>Ganti password</SubmitButton></FormActions>
+            <FormActions><SubmitButton>Ganti kata sandi</SubmitButton></FormActions>
           </form>
         </Section>
-        <Section title="Info akun" description="Data ini hanya bisa diubah owner lewat menu Pengguna.">
-          <dl className="grid gap-y-3 text-sm sm:grid-cols-[120px_1fr]">
-            <dt className="text-mute">Nama</dt>
-            <dd className="font-semibold text-ink">{s.name}</dd>
-            <dt className="text-mute">Peran</dt>
-            <dd>{s.role === 'OWNER' ? 'Owner' : 'Admin cabang'}</dd>
-            <dt className="text-mute">Cabang</dt>
-            <dd>{s.role === 'OWNER' ? 'Semua cabang' : (cabang?.name.replace(/\s*\(.*\)/, '') ?? '-')}</dd>
+        <Section title="Info akun" description={s.role === 'OWNER' ? undefined : 'Data ini hanya bisa diubah owner lewat menu Pengguna.'}>
+          <dl className="space-y-3 text-sm">
+            {[
+              ['Nama', <span key="n" className="font-semibold text-ink">{s.name}</span>],
+              ['Peran', s.role === 'OWNER' ? 'Owner' : 'Admin cabang'],
+              ['Cabang', s.role === 'OWNER' ? 'Semua cabang' : (cabang?.name.replace(/\s*\(.*\)/, '') ?? '-')],
+            ].map(([k, v]) => (
+              <div key={String(k)} className="grid gap-0.5 sm:grid-cols-[120px_1fr] sm:gap-3">
+                <dt className="text-mute">{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
           </dl>
         </Section>
       </SettingsGrid>

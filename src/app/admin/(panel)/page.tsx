@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { hitungPerluDicek } from '@/lib/perlu-dicek'
+import { waktuWib } from '@/lib/format'
 import { PageBody, PageHeader, StatCard } from '@/components/admin/ui'
 
-const wib = (d: Date) => d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' })
 
 // Tanggal awal (waktu Jakarta) untuk hitungan 7 hari terakhir.
 const sevenDaysAgo = () => new Date(Date.now() + 7 * 3600_000 - 6 * 86400_000).toISOString().slice(0, 10)
@@ -23,7 +23,7 @@ export default async function Dashboard() {
 
   const tugas = [
     { n: menunggu, label: 'Percakapan menunggu admin', hint: 'balas pelanggan lalu tandai selesai', href: '/admin/chatbot?status=DISERAHKAN' },
-    { n: cek.stokKosong, label: 'Stok ban habis', hint: owner ? 'semua cabang' : 'di cabang kamu', href: '/admin/peringatan#stok-kosong' },
+    { n: cek.stokKosong, label: 'Stok ban habis', hint: owner ? 'semua cabang' : 'di cabang kamu', href: owner ? '/admin/stok-ban?f=habis' : '/admin/peringatan' },
     { n: cek.hargaMasalah, label: 'Harga ban perlu diisi', hint: 'harga kosong atau tidak terbaca', href: '/admin/peringatan#harga' },
     { n: cek.produkStok0, label: 'Produk situs stok 0', hint: 'masih dicentang Dijual', href: '/admin/peringatan#produk' },
     { n: noPhoto, label: 'Produk tanpa foto', hint: 'tampil di situs tanpa gambar', href: '/admin/harga?f=tanpa-foto' },
@@ -54,7 +54,7 @@ export default async function Dashboard() {
           <p className="mb-3 font-display text-base font-extrabold text-ink">Sinkron pricelist terakhir</p>
           {li ? (
             <>
-              <p className="font-display text-xl font-extrabold text-ink">{wib(new Date(li.at))}</p>
+              <p className="font-display text-xl font-extrabold text-ink">{waktuWib(li.at)}</p>
               <p className="mt-1 text-sm text-mute">{li.source === 'sheet' ? 'Google Sheets' : 'Berkas CSV'}, {li.total} ban, {li.problemCount} baris bermasalah saat impor.</p>
             </>
           ) : (

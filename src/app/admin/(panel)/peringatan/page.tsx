@@ -6,26 +6,24 @@ import { Badge, Empty, PageBody, PageHeader, Section } from '@/components/admin/
 import { DataTable } from '@/components/admin/data-table'
 
 const BATAS = 200
-const rp = (n: number | null) => (n === null ? '-' : 'Rp ' + n.toLocaleString('id-ID'))
 const pendek = (name: string) => name.replace(/\s*\(.*\)/, '')
 
-// Perlu dicek: produk situs yang dijual tapi stoknya 0, stok ban habis, dan harga ban yang kosong atau janggal.
+// Perlu dicek: harga ban yang kosong atau janggal, produk situs yang dijual tapi stoknya 0, dan ringkasan stok ban habis.
 // Owner melihat semua cabang. Admin cabang hanya cabangnya, dan stok ban tetap diperbaiki owner.
 export default async function Peringatan() {
   const s = await requireUser()
   const owner = s.role === 'OWNER'
   const w = syaratPerluDicek(s)
   const urut = [{ ring: 'asc' as const }, { sizeNorm: 'asc' as const }, { id: 'asc' as const }]
-  const [produk, nProduk, kosong, nKosong, masalah, nMasalah] = await Promise.all([
+  const [produk, nProduk, nKosong, masalah, nMasalah] = await Promise.all([
     db.listing.findMany({ where: w.produkStok0, include: { product: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } }, orderBy: [{ branchId: 'asc' }, { productId: 'asc' }], take: BATAS }),
     db.listing.count({ where: w.produkStok0 }),
-    db.stockTire.findMany({ where: w.stokKosong, orderBy: urut, take: BATAS }),
     db.stockTire.count({ where: w.stokKosong }),
     db.stockTire.findMany({ where: w.hargaMasalah, orderBy: urut, take: BATAS }),
     db.stockTire.count({ where: w.hargaMasalah }),
   ])
   const sebagian = (n: number, tampil: number) => n > tampil && <p className="mt-2 text-xs text-mute">Menampilkan {tampil} dari {n}.</p>
-  const semuaBeres = nProduk + nKosong + nMasalah === 0
+  const semuaBeres = nProduk + nMasalah === 0
   const tautan = 'adm-btn-line adm-btn-sm'
 
   return (
@@ -34,60 +32,7 @@ export default async function Peringatan() {
         title="Perlu dicek"
         note={owner ? 'Hal yang perlu ditindaklanjuti di stok dan harga.' : 'Hal yang perlu ditindaklanjuti di cabang kamu. Stok dan harga ban diperbaiki owner, jadi sampaikan ke owner kalau ada yang salah.'}
       />
-      {semuaBeres && <Empty title="Semua beres">Tidak ada produk atau ban yang perlu dicek sekarang.</Empty>}
-
-      {nProduk > 0 && (
-        <Section
-          id="produk"
-          title={`Produk situs dijual tapi stok 0 (${nProduk})`}
-          description="Isi stoknya, atau hilangkan centang Dijual kalau barangnya memang habis."
-          actions={
-            <Link href={`/admin/harga?${new URLSearchParams({ f: 'stok0' })}`} className={tautan}>Buka Produk situs</Link>
-          }
-        >
-          <DataTable
-            caption="Produk situs dijual tapi stok 0"
-            rows={produk}
-            rowKey={(l) => l.id}
-            columns={[
-              { key: 'produk', header: 'Produk', cell: (l) => <span className="font-semibold text-ink">{l.product.name}</span> },
-              ...(owner ? [{ key: 'cabang', header: 'Cabang', cell: (l: (typeof produk)[number]) => pendek(l.branch.name) }] : []),
-            ]}
-            actions={(l) => (
-              <Link
-                href={`/admin/harga?${new URLSearchParams({ ...(owner && { cabang: String(l.branch.id) }), f: 'stok0' })}`}
-                className={tautan}
-                aria-label={`Ubah stok ${l.product.name}`}
-              >
-                Ubah stok
-              </Link>
-            )}
-          />
-          {sebagian(nProduk, produk.length)}
-        </Section>
-      )}
-
-      {nKosong > 0 && (
-        <Section
-          id="stok-kosong"
-          title={`Stok ban habis (${nKosong})`}
-          description="Ban yang stoknya 0. Bot menjawab ban ini sebagai habis."
-          actions={owner ? <Link href="/admin/stok-ban" className={tautan}>Buka Stok ban</Link> : undefined}
-        >
-          <DataTable
-            caption="Stok ban habis"
-            rows={kosong}
-            rowKey={(r) => r.id}
-            columns={[
-              { key: 'ukuran', header: 'Ukuran', cell: (r) => <span className="font-semibold text-ink">{r.sizeRaw}</span> },
-              { key: 'merek', header: 'Merek', cell: (r) => r.brand },
-              { key: 'harga', header: 'Harga', align: 'right', cell: (r) => rp(r.price) },
-              { key: 'ket', header: 'Keterangan', cell: (r) => r.note || '-' },
-            ]}
-          />
-          {sebagian(nKosong, kosong.length)}
-        </Section>
-      )}
+      {semuaBeres && <Empty title="Semua beres">Tidak ada harga ban atau produk situs yang perlu dicek sekarang.</Empty>}
 
       {nMasalah > 0 && (
         <Section
@@ -121,6 +66,45 @@ export default async function Peringatan() {
           />
           {sebagian(nMasalah, masalah.length)}
         </Section>
+      )}
+      {nProduk > 0 && (
+        <Section
+          id="produk"
+          title={`Produk situs dijual tapi stok 0 (${nProduk})`}
+          description="Isi stoknya, atau hilangkan centang Dijual kalau barangnya memang habis."
+          actions={
+            <Link href={`/admin/harga?${new URLSearchParams({ f: 'stok0' })}`} className={tautan}>Buka Produk situs</Link>
+          }
+        >
+          <DataTable
+            caption="Produk situs dijual tapi stok 0"
+            rows={produk}
+            rowKey={(l) => l.id}
+            columns={[
+              { key: 'produk', header: 'Produk', cell: (l) => <span className="font-semibold text-ink">{l.product.name}</span> },
+              ...(owner ? [{ key: 'cabang', header: 'Cabang', cell: (l: (typeof produk)[number]) => pendek(l.branch.name) }] : []),
+            ]}
+            actions={(l) => (
+              <Link
+                href={`/admin/produk/${l.product.id}#harga`}
+                className={tautan}
+                aria-label={`Ubah stok ${l.product.name}`}
+              >
+                Ubah stok
+              </Link>
+            )}
+          />
+          {sebagian(nProduk, produk.length)}
+        </Section>
+      )}
+
+      {nKosong > 0 && (
+        <p className="adm-card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4 text-sm text-ink">
+          <span>
+            <b>{nKosong.toLocaleString('id-ID')} ban stoknya habis.</b> <span className="text-mute">Bot menjawabnya sebagai habis, tidak perlu diubah kalau memang kosong.</span>
+          </span>
+          {owner && <Link href="/admin/stok-ban?f=habis" className={tautan}>Lihat di Stok ban</Link>}
+        </p>
       )}
     </PageBody>
   )

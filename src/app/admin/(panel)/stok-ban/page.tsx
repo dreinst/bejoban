@@ -1,8 +1,11 @@
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { importStock, saveStockRow, syncSheet, tetapkanCabang } from '../../fitur-actions'
-import { Badge, Empty, PageBody, PageHeader, Section, SettingsGrid, StatCard } from '@/components/admin/ui'
-import { DataTable, FilterChips, ListToolbar } from '@/components/admin/data-table'
+import { Badge, Empty, PageBody, PageHeader, StatCard } from '@/components/admin/ui'
+import { DataTable, FilterChips, Halaman, ListToolbar } from '@/components/admin/data-table'
+import { BerkasInput } from '@/components/admin/berkas-input'
+import { waktuWib } from '@/lib/format'
 import { CheckField, FormActions, FormGrid, SelectField, TextAreaField, TextField } from '@/components/admin/field'
 import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
 import { bandingCabang, namaPendek } from '@/lib/tire/cabang'
@@ -28,7 +31,7 @@ type LastImport = {
   problems: { line: number; group: string; size: string; brand: string; priceRaw: string; stockRaw: string; reason: string; imported: boolean }[]
 }
 
-const wib = (iso: string) => new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+const wib = (iso: string) => waktuWib(iso)
 const GABUNGAN = '__gabungan'
 const rpAngka = (n: number | null) => (n === null ? 'kosong' : n.toLocaleString('id-ID'))
 const rp = (n: number | null) => (n === null ? 'kosong' : `Rp ${n.toLocaleString('id-ID')}`)
@@ -39,7 +42,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const sp = await searchParams
   const q = String(sp.q ?? '').trim().slice(0, 60)
   const ring = Number(sp.ring) || 0
-  const f = ['masalah', 'manual'].includes(String(sp.f)) ? String(sp.f) : ''
+  const f = ['masalah', 'manual', 'habis'].includes(String(sp.f)) ? String(sp.f) : ''
   const branches = await db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } })
   // Filter cabang: kosong = semua, "tanpa" = baris tanpa cabang, atau slug cabang.
   const cbRaw = String(sp.cb ?? '')
@@ -51,21 +54,24 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
     ...(ring && { ring }),
     ...(f === 'masalah' && { priceIssue: { not: '' } }),
     ...(f === 'manual' && { manual: true }),
+    ...(f === 'habis' && { stock: 0 }),
     ...(cb === 'tanpa' && { cabangId: null }),
     ...(cbBranch && { cabangId: cbBranch.id }),
     ...(q && { OR: [{ brand: { contains: q } }, { sizeRaw: { contains: q } }, { sizeNorm: { contains: q.replace(/\s/g, '') } }] }),
   }
+  const count = await db.stockTire.count({ where })
+  const halaman = Math.min(Math.max(1, Math.floor(Number(sp.hal)) || 1), Math.max(1, Math.ceil(count / BATAS)))
   const sheetKeys = ['stok.sheet', ...branches.map((b) => `stok.sheet.${b.slug}`), 'stok.sheet.gabungan']
-  const [rows, count, rings, last, sheets, issues, perCabang] = await Promise.all([
+  const [rows, rings, last, sheets, issues, perCabang, habis] = await Promise.all([
     banding
       ? db.stockTire.findMany({ where: { ...where, cabangId: undefined }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: 1500 })
-      : db.stockTire.findMany({ where, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: BATAS }),
-    db.stockTire.count({ where }),
+      : db.stockTire.findMany({ where, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], skip: (halaman - 1) * BATAS, take: BATAS }),
     db.stockTire.groupBy({ by: ['ring'], where: { aktif: true }, _count: true, orderBy: { ring: 'asc' } }),
     db.setting.findUnique({ where: { key: 'stok.lastImport' } }),
     db.setting.findMany({ where: { key: { in: sheetKeys } } }),
     db.stockTire.count({ where: { aktif: true, priceIssue: { not: '' } } }),
     db.stockTire.groupBy({ by: ['cabangId'], where: { aktif: true }, _count: true }),
+    db.stockTire.count({ where: { aktif: true, stock: 0 } }),
   ])
   const li: LastImport | null = last ? JSON.parse(last.value) : null
   const sheetUrl = (key: string): string => {
@@ -79,79 +85,71 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
     const p = new URLSearchParams(Object.entries({ q, ring: ring ? String(ring) : '', f, cb, view: banding ? 'banding' : '', ...patch }).filter(([, v]) => v) as [string, string][])
     return `/admin/stok-ban${p.size ? `?${p}` : ''}`
   }
-  const back = params({})
+  const back = params({ hal: halaman > 1 ? String(halaman) : '' })
   const targets = [
     { value: '', label: 'Tanpa cabang', url: sheetUrl('stok.sheet') },
     ...branches.map((b) => ({ value: b.slug, label: namaPendek(b.name), url: sheetUrl(`stok.sheet.${b.slug}`) })),
-    { value: GABUNGAN, label: 'Sheet gabungan', url: sheetUrl('stok.sheet.gabungan') },
+    { value: GABUNGAN, label: 'Satu sheet untuk semua cabang', url: sheetUrl('stok.sheet.gabungan') },
   ]
   const grup = banding ? bandingCabang(rows) : []
   const kolomBanding: (number | null)[] = [...(tanpaCabang ? [null] : []), ...branches.map((b) => b.id)]
+  const adaCabang = perCabang.some((x) => x.cabangId !== null)
+  const kolomCabang = !cb && adaCabang
   type Baris = (typeof rows)[number]
   type Grup = (typeof grup)[number]
-  const tujuanImpor = li ? (li.gabungan ? `sheet gabungan (${(li.bagian ?? []).map((b) => `${namaCabang(b.cabangId)} ${b.total} baris`).join(', ')})` : namaCabang(li.cabangId)) : ''
+  const tujuanImpor = li ? (li.gabungan ? `satu sheet untuk semua cabang (${(li.bagian ?? []).map((b) => `${namaCabang(b.cabangId)} ${b.total} baris`).join(', ')})` : namaCabang(li.cabangId)) : ''
 
-  return (
-    <PageBody>
-      <PageHeader
-        title="Stok ban"
-        note="Stok dan harga ban dari pricelist toko. Dipakai chatbot dan kalkulator ongkir, tidak tampil di situs. Tiap sinkron atau impor hanya mengganti stok cabang yang dipilih. Ban yang diubah manual dan dikunci tidak ditimpa."
-      />
-
-      <SettingsGrid>
-        <Section id="sinkron" title="Sinkron dari Google Sheets" description="Satu tautan per cabang. Bagikan spreadsheet sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. Yang diambil tab yang terbuka di tautan itu.">
-          <div className="space-y-3">
+  const perbarui = (
+    <Drawer
+      trigger="Perbarui dari pricelist"
+      triggerClassName="adm-btn"
+      title="Perbarui dari pricelist"
+      description="Tiap sinkron atau impor hanya mengganti stok cabang yang dipilih. Ban yang diubah manual dan dikunci tidak ditimpa."
+    >
+      <div className="space-y-6">
+        <section aria-labelledby="sinkron-judul">
+          <h3 id="sinkron-judul" className="font-display text-base font-extrabold text-ink">Ambil dari Google Sheets</h3>
+          <p className="mt-1 text-sm text-mute">Tempel satu tautan per cabang, lalu tekan Sinkron.</p>
+          <details className="mt-1">
+            <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink">Cara menyiapkan</summary>
+            <div className="space-y-1.5 pb-2 text-xs leading-snug text-mute">
+              <p>Di Google Sheets, bagikan spreadsheet dengan akses &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. Yang diambil adalah tab yang sedang terbuka di tautan itu.</p>
+              <p>Kalau satu sheet berisi dua cabang, tempel di kolom &quot;Satu sheet untuk semua cabang&quot; dan beri kolom &quot;Cabang&quot; (isi Batu atau Karanglo). Baris yang cabangnya kosong dilewati dan dilaporkan.</p>
+            </div>
+          </details>
+          <div className="mt-2 space-y-3">
             {targets.map((t) => (
               <form key={t.value || 'tanpa'} action={syncSheet} className="flex flex-wrap items-end gap-2">
                 <input type="hidden" name="cabang" value={t.value} />
-                <TextField className="min-w-0 flex-1 basis-60" id={`sheet-${t.value || 'tanpa'}`} label={t.label} name="url" defaultValue={t.url} placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" />
+                <TextField className="min-w-0 flex-1 basis-60" id={`sheet-${t.value || 'tanpa'}`} label={t.label} name="url" defaultValue={t.url} placeholder="Tempel tautan Google Sheets" />
                 <SubmitButton className="adm-btn-line" pending="Menyinkron...">Sinkron</SubmitButton>
               </form>
             ))}
           </div>
-          <p className="mt-3 text-xs text-mute">Sheet gabungan untuk satu sheet berisi dua cabang dengan kolom &quot;Cabang&quot; (isi Batu atau Karanglo). Baris yang cabangnya kosong dilewati dan dilaporkan.</p>
-        </Section>
+        </section>
 
-        <Section id="impor" title="Impor dari berkas CSV" description="Berkas atau isi CSV pricelist. Stok cabang tujuan diganti dengan isi berkas.">
+        <section aria-labelledby="impor-judul" className="border-t border-line pt-5">
+          <h3 id="impor-judul" className="font-display text-base font-extrabold text-ink">Impor dari berkas CSV</h3>
+          <p className="mb-3 mt-1 text-sm text-mute">Stok cabang tujuan diganti dengan isi berkas.</p>
           <form action={importStock}>
             <FormGrid cols={1}>
               <SelectField label="Masuk ke" name="cabang" id="impor-cabang" defaultValue="">
                 <option value="">Tanpa cabang</option>
                 {branches.map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
-                <option value={GABUNGAN}>Sheet gabungan (kolom Cabang)</option>
+                <option value={GABUNGAN}>Satu sheet untuk semua cabang (ada kolom Cabang)</option>
               </SelectField>
-              <TextField label="Berkas CSV" name="file" type="file" accept=".csv,text/csv,text/plain" />
-              <TextAreaField label="Atau tempel isi CSV" name="paste" rows={3} className="font-mono" placeholder=",Ukuran Ban,Merk,Harga Jual,Stok,Keterangan" />
+              <BerkasInput label="Berkas CSV" name="file" accept=".csv,text/csv,text/plain" />
+              <TextAreaField label="Atau tempel isi berkas" name="paste" rows={3} placeholder="Tempel isi pricelist di sini" />
             </FormGrid>
             <FormActions><SubmitButton pending="Mengimpor...">Impor dan ganti stok</SubmitButton></FormActions>
           </form>
-        </Section>
-
-        {tanpaCabang > 0 && branches.length > 0 && (
-          <Section id="tanpa-cabang" title={`Ban tanpa cabang (${tanpaCabang})`} description="Belum punya cabang, jadi dianggap stok bersama dan bot menjawabnya tanpa menanyakan cabang. Kalau sudah tahu milik cabang mana, tetapkan sekaligus.">
-            <div className="flex flex-wrap gap-2">
-              {branches.map((b) => (
-                <ConfirmDialog
-                  key={b.slug}
-                  trigger={`Tetapkan ke ${namaPendek(b.name)}`}
-                  triggerClassName="adm-btn-line"
-                  title={`Tetapkan ${tanpaCabang} ban ke ${namaPendek(b.name)}?`}
-                  message={
-                    <>
-                      <p>Semua {tanpaCabang} baris tanpa cabang menjadi stok cabang {namaPendek(b.name)}. Bot lalu hanya menyebut stok ini untuk pelanggan cabang itu.</p>
-                      <p className="text-mute">Baris yang ukuran dan mereknya sudah ada di {namaPendek(b.name)} dilewati dan tetap tanpa cabang. Aksi ini tercatat di log aktivitas dan buku stok.</p>
-                    </>
-                  }
-                  alternative={{ action: tetapkanCabang, fields: { cabang: b.slug, yakin: 'on' }, label: `Tetapkan ke ${namaPendek(b.name)}` }}
-                />
-              ))}
-            </div>
-          </Section>
-        )}
+        </section>
 
         {li && (
-          <Section id="hasil" title="Hasil impor terakhir" description={`${wib(li.at)}, ${li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, ke ${tujuanImpor}.`} wide={!tanpaCabang}>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <section aria-labelledby="hasil-judul" className="border-t border-line pt-5">
+            <h3 id="hasil-judul" className="font-display text-base font-extrabold text-ink">Hasil impor terakhir</h3>
+            <p className="mb-3 mt-1 text-sm text-mute">{wib(li.at)}, {li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, ke {tujuanImpor}.</p>
+            <div className="grid grid-cols-2 gap-3">
               <StatCard label="Baris masuk" value={li.total} hint={`${li.withPrice} dengan harga`} />
               <StatCard label="Tanpa harga" value={li.noPrice} />
               <StatCard label="Dilewati" value={li.skipped} />
@@ -180,12 +178,55 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                 {li.problemCount > li.problems.length && <p className="mt-2 text-xs text-mute">Hanya {li.problems.length} dari {li.problemCount} baris yang ditampilkan.</p>}
               </details>
             )}
-          </Section>
+          </section>
         )}
-      </SettingsGrid>
+      </div>
+    </Drawer>
+  )
+
+  return (
+    <PageBody>
+      <PageHeader
+        title="Stok ban"
+        note="Stok dan harga ban dari pricelist toko. Dipakai chatbot dan kalkulator ongkir, tidak tampil di situs."
+        actions={perbarui}
+      />
+
+      {li && (
+        <p className="text-sm text-mute">
+          Pricelist terakhir diperbarui {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, {tujuanImpor}).{' '}
+          {li.problemCount > 0 && <Link href={params({ f: 'masalah' })} className="font-semibold text-ink underline underline-offset-2">{li.problemCount} baris bermasalah</Link>}
+        </p>
+      )}
+
+      {tanpaCabang > 0 && branches.length > 0 && (
+        <div className="adm-card flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
+          <p className="min-w-0 flex-1 basis-72 text-sm text-ink">
+            <b>{tanpaCabang.toLocaleString('id-ID')} ban belum punya cabang.</b>{' '}
+            <span className="text-mute">Dianggap stok bersama, jadi bot menjawabnya tanpa menanyakan cabang. Kalau sudah tahu milik cabang mana, tetapkan sekaligus.</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {branches.map((b) => (
+              <ConfirmDialog
+                key={b.slug}
+                trigger={`Tetapkan ke ${namaPendek(b.name)}`}
+                triggerClassName="adm-btn-line adm-btn-sm"
+                title={`Tetapkan ${tanpaCabang} ban ke ${namaPendek(b.name)}?`}
+                message={
+                  <>
+                    <p>Semua {tanpaCabang} baris tanpa cabang menjadi stok cabang {namaPendek(b.name)}. Bot lalu hanya menyebut stok ini untuk pelanggan cabang itu.</p>
+                    <p className="text-mute">Baris yang ukuran dan mereknya sudah ada di {namaPendek(b.name)} dilewati dan tetap tanpa cabang. Aksi ini tercatat di log aktivitas dan buku stok.</p>
+                  </>
+                }
+                alternative={{ action: tetapkanCabang, fields: { cabang: b.slug, yakin: 'on' }, label: `Tetapkan ke ${namaPendek(b.name)}` }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <section aria-labelledby="isi-stok" className="space-y-3">
-        <h2 id="isi-stok" className="font-display text-lg font-extrabold text-ink">{banding ? 'Banding cabang' : 'Isi stok'}</h2>
+        <h2 id="isi-stok" className="sr-only">{banding ? 'Banding cabang' : 'Isi stok'}</h2>
         <ListToolbar
           count={banding ? Math.min(grup.length, 300) : rows.length}
           total={banding ? grup.length : count}
@@ -221,6 +262,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               { href: params({ f: '' }), label: 'Semua', active: !f },
               { href: params({ f: 'masalah' }), label: 'Harga bermasalah', active: f === 'masalah', count: issues },
               { href: params({ f: 'manual' }), label: 'Diubah manual', active: f === 'manual' },
+              { href: params({ f: 'habis' }), label: 'Stok habis', active: f === 'habis', count: habis },
             ]}
           />
         </div>
@@ -265,11 +307,12 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                   </span>
                 ),
               },
-              { key: 'ring', header: 'Ring', className: 'w-16', cell: (t) => `R${t.ring}` },
-              { key: 'cabang', header: 'Cabang', cell: (t) => (t.cabangId === null ? <Badge tone="outline">tanpa</Badge> : <Badge tone="light">{namaCabang(t.cabangId)}</Badge>) },
+              ...(kolomCabang
+                ? [{ key: 'cabang', header: 'Cabang', cell: (t: Baris) => (t.cabangId === null ? <Badge tone="outline">tanpa cabang</Badge> : <Badge tone="light">{namaCabang(t.cabangId)}</Badge>) }]
+                : []),
               { key: 'harga', header: 'Harga', align: 'right', cell: (t) => rp(t.price) },
               { key: 'potongan', header: 'Potongan', align: 'right', mobile: 'hide', cell: (t) => (t.discount ? rpAngka(t.discount) : '-') },
-              { key: 'stok', header: 'Stok', align: 'right', cell: (t) => t.stock },
+              { key: 'stok', header: 'Stok', align: 'right', cell: (t) => (t.stock === 0 ? <Badge tone="outline">Habis</Badge> : t.stock) },
               { key: 'ket', header: 'Keterangan', mobile: 'hide', cell: (t) => <span className="line-clamp-2 text-mute">{t.note || '-'}</span> },
             ]}
             actions={(t) => (
@@ -288,9 +331,10 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                 </form>
               </Drawer>
             )}
-            empty={<Empty title="Tidak ada baris stok">Impor pricelist dulu atau ubah pencarian dan saringan.</Empty>}
+            empty={<Empty title="Tidak ada baris stok" action={q || f || cb || ring ? <Link href="/admin/stok-ban" className="adm-btn-line">Hapus saringan</Link> : undefined}>{q || f || cb || ring ? 'Ubah pencarian dan saringan.' : 'Isi stok dulu lewat tombol Perbarui dari pricelist.'}</Empty>}
           />
         )}
+        {!banding && <Halaman hal={halaman} total={count} per={BATAS} href={(n) => params({ hal: n > 1 ? String(n) : '' })} />}
         {banding && grup.length > 300 && <p className="text-xs text-mute">Menampilkan 300 dari {grup.length}. Persempit dengan pencarian atau ring.</p>}
       </section>
     </PageBody>

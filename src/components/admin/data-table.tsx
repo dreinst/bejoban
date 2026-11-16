@@ -159,3 +159,26 @@ export function FilterChips({ label, items }: { label: string; items: { href: st
     </nav>
   )
 }
+
+/**
+ * Navigasi halaman untuk daftar panjang. `href(n)` memberi alamat halaman n lengkap dengan saringan yang aktif.
+ * Tidak tampil kalau hanya ada satu halaman.
+ */
+export function Halaman({ hal, total, per, href }: { hal: number; total: number; per: number; href: (n: number) => string }) {
+  const jumlah = Math.max(1, Math.ceil(total / per))
+  if (jumlah < 2) return null
+  const dari = (hal - 1) * per + 1
+  const sampai = Math.min(total, hal * per)
+  const tombol = 'adm-btn-line adm-btn-sm'
+  return (
+    <nav aria-label="Halaman daftar" className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-mute" aria-live="polite">
+        Baris {dari.toLocaleString('id-ID')} sampai {sampai.toLocaleString('id-ID')} dari {total.toLocaleString('id-ID')}. Halaman {hal} dari {jumlah}.
+      </p>
+      <div className="flex gap-2">
+        {hal > 1 ? <Link href={href(hal - 1)} rel="prev" className={tombol}>Sebelumnya</Link> : <span aria-disabled className={`${tombol} opacity-45`}>Sebelumnya</span>}
+        {hal < jumlah ? <Link href={href(hal + 1)} rel="next" className={tombol}>Berikutnya</Link> : <span aria-disabled className={`${tombol} opacity-45`}>Berikutnya</span>}
+      </div>
+    </nav>
+  )
+}

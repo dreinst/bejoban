@@ -34,13 +34,6 @@ const harga = (r: Jasa) => {
     </span>
   )
 }
-const rentang = (r: Jasa) => {
-  if (r.ringMin !== null && r.ringMax !== null) return r.ringMin === r.ringMax ? `R${r.ringMin}` : `R${r.ringMin} sampai R${r.ringMax}`
-  if (r.ringMin !== null) return `R${r.ringMin} ke atas`
-  if (r.ringMax !== null) return `sampai R${r.ringMax}`
-  return '-'
-}
-
 // Satu form untuk tambah dan ubah, dipakai di panel samping. Urutan diatur dengan tombol naik turun di tabel.
 function FormJasa({ r }: { r?: Jasa }) {
   return (
@@ -98,14 +91,19 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
         rows={list}
         rowKey={(r) => r.id}
         columns={[
-          { key: 'nama', header: 'Nama', mobile: 'title', cell: (r) => <span className="font-semibold text-ink">{r.name}</span> },
-          { key: 'kelompok', header: 'Kelompok', cell: (r) => r.groupName },
-          { key: 'variasi', header: 'Variasi', cell: (r) => r.variant || '-' },
+          {
+            key: 'nama',
+            header: 'Nama dan variasi',
+            mobile: 'title',
+            cell: (r) => (
+              <>
+                <span className="font-semibold text-ink">{r.name}</span>
+                {r.variant && <span className="block text-xs text-mute">{r.variant}</span>}
+              </>
+            ),
+          },
           { key: 'harga', header: 'Harga', align: 'right', cell: harga },
           { key: 'satuan', header: 'Satuan', cell: (r) => r.unit || '-' },
-          { key: 'ring', header: 'Rentang ring', className: 'whitespace-nowrap', cell: rentang },
-          { key: 'kunci', header: 'Kata kunci', mobile: 'hide', className: 'max-w-[200px]', cell: (r) => r.keywords || '-' },
-          { key: 'catatan', header: 'Catatan', mobile: 'hide', className: 'max-w-[200px]', cell: (r) => r.note || '-' },
           ...(q
             ? []
             : [
@@ -146,7 +144,7 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
           q ? (
             <Empty title="Jasa tidak ditemukan">Tidak ada jasa yang cocok dengan &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada harga jasa">Tambah jasa pertama lewat tombol di kanan atas supaya chatbot bisa menjawab harganya.</Empty>
+            <Empty title="Belum ada harga jasa" action={tambah}>Tambah jasa pertama supaya chatbot bisa menjawab harganya.</Empty>
           )
         }
       />
