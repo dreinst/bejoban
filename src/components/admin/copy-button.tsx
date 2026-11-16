@@ -11,7 +11,7 @@ export function CopyButton({ text, label = 'Salin ringkasan untuk WhatsApp' }: {
         setDone(true)
         setTimeout(() => setDone(false), 2000)
       }}
-      className="rounded-lg border border-ink px-4 py-2 text-sm font-semibold text-ink hover:bg-ink hover:text-white"
+      className="adm-btn-line"
     >
       {done ? 'Tersalin' : label}
     </button>

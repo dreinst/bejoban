@@ -7,7 +7,7 @@ import { ImagesInput } from './image-input'
 type Obj = Record<string, any>
 type Opt = { id: number; name: string }
 
-export const inputCls = 'w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-ink'
+export const inputCls = 'w-full rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 disabled:cursor-not-allowed disabled:bg-soft disabled:text-mute'
 
 function Fields({ fields, value, set, products }: { fields: Field[]; value: Obj; set: (v: Obj) => void; products: Opt[] }) {
   return (
@@ -80,7 +80,7 @@ export function SectionEditor({ sectionKey, fields, initial, products, action }:
       <input type="hidden" name="key" value={sectionKey} />
       <input type="hidden" name="value" value={JSON.stringify(value)} />
       <Fields fields={fields} value={value} set={setValue} products={products} />
-      <button className="rounded-lg bg-ink px-6 py-3 text-sm font-bold text-white">Simpan</button>
+      <button className="adm-btn adm-btn-lg">Simpan</button>
     </form>
   )
 }

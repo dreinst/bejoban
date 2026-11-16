@@ -25,7 +25,7 @@ export default async function Pengguna() {
         </select>
       </label>
       <label className={labelCls}>{u ? 'Password baru (kosongkan kalau tidak diganti)' : 'Password (min. 8 karakter)'}<input name="password" type="password" autoComplete="new-password" className={inputCls} /></label>
-      <div className="flex items-end"><button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button></div>
+      <div className="flex items-end"><button className="adm-btn">Simpan</button></div>
     </form>
   )
   return (

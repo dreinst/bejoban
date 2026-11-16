@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 // Kartu form sederhana untuk halaman CRUD kecil (kategori, merek, cabang, pengguna).
 export function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl bg-white p-5 shadow-sm">
-      <p className="mb-4 font-semibold text-ink">{title}</p>
+    <section className="adm-card p-5">
+      <p className="mb-4 font-display text-base font-extrabold text-ink">{title}</p>
       {children}
     </section>
   )

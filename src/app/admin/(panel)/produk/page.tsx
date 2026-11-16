@@ -19,7 +19,7 @@ export default async function Produk({ searchParams }: PageProps<'/admin/produk'
         <h1 className="text-2xl font-bold text-ink">Produk ({products.length})</h1>
         <div className="flex gap-2">
           <form><input name="q" defaultValue={q} placeholder="Cari nama…" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm" /></form>
-          <Link href="/admin/produk/baru" className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-paper">+ Tambah</Link>
+          <Link href="/admin/produk/baru" className="adm-btn">+ Tambah</Link>
         </div>
       </div>
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm">

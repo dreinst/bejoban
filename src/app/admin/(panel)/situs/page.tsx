@@ -80,7 +80,7 @@ export default async function Situs() {
           <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="showPrices" defaultChecked={s.showPrices} />Tampilkan harga di situs</label>
           <p className="mt-2 text-xs text-neutral-500">Bawaan mati. Kalau mati, beranda, daftar produk, detail, keranjang, dan flash sale hanya menampilkan ajakan tanya harga lewat WhatsApp. Harga jasa tidak pernah tampil di situs.</p>
         </Card>
-        <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button>
+        <button className="adm-btn">Simpan</button>
       </form>
     </div>
   )

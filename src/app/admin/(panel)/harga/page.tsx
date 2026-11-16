@@ -53,7 +53,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
             </tbody>
           </table>
         </div>
-        <button className="sticky bottom-4 mt-4 rounded-lg bg-ink px-6 py-3 text-sm font-bold text-white shadow-lg">Simpan semua harga</button>
+        <button className="sticky bottom-4 mt-4 adm-btn adm-btn-lg shadow-lg">Simpan semua harga</button>
       </form>
     </div>
   )

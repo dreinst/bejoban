@@ -9,13 +9,13 @@ Halaman admin ada di `/admin`. Ada dua peran:
 
 ## Menu
 
-- **Produk**: tambah, ubah, sembunyikan produk. Satu produk bisa dijual di beberapa cabang dengan harga dan stok berbeda.
-- **Pricelist & Stok**: tabel semua produk per cabang. Ubah banyak harga sekaligus lalu tekan *Simpan semua harga*. Centang *Flash* agar produk masuk bagian Flash Sale.
-- **Tampilan Web**: semua teks dan foto di halaman depan (hero, bar keunggulan, panel layanan, alur belanja, flash sale, banner promo, rekomendasi mobil, galeri, footer, SEO).
-- **Kategori** dan **Merek**: nama, urutan, ikon atau logo.
-- **Cabang**: alamat, WhatsApp, jam buka, Instagram, link Maps, foto.
-- **Pengguna**: buat akun admin, atur peran dan cabangnya, ganti password.
-- **Panduan Ukuran Foto**: tabel yang sama dengan di bawah.
+Menu sidebar dikelompokkan di satu berkas, `src/lib/admin-menu.ts` (urutan, judul kelompok, dan isi bisa diubah di sana, alamat halaman tidak ikut berubah). Di layar kecil menu dibuka dengan tombol di bilah atas.
+
+- **Analitik**: *Ringkasan* menampilkan jumlah produk, stok ban (jumlah baris, stok kosong, harga bermasalah), percakapan chatbot yang menunggu admin, klik WhatsApp per cabang 7 hari terakhir, dan waktu sinkron pricelist terakhir.
+- **Inventaris**: *Produk*, *Kategori*, *Merek*, *Pricelist & Stok* (tabel harga dan stok per cabang, ubah banyak sekaligus lalu *Simpan semua harga*), *Stok ban*, *Harga jasa*.
+- **Kasir dan Harga**: belum ada halaman, menyusul dari BejoStock.
+- **Kanal**: *Chatbot*, *Ongkir*, *Situs dan WhatsApp*, *Tampilan Web* (semua teks dan foto beranda), *Panduan Ukuran Foto*.
+- **Akses**: *Pengguna* (akun, peran, cabang), *Cabang* (alamat, WhatsApp, jam buka, Instagram, Maps, foto), *Akun Saya*.
 
 Produk dengan label **CONTOH** adalah data isian awal. Ganti nama, harga, dan fotonya, lalu hilangkan centang *Tandai sebagai produk contoh*, atau hapus produknya.
 
@@ -44,7 +44,7 @@ Tabel harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti ol
 
 ### Ongkir
 
-- **Kalkulator** (`/admin/ongkir`, semua admin): pilih ban dari stok, velg, atau berat manual. Tujuan dicari lewat kotak pencarian lokasi (OpenStreetMap lewat server, hasil disimpan di cache database). Pencarian hanya jalan saat tombol ditekan. Hasilnya nama tempat, kecamatan, kota atau kabupaten, provinsi, koordinat, dan jarak garis lurus dari cabang asal. Kota hasil pencarian dicocokkan dengan tabel tarif J&T Cargo dan Baraka Express. Kalau belum ada tarifnya, tampil "tarif belum diisi" dengan tautan untuk menambah tarif kota itu.
+- **Kalkulator** (`/admin/ongkir`, semua admin): pilih ban dari stok, velg, atau berat manual. Kolom yang tidak dipakai oleh pilihan itu dinonaktifkan, dan hasil menyebut dari mana berat diambil. Tujuan dicari lewat kotak alamat atau lokasi (OpenStreetMap lewat server). Alamat lengkap gaya Google Maps boleh ditempel utuh: pencarian mencoba teks utuh, lalu versi tanpa kode pos dan nomor rumah, lalu jalan plus kecamatan dan kabupaten, lalu kecamatan plus kabupaten dan provinsi, lalu kabupaten plus provinsi, dan berhenti di yang pertama ketemu (Photon sebagai cadangan). Hasil menyebut tingkat ketepatannya (titik alamat, kecamatan, atau kota atau kabupaten). Hasil kosong hanya diingat beberapa menit, dan tombol *Cari ulang* melewati cache. Pencarian hanya jalan saat tombol ditekan. Hasilnya nama tempat, kecamatan, kota atau kabupaten, provinsi, koordinat, dan jarak garis lurus dari cabang asal. Kota hasil pencarian dicocokkan dengan tabel tarif J&T Cargo dan Baraka Express. Kalau belum ada tarifnya, tampil "tarif belum diisi" dengan tautan untuk menambah tarif kota itu.
 - **Tarif dan pengaturan** (owner): tarif per kota diisi dari daftar harga agen. Atur juga koordinat cabang asal, pembagi berat volume, packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh.
 - Baris tarif dan berat ban bertanda CONTOH tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
 - Penyedia lokasi bawaan OpenStreetMap tanpa kunci. Untuk memakai Google Maps nanti, isi `GOOGLE_MAPS_API_KEY` di `.env`.
@@ -57,6 +57,12 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
 - **Tab Percakapan dan kotak uji**: daftar percakapan dengan filter status dan cabang, tombol penanda selesai, dan kotak uji (tidak membuat percakapan, tidak mengirim apa pun).
 - **Tab Pengaturan**: Sambungan WhatsApp (satu WAHA GOWS, satu nomor), Jam dan batas kirim, Templat pesan (dengan pratinjau), Nomor admin per cabang, dan Sosial media (templat balasan otomatis Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
 - **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA, dan label WhatsApp per cabang baru berupa fungsi kosong bercatatan.
+
+## Tampilan situs terbaru dan data lokal
+
+Beranda memakai desain hitam putih terbaru (hero, bar keunggulan, layanan, produk, alur, rekomendasi mobil, merek, galeri, lokasi). Semua teks dan foto tetap diatur dari *Tampilan Web*, bagian baru *Layanan bengkel* ikut di sana. Bagian flash sale, pembayaran, panel, dan promo tidak tampil di desain ini tapi isinya tetap tersimpan.
+
+Foto mobil, galeri, cabang, dan gambar ban pabrikan tidak masuk git. Letakkan di folder `data/seed-lokal/` bersama satu berkas `seed.json`, lalu jalankan `npm run seed:lokal` (di server: di dalam container dengan data di `/app/data/seed-lokal/`). Skrip ini aman dijalankan berulang: gambar yang sama tidak diunggah ulang, enam produk beranda dibuat lewat upsert (harga dan stok yang sudah diisi tidak ditimpa), produk bertanda CONTOH disembunyikan, dan konten beranda dipasang. Format `seed.json` ada di komentar awal `scripts/seed-lokal.ts`.
 
 ## Ukuran foto
 

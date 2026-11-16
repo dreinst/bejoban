@@ -71,7 +71,7 @@ export default async function PengaturanChatbot() {
             <label className={`${labelCls} md:col-span-4`}>Nomor uji (satu per baris)
               <textarea name="testNumbers" rows={3} defaultValue={s.testNumbers.join('\n')} className={`${inputCls} font-mono`} />
             </label>
-            <div className="md:col-span-4"><button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button></div>
+            <div className="md:col-span-4"><button className="adm-btn">Simpan</button></div>
           </form>
         </Card>
       </section>
@@ -81,7 +81,7 @@ export default async function PengaturanChatbot() {
           <p className="mb-4 text-sm text-neutral-500">Semua kalimat bot berasal dari templat ini. Tulis variabel dalam kurung kurawal, pratinjau di kanan memakai contoh isi.</p>
           <form action={saveBotTemplates} className="space-y-4">
             <TemplateEditor initial={templates} />
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan templat</button>
+            <button className="adm-btn">Simpan templat</button>
           </form>
           <form action={resetBotTemplates} className="mt-3"><button className="text-xs font-semibold text-red-600">Kembalikan semua templat ke bawaan</button></form>
         </Card>
@@ -104,7 +104,7 @@ export default async function PengaturanChatbot() {
               <input name="ownerNumber" defaultValue={s.ownerNumber} placeholder="0812..." className={inputCls} />
             </label>
             <p className="text-xs text-neutral-500 md:col-span-2">Saat serah terima, nomor ini menerima ringkasan (cabang, pertanyaan, hasil pencarian) dan nomornya disebut ke pelanggan.</p>
-            <div className="md:col-span-2"><button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan nomor admin</button></div>
+            <div className="md:col-span-2"><button className="adm-btn">Simpan nomor admin</button></div>
           </form>
         </Card>
       </section>
@@ -116,7 +116,7 @@ export default async function PengaturanChatbot() {
           </p>
           <form action={saveSosmed} className="space-y-4">
             <SosmedEditor initial={sosmed} tautanWa={tautanWa} />
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan templat sosmed</button>
+            <button className="adm-btn">Simpan templat sosmed</button>
           </form>
         </Card>
       </section>

@@ -12,7 +12,7 @@ export default async function Akun() {
         <form action={changePassword} className="space-y-3">
           <label className={labelCls}>Password lama<input name="old" type="password" autoComplete="current-password" required className={inputCls} /></label>
           <label className={labelCls}>Password baru (min. 8 karakter)<input name="new" type="password" autoComplete="new-password" required className={inputCls} /></label>
-          <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Ganti password</button>
+          <button className="adm-btn">Ganti password</button>
         </form>
       </Card>
     </div>

@@ -64,7 +64,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             Spreadsheet harus dibagikan sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. URL disimpan di pengaturan database, bukan di kode. Sinkron mengambil ekspor CSV tab yang dibuka (gid di URL) dan menjalankan impor yang sama.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Sinkron sekarang</button>
+            <button className="adm-btn">Sinkron sekarang</button>
             {li && <span className="text-xs text-neutral-600">Terakhir: {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}), {li.total} baris, {li.problemCount} bermasalah</span>}
           </div>
         </form>
@@ -80,7 +80,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             Atau tempel isi CSV di sini
             <textarea name="paste" rows={4} className={`${inputCls} font-mono`} placeholder=",Ukuran Ban,Merk,Harga Jual,Stok,Keterangan" />
           </label>
-          <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Impor dan ganti stok</button>
+          <button className="w-fit adm-btn">Impor dan ganti stok</button>
         </form>
       </Card>
 
@@ -134,7 +134,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             {rings.map((r) => <option key={r.ring} value={r.ring}>R{r.ring} ({r._count})</option>)}
           </select>
           <input type="hidden" name="f" value={f} />
-          <button className="rounded-lg border border-ink px-4 py-2 text-sm font-semibold text-ink">Cari</button>
+          <button className="adm-btn-line">Cari</button>
           <a href="/admin/stok-ban" className={chip(!f)}>Semua</a>
           <a href="/admin/stok-ban?f=masalah" className={chip(f === 'masalah')}>Harga bermasalah ({issues})</a>
           <a href="/admin/stok-ban?f=manual" className={chip(f === 'manual')}>Diubah manual</a>
@@ -161,7 +161,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                 <input name="stock" defaultValue={t.stock} inputMode="numeric" className={cell} aria-label="Stok" />
                 <input name="note" defaultValue={t.note} className={cell} aria-label="Keterangan" />
                 <label className="flex items-center gap-1 text-xs"><input type="checkbox" name="lock" defaultChecked={t.manual ? t.lockManual : true} />Kunci</label>
-                <button className="rounded border border-ink px-2 py-1 text-xs font-semibold">Simpan</button>
+                <button className="adm-btn-line adm-btn-sm">Simpan</button>
               </form>
             ))}
             {!rows.length && <p className="px-3 py-6 text-center text-sm text-neutral-500">Tidak ada baris. Impor pricelist dulu atau ubah pencarian.</p>}

@@ -37,7 +37,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
         <Card title="Kotak uji">
           <form action={testBot} className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input name="q" required maxLength={500} placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" className={inputCls} />
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Kirim uji</button>
+            <button className="adm-btn">Kirim uji</button>
             <div className="grid gap-2 md:col-span-2 md:grid-cols-2">
               <label className="block text-xs font-semibold text-neutral-700">Cabang yang sudah diingat untuk nomor ini
                 <select name="known" className={`${inputCls} mt-1`} defaultValue="">
@@ -110,8 +110,8 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
                       {!isClosed(c.status) && (
                         <form action={markConversation} className="flex flex-col gap-1">
                           <input type="hidden" name="id" value={c.id} />
-                          <button name="to" value="ada" className="rounded border border-ink px-2 py-1 text-xs font-semibold">Selesai, tersedia</button>
-                          <button name="to" value="tidak_ada" className="rounded border border-neutral-400 px-2 py-1 text-xs font-semibold text-neutral-700">Selesai, tidak tersedia</button>
+                          <button name="to" value="ada" className="adm-btn-line adm-btn-sm">Selesai, tersedia</button>
+                          <button name="to" value="tidak_ada" className="adm-btn-line adm-btn-sm !border-neutral-400 !text-neutral-700">Selesai, tidak tersedia</button>
                         </form>
                       )}
                     </td>

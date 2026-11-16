@@ -23,7 +23,7 @@ export default async function HargaJasa() {
       <label className={labelCls}>Harga kedua (Rp)<input name="altPrice" defaultValue={r?.altPrice ?? ''} inputMode="numeric" className={inputCls} /></label>
       <label className={labelCls}>Catatan<input name="note" defaultValue={r?.note} className={inputCls} /></label>
       <label className={`${labelCls} md:col-span-4`}>Kata kunci pencarian bot (pisah koma)<input name="keywords" defaultValue={r?.keywords} placeholder="spooring, spooling" className={inputCls} /></label>
-      <div className="flex items-end md:col-span-2"><button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button></div>
+      <div className="flex items-end md:col-span-2"><button className="adm-btn">Simpan</button></div>
     </form>
   )
   return (

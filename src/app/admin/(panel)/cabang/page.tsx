@@ -20,7 +20,7 @@ export default async function Cabang() {
       <label className={labelCls}>Layanan<input name="services" defaultValue={b?.services} className={inputCls} /></label>
       <label className={labelCls}>Urutan<input name="sort" type="number" defaultValue={b?.sort ?? list.length + 1} className={inputCls} /></label>
       <div className="md:col-span-2"><p className={labelCls}>Foto cabang</p><ImagesInput name="photo" value={b?.photo ? [b.photo] : []} preset="branch" max={1} /></div>
-      <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button>
+      <button className="w-fit adm-btn">Simpan</button>
     </form>
   )
   return (

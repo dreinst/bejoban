@@ -86,7 +86,7 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
             })}
           </div>
         </section>
-        <button className="rounded-lg bg-ink px-6 py-3 text-sm font-bold text-white">Simpan produk</button>
+        <button className="adm-btn adm-btn-lg">Simpan produk</button>
       </form>
       {p && s.role === 'OWNER' && (
         <form action={deleteProduct} className="mt-10 border-t border-neutral-200 pt-5">
