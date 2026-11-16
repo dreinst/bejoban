@@ -14,7 +14,7 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const [{ branch }, { showPrices }] = await Promise.all([currentBranch(), getSitus()])
   const [products, categories, brands] = await Promise.all([
     listProducts(branch.id, f, { sort }),
-    db.category.findMany({ orderBy: { sort: 'asc' } }),
+    db.category.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
     db.brand.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
   ])
   const href = (patch: Record<string, string | undefined>) => {

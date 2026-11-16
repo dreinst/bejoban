@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
@@ -12,6 +12,9 @@ import { X } from 'lucide-react'
 // Kalau aksi gagal (?err=), panel tetap terbuka dan galatnya tampil di dalam panel.
 
 const Ctx = createContext<{ close: () => void } | null>(null)
+const diam = () => () => {}
+// true hanya di browser setelah hidrasi; portal tidak boleh dirender di server.
+const useDiKlien = () => useSyncExternalStore(diam, () => true, () => false)
 
 type Base = {
   trigger: ReactNode // isi tombol pemicu
@@ -20,10 +23,13 @@ type Base = {
   title: string
   description?: ReactNode
   children: ReactNode
+  /** Terbuka saat halaman dimuat, mis. tautan dari halaman lain yang langsung menuju form tambah. */
+  defaultOpen?: boolean
 }
 
-function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, description, children }: Base & { variant: 'drawer' | 'modal' }) {
-  const [open, setOpen] = useState(false)
+function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, description, children, defaultOpen = false }: Base & { variant: 'drawer' | 'modal' }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const diKlien = useDiKlien()
   const [terkirim, setTerkirim] = useState(false)
   const btn = useRef<HTMLButtonElement>(null)
   const dlg = useRef<HTMLDialogElement>(null)
@@ -46,7 +52,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
 
   useEffect(() => {
     const d = dlg.current
-    if (open && d) {
+    if (open && diKlien && d) {
       if (!d.open) d.showModal()
       const pertama = d.querySelector<HTMLElement>('[autofocus], [data-autofocus], input:not([type=hidden]):not([disabled]), select, textarea, [data-body] button, [data-body] a')
       ;(pertama ?? d.querySelector<HTMLElement>('[data-close]'))?.focus()
@@ -54,7 +60,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
     } else if (!open && pernah.current) {
       btn.current?.focus()
     }
-  }, [open])
+  }, [open, diKlien])
 
   const close = () => {
     setOpen(false)
@@ -67,6 +73,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
         {trigger}
       </button>
       {open &&
+        diKlien &&
         createPortal(
           <dialog
             ref={dlg}

@@ -12,7 +12,7 @@ export function AdminTabs({ menu, badges = {} }: { menu: AdminMenu[]; badges?: R
   const m = menu.find((x) => x.key === active.menu)
   if (!m || m.tabs.length < 2 || !active.tab) return null
   return (
-    <nav aria-label={`Bagian ${m.label}`} className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <nav aria-label={`Bagian ${m.label}`} className="relative -mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0">
       <ul className="flex w-max min-w-full gap-1 border-b border-line">
         {m.tabs.map((t) => {
           const on = t.key === active.tab
