@@ -60,11 +60,11 @@ Semua halaman daftar (merek, kategori, cabang, pengguna, tarif, harga jasa, kale
 
 ### Ringkasan
 
-Ringkasan hanya menampilkan angka yang perlu ditindaklanjuti, dan tiap kartu membuka halamannya: percakapan menunggu admin, stok ban habis, harga ban perlu diisi, produk situs yang dijual tapi stoknya 0, dan produk tanpa foto. Kartu bernilai 0 disembunyikan. Kalau semuanya 0, tampil kalimat "Semua beres". Owner juga melihat klik WhatsApp per cabang 7 hari terakhir (membuka Tautan WhatsApp) dan sinkron pricelist terakhir (membuka Stok ban). Admin cabang hanya melihat angka cabangnya.
+Ringkasan hanya menampilkan angka yang perlu ditindaklanjuti, dan tiap kartu membuka halamannya: percakapan menunggu admin, stok ban habis, harga ban perlu diisi, produk dijual tanpa harga (hanya bila sakelar harga di situs menyala), dan produk tanpa foto. Kartu bernilai 0 disembunyikan. Kalau semuanya 0, tampil kalimat "Semua beres". Owner juga melihat klik WhatsApp per cabang 7 hari terakhir (membuka Tautan WhatsApp) dan sinkron pricelist terakhir (membuka Stok ban). Admin cabang hanya melihat angka cabangnya.
 
 ### Perlu dicek
 
-Tab *Perlu dicek* mendaftar produk situs yang dicentang Dijual tapi stoknya 0, stok ban yang habis, dan ban yang harganya kosong atau tidak terbaca. Angka kecil di tab menunjukkan jumlahnya. Admin cabang hanya melihat cabangnya; stok dan harga ban tetap diperbaiki owner di *Stok ban*.
+Tab *Perlu dicek* mendaftar ban yang harganya kosong atau tidak terbaca, dan produk dijual tanpa harga bila sakelar harga di situs menyala. Hanya dua hal itu yang dihitung di angka kecil pada tab. Stok ban yang habis dan produk situs berstok 0 bukan masalah (situs dan bot menjawabnya lewat WhatsApp), jadi hanya muncul sebagai satu baris keterangan dengan tautan. Kalau tidak ada yang perlu ditindak, angka hilang dan halaman menulis "Semua beres". Harga 0 selalu boleh disimpan; di situs harga 0 tidak pernah tampil sebagai "Rp 0", yang tampil ajakan tanya harga lewat WhatsApp. Admin cabang hanya melihat cabangnya; stok dan harga ban tetap diperbaiki owner di *Stok ban*.
 
 ### Produk situs
 

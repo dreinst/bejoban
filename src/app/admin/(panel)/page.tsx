@@ -25,7 +25,7 @@ export default async function Dashboard() {
     { n: menunggu, label: 'Percakapan menunggu admin', hint: 'balas pelanggan lalu tandai selesai', href: '/admin/chatbot?status=DISERAHKAN' },
     { n: cek.stokKosong, label: 'Stok ban habis', hint: owner ? 'semua cabang' : 'di cabang kamu', href: owner ? '/admin/stok-ban?f=habis' : '/admin/peringatan' },
     { n: cek.hargaMasalah, label: 'Harga ban perlu diisi', hint: 'harga kosong atau tidak terbaca', href: '/admin/peringatan#harga' },
-    { n: cek.produkStok0, label: 'Produk situs stok 0', hint: 'masih dicentang Dijual', href: '/admin/peringatan#produk' },
+    { n: cek.produkTanpaHarga, label: 'Produk dijual tanpa harga', hint: 'sakelar harga di situs menyala', href: '/admin/peringatan#produk' },
     { n: noPhoto, label: 'Produk tanpa foto', hint: 'tampil di situs tanpa gambar', href: '/admin/harga?f=tanpa-foto' },
   ].filter((t) => t.n > 0)
 

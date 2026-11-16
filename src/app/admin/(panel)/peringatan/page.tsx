@@ -2,25 +2,29 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { syaratPerluDicek } from '@/lib/perlu-dicek'
+import { getSitus } from '@/lib/situs-server'
 import { Badge, Empty, PageBody, PageHeader, Section } from '@/components/admin/ui'
 import { DataTable } from '@/components/admin/data-table'
 
 const BATAS = 200
 const pendek = (name: string) => name.replace(/\s*\(.*\)/, '')
 
-// Perlu dicek: harga ban yang kosong atau janggal, produk situs yang dijual tapi stoknya 0, dan ringkasan stok ban habis.
+// Perlu dicek: harga ban yang kosong atau janggal dan produk dijual tanpa harga (hanya bila sakelar harga menyala).
+// Stok ban habis dan produk situs stok 0 bukan masalah, jadi hanya jadi keterangan satu baris.
 // Owner melihat semua cabang. Admin cabang hanya cabangnya, dan stok ban tetap diperbaiki owner.
 export default async function Peringatan() {
   const s = await requireUser()
   const owner = s.role === 'OWNER'
   const w = syaratPerluDicek(s)
   const urut = [{ ring: 'asc' as const }, { sizeNorm: 'asc' as const }, { id: 'asc' as const }]
-  const [produk, nProduk, nKosong, masalah, nMasalah] = await Promise.all([
-    db.listing.findMany({ where: w.produkStok0, include: { product: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } }, orderBy: [{ branchId: 'asc' }, { productId: 'asc' }], take: BATAS }),
-    db.listing.count({ where: w.produkStok0 }),
+  const { showPrices } = await getSitus()
+  const [produk, nProduk, nKosong, masalah, nMasalah, nStok0] = await Promise.all([
+    showPrices ? db.listing.findMany({ where: w.produkTanpaHarga, include: { product: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } }, orderBy: [{ branchId: 'asc' }, { productId: 'asc' }], take: BATAS }) : [],
+    showPrices ? db.listing.count({ where: w.produkTanpaHarga }) : 0,
     db.stockTire.count({ where: w.stokKosong }),
     db.stockTire.findMany({ where: w.hargaMasalah, orderBy: urut, take: BATAS }),
     db.stockTire.count({ where: w.hargaMasalah }),
+    db.listing.count({ where: w.produkStok0 }),
   ])
   const sebagian = (n: number, tampil: number) => n > tampil && <p className="mt-2 text-xs text-mute">Menampilkan {tampil} dari {n}.</p>
   const semuaBeres = nProduk + nMasalah === 0
@@ -32,7 +36,7 @@ export default async function Peringatan() {
         title="Perlu dicek"
         note={owner ? 'Hal yang perlu ditindaklanjuti di stok dan harga.' : 'Hal yang perlu ditindaklanjuti di cabang kamu. Stok dan harga ban diperbaiki owner, jadi sampaikan ke owner kalau ada yang salah.'}
       />
-      {semuaBeres && <Empty title="Semua beres">Tidak ada harga ban atau produk situs yang perlu dicek sekarang.</Empty>}
+      {semuaBeres && <Empty title="Semua beres">Tidak ada yang perlu kamu tindak sekarang. Stok yang kosong bukan masalah: bot dan situs menjawabnya lewat WhatsApp.</Empty>}
 
       {nMasalah > 0 && (
         <Section
@@ -70,14 +74,12 @@ export default async function Peringatan() {
       {nProduk > 0 && (
         <Section
           id="produk"
-          title={`Produk situs dijual tapi stok 0 (${nProduk})`}
-          description="Isi stoknya, atau hilangkan centang Dijual kalau barangnya memang habis."
-          actions={
-            <Link href={`/admin/harga?${new URLSearchParams({ f: 'stok0' })}`} className={tautan}>Buka Produk situs</Link>
-          }
+          title={`Produk dijual tanpa harga (${nProduk})`}
+          description="Sakelar harga di situs menyala, jadi produk ini tampil sebagai ajakan tanya harga. Isi harganya, atau matikan sakelar di Produk situs."
+          actions={<Link href="/admin/harga" className={tautan}>Buka Produk situs</Link>}
         >
           <DataTable
-            caption="Produk situs dijual tapi stok 0"
+            caption="Produk dijual tanpa harga"
             rows={produk}
             rowKey={(l) => l.id}
             columns={[
@@ -88,9 +90,9 @@ export default async function Peringatan() {
               <Link
                 href={`/admin/produk/${l.product.id}#harga`}
                 className={tautan}
-                aria-label={`Ubah stok ${l.product.name}`}
+                aria-label={`Isi harga ${l.product.name}`}
               >
-                Ubah stok
+                Isi harga
               </Link>
             )}
           />
@@ -98,6 +100,14 @@ export default async function Peringatan() {
         </Section>
       )}
 
+      {nStok0 > 0 && (
+        <p className="adm-card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4 text-sm text-ink">
+          <span>
+            <b>{nStok0.toLocaleString('id-ID')} produk situs berstok 0.</b> <span className="text-mute">Situs menulis &quot;Stok ditanyakan lewat WhatsApp&quot;, tidak perlu diubah kalau memang belum ada barang.</span>
+          </span>
+          <Link href="/admin/harga?f=stok0" className={tautan}>Lihat di Produk situs</Link>
+        </p>
+      )}
       {nKosong > 0 && (
         <p className="adm-card flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4 text-sm text-ink">
           <span>
