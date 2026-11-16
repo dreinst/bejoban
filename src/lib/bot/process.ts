@@ -5,7 +5,7 @@ import { renderTemplate } from '../text/template'
 import { isClosed, isMuted, memoryFresh, muteUntil, nextStatus, type Status } from './conversation'
 import { findSizes } from '../tire/size'
 import { decide, jamBukaText, normalizeNumber } from './policy'
-import { handle } from './engine'
+import { handle, type AwaitAction } from './engine'
 import { loadContext } from './respond'
 
 export type Msg = { id: string; fromMe: boolean; timestamp: number; body?: string }
@@ -25,8 +25,8 @@ type Opts = {
   maxAgeSec?: number
   live: boolean
   log?: (s: string) => void
-  // Label WhatsApp per cabang. Label hanya ada di akun WhatsApp Business dan belum bisa diuji,
-  // jadi worker hanya menyediakan tempatnya (lihat scripts/bot-wa.ts).
+  // Label WhatsApp per cabang (akun WhatsApp Business). Dipanggil saat cabang percakapan diketahui atau berubah.
+  // Kegagalan tidak boleh menghentikan balasan, jadi pemanggilnya di bawah dibungkus try/catch.
   labelChat?: (chatId: string, branchSlug: string) => Promise<void>
 }
 
@@ -92,7 +92,7 @@ export async function processChat(chatId: string, messages: Msg[], o: Opts) {
       ...ctx,
       customer,
       knownBranch: memFresh,
-      awaiting: conv?.awaitingBranch ? { action: (conv.pendingAction as 'serah' | 'ganti') || 'serah', text: conv.pendingText } : null,
+      awaiting: conv?.awaitingBranch ? { action: (conv.pendingAction as AwaitAction) || 'serah', text: conv.pendingText } : null,
     })
     if (conv?.awaitingBranch && conv.pendingText && out.kind !== 'tanya_cabang') questionText = conv.pendingText
     // Cabang yang disebut atau dipilih pelanggan diingat per nomor.
@@ -130,7 +130,13 @@ export async function processChat(chatId: string, messages: Msg[], o: Opts) {
       result: out.result,
       mutedUntil: handoff ? muteUntil(now, settings.muteHours) : null,
     })
-    if (conv?.branchSlug && conv.branchSlug !== prevBranch) await o.labelChat?.(chatId, conv.branchSlug)
+    if (conv?.branchSlug && conv.branchSlug !== prevBranch) {
+      try {
+        await o.labelChat?.(chatId, conv.branchSlug)
+      } catch (e) {
+        o.log?.(`[${customer}] label WhatsApp gagal, balasan tetap dikirim: ${(e as Error).message}`)
+      }
+    }
     o.log?.(`[${customer}] ${JSON.stringify(text)} -> ${out.kind} (${out.reason})`)
     await deliver(o, chatId, out.reply, meta(`${d.reason}. ${out.reason}`, handoff), settings.gapSec)
     if (handoff && out.adminNote && out.adminNumber) {

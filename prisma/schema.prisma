@@ -182,7 +182,7 @@ model BotConversation {
   closingPending   Boolean   @default(false) // penutup "tidak tersedia" belum terkirim
   lastOutOfHoursAt DateTime?
   awaitingBranch   Boolean   @default(false) // bot sedang menunggu jawaban 1 atau 2 untuk cabang
-  pendingAction    String    @default("") // serah | ganti, tindakan yang menunggu jawaban cabang
+  pendingAction    String    @default("") // serah | ganti | stok, tindakan yang menunggu jawaban cabang
   pendingText      String    @default("") // pesan asal yang menunggu jawaban cabang
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

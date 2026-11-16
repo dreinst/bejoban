@@ -337,10 +337,22 @@ export async function testBot(fd: FormData) {
   if (!input) go('/admin/chatbot', 'Ketik pesan uji dulu', 'err')
   const known = str(fd, 'known', 40)
   const pending = str(fd, 'pending', 500)
-  const o = await runBot(input, '0857 0000 0000', { knownBranch: known || undefined, awaiting: pending ? { action: 'serah', text: pending } : null })
+  // Saklar stok per cabang untuk uji ini saja: kosong = ikut pengaturan.
+  const per = str(fd, 'perCabang', 5)
+  const o = await runBot(input, '0857 0000 0000', {
+    knownBranch: known || undefined,
+    awaiting: pending ? { action: 'stok', text: pending } : null,
+    ...(per === 'on' || per === 'off' ? { stokPerCabang: per === 'on' } : {}),
+  })
   const reply = o.reply + (o.adminNote ? `\n\n[Ringkasan ke admin ${o.adminNumber || '(nomor admin belum diisi)'}]\n${o.adminNote}` : '')
   const log = await db.botLog.create({
-    data: { source: 'UJI', input, reply, handoff: o.kind === 'serah', reason: `${o.kind}${known ? ` [cabang diingat ${known}]` : ''}${pending ? ' [menunggu jawaban cabang]' : ''}${o.branchSlug ? ` (cabang ${o.branchSlug})` : ' (cabang tidak dikenali)'}: ${o.reason}` },
+    data: {
+      source: 'UJI',
+      input,
+      reply,
+      handoff: o.kind === 'serah',
+      reason: `${o.kind}${known ? ` [cabang diingat ${known}]` : ''}${pending ? ' [menunggu jawaban cabang]' : ''}${per === 'on' ? ' [stok per cabang nyala]' : per === 'off' ? ' [stok per cabang mati]' : ''}${o.branchSlug ? ` (cabang ${o.branchSlug})` : ' (cabang tidak dikenali)'}: ${o.reason}`,
+    },
   })
   redirect(`/admin/chatbot?log=${log.id}#uji`)
 }
@@ -364,10 +376,11 @@ export async function saveBotHours(fd: FormData) {
     branchMemoryDays: Math.max(1, Math.min(int(fd, 'branchMemoryDays') || 30, 365)),
     branchWaitMin: Math.max(1, Math.min(int(fd, 'branchWaitMin') || 15, 1440)),
     restrictNumbers: fd.get('restrictNumbers') === 'on',
+    stokPerCabang: fd.get('stokPerCabang') === 'on',
     testNumbers,
   })
   await saveSetting('bot', next)
-  await catat(s, 'simpan', 'pengaturan_bot', { bagian: 'jam', nomorUji: testNumbers.length })
+  await catat(s, 'simpan', 'pengaturan_bot', { bagian: 'jam', nomorUji: testNumbers.length, stokPerCabang: next.stokPerCabang })
   go(BOT_PAGE, given.length > testNumbers.length ? `Tersimpan, ${given.length - testNumbers.length} nomor tidak valid atau dobel dibuang` : 'Jam dan batas kirim tersimpan')
 }
 

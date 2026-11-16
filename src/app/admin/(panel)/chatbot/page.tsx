@@ -38,7 +38,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
           <form action={testBot} className="grid gap-2 md:grid-cols-[1fr_auto]">
             <input name="q" required maxLength={500} placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" className={inputCls} />
             <button className="adm-btn">Kirim uji</button>
-            <div className="grid gap-2 md:col-span-2 md:grid-cols-2">
+            <div className="grid gap-2 md:col-span-2 md:grid-cols-3">
               <label className="block text-xs font-semibold text-neutral-700">Cabang yang sudah diingat untuk nomor ini
                 <select name="known" className={`${inputCls} mt-1`} defaultValue="">
                   <option value="">Belum ada</option>
@@ -47,6 +47,13 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
               </label>
               <label className="block text-xs font-semibold text-neutral-700">Opsional: pesan asal kalau mengetes jawaban 1 atau 2
                 <input name="pending" maxLength={500} placeholder="mis. ada ban 225/45 R17?" className={`${inputCls} mt-1`} />
+              </label>
+              <label className="block text-xs font-semibold text-neutral-700">Stok per cabang untuk uji ini
+                <select name="perCabang" className={`${inputCls} mt-1`} defaultValue="">
+                  <option value="">Ikut pengaturan</option>
+                  <option value="on">Nyala</option>
+                  <option value="off">Mati</option>
+                </select>
               </label>
             </div>
           </form>

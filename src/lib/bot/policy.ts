@@ -13,6 +13,7 @@ export type BotSettings = {
   branchWaitMin: number // menit menunggu jawaban cabang sebelum diserahkan ke owner
   branchAliases: Record<string, string[]> // kata lain pengenal cabang, kunci: slug
   ownerNumber: string // dipakai kalau cabang tidak dikenali atau nomor admin kosong
+  stokPerCabang: boolean // true: stok bercabang hanya disebut untuk cabang pelanggan, cabang ditanyakan dulu
 }
 
 export const DEFAULT_BOT: BotSettings = {
@@ -29,6 +30,7 @@ export const DEFAULT_BOT: BotSettings = {
   branchWaitMin: 15,
   branchAliases: { karanglo: ['singosari'] },
   ownerNumber: '',
+  stokPerCabang: true,
 }
 
 export const mergeBot = (saved: (Partial<BotSettings> & { numbers?: string[] }) | null | undefined): BotSettings => {

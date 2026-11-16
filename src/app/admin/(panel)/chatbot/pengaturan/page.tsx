@@ -67,6 +67,12 @@ export default async function PengaturanChatbot() {
             </label>
             <label className={labelCls}>Pilihan cabang diingat (hari)<input name="branchMemoryDays" defaultValue={s.branchMemoryDays} inputMode="numeric" className={inputCls} /></label>
             <label className={labelCls}>Menunggu jawaban cabang (menit)<input name="branchWaitMin" defaultValue={s.branchWaitMin} inputMode="numeric" className={inputCls} /></label>
+            <label className="flex items-start gap-2 text-sm md:col-span-4">
+              <input type="checkbox" name="stokPerCabang" defaultChecked={s.stokPerCabang} className="mt-1" />
+              <span>
+                <b>Stok per cabang.</b> Menyala: stok yang sudah ditetapkan ke cabang hanya disebut untuk cabang pelanggan, jadi bot menanyakan cabang dulu kalau belum tahu. Kalau cabang pelanggan kosong tapi cabang lain punya, bot hanya menyebut nama cabang itu (tanpa angka) lalu menyerahkan ke admin. Baris tanpa cabang tetap dijawab langsung. Mati: semua baris dianggap satu stok seperti dulu.
+              </span>
+            </label>
             <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" name="restrictNumbers" defaultChecked={s.restrictNumbers} />Batasi ke nomor uji saja (matikan kalau sudah siap melayani pelanggan)</label>
             <label className={`${labelCls} md:col-span-4`}>Nomor uji (satu per baris)
               <textarea name="testNumbers" rows={3} defaultValue={s.testNumbers.join('\n')} className={`${inputCls} font-mono`} />

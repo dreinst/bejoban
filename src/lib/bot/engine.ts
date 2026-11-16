@@ -6,6 +6,11 @@
 //  3. ada dan stok lebih dari 0 (atau jasa ada di tabel): jawab harga dan stok asli dari data
 //  4. selain itu (tidak ada, stok 0, harga kosong, tidak dikenali): jangan jawab harga,
 //     kirim satu kalimat serah ke admin dan siapkan ringkasan untuk admin
+//
+// Stok per cabang (ctx.stokPerCabang): baris tanpa cabang dijawab seperti biasa. Baris bercabang baru disebut
+// setelah cabang pelanggan diketahui (bot menanyakan cabang lebih dulu). Kalau cabang pelanggan kosong tapi
+// cabang lain punya stok, bot hanya menyebut nama cabang lain itu (tanpa angka stok dan harga) lalu menyerahkan
+// ke admin cabang pelanggan. Saklar mati: semua baris dianggap satu stok seperti sebelumnya.
 import { findRing, findSizes, type Size } from '../tire/size'
 import { renderTemplate } from '../text/template'
 import { detectBranch, type BotBranch } from './branch'
@@ -23,6 +28,7 @@ export type Tire = {
   discount: number
   stock: number
   note: string
+  cabang?: string | null // slug cabang pemilik baris, null atau kosong untuk baris tanpa cabang
 }
 
 export type Service = {
@@ -50,10 +56,16 @@ export type BotContext = {
   jamBuka?: string
   customer?: string
   knownBranch?: string // cabang yang diingat untuk nomor pelanggan ini (slug)
-  awaiting?: { action: 'serah' | 'ganti'; text: string } | null // bot sedang menunggu jawaban cabang
+  awaiting?: Awaiting | null // bot sedang menunggu jawaban cabang
+  stokPerCabang?: boolean // true: stok bercabang hanya disebut untuk cabang pelanggan (bawaan mati di mesin murni)
+  byOrderBrands?: string[] // nama merek berstatus by order dari tabel Brand
   forceOwner?: boolean // cabang tidak diketahui: serahkan ke owner tanpa bertanya lagi
   extraNote?: string // tambahan di ringkasan untuk admin
 }
+
+// Tindakan yang menunggu jawaban cabang: serah ke admin, ganti cabang, atau jawab stok bercabang.
+export type AwaitAction = 'serah' | 'ganti' | 'stok'
+export type Awaiting = { action: AwaitAction; text: string }
 
 export type Outcome = {
   kind: 'stok_ada' | 'jasa_ada' | 'sapaan' | 'tanya_ukuran' | 'serah' | 'tanya_cabang' | 'cabang_diganti'
@@ -68,7 +80,7 @@ export type Outcome = {
   result: string
   reason: string
   branchChosen: string // slug cabang yang disebut atau dipilih pelanggan di pesan ini, untuk diingat
-  awaiting: { action: 'serah' | 'ganti'; text: string } | null // simpan di percakapan kalau bot menanyakan cabang
+  awaiting: Awaiting | null // simpan di percakapan kalau bot menanyakan cabang
 }
 
 const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
@@ -155,14 +167,17 @@ const RE_BOOKING = /\b(?:mau|ingin|pengen|bisa|boleh)\s+(?:datang|dateng|mampir|
 const RE_GANTI = /\b(?:ganti|pindah|ubah)\s+cabang\b/i
 const GREETING = new Set('halo hai hi hello kak kakak bejo ban batu karanglo singosari saya aku mau ingin tanya bertanya nanya stok stock dan harga selamat pagi siang sore malam min admin permisi ada yang untuk dong ya mohon info informasi tentang pak bu mas mbak toko tolong cabang di'.split(' '))
 
+const labelCabang = (b: BotBranch) => b.name.replace(/\s*\(.*\)\s*/, '').trim()
+const daftarNama = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} dan ${xs[xs.length - 1]}`)
+
 function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | null): Outcome {
   const tpl = ctx.templates ?? DEFAULT_TEMPLATES
   const msg = text.trim()
-  const cabang = branch ? branch.name.replace(/\s*\(.*\)\s*/, '').trim() : 'Bejo Ban'
+  const cabang = branch ? labelCabang(branch) : 'Bejo Ban'
   const adminNumber = (branch && ctx.adminNumbers[branch.slug]) || ctx.ownerNumber || ''
   const base = { branchSlug: branch?.slug ?? '', branchLabel: cabang }
 
-  const serahNow = (reason: string, result: string, sizes: Size[] = []): Outcome => {
+  const serahNow = (reason: string, result: string, sizes: Size[] = [], reply = tpl.serahAdmin, extra: Record<string, string> = {}): Outcome => {
     const sizeLabel = sizes.map((s) => s.label).join(', ') || 'ban yang ditanyakan'
     const shown = adminNumber ? (adminNumber.startsWith('62') ? '0' + adminNumber.slice(2) : adminNumber) : ''
     const vars = {
@@ -173,10 +188,11 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
       pelanggan: ctx.customer ?? '',
       pertanyaan: msg + (ctx.extraNote ? ` (${ctx.extraNote})` : ''),
       hasil: result,
+      ...extra,
     }
     return {
       kind: 'serah',
-      reply: renderTemplate(tpl.serahAdmin, vars),
+      reply: renderTemplate(reply, vars),
       adminNote: renderTemplate(tpl.ringkasanAdmin, vars),
       adminNumber,
       status: 'DISERAHKAN',
@@ -189,7 +205,7 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
       ...base,
     }
   }
-  const ask = (reason: string, result: string, sizes: Size[] = []): Outcome => ({
+  const ask = (reason: string, result: string, sizes: Size[] = [], action: AwaitAction = 'serah'): Outcome => ({
     kind: 'tanya_cabang',
     reply: renderTemplate(tpl.tanyaCabang, { pilihan: branchChoices(ctx.branches) }),
     adminNote: null,
@@ -200,12 +216,12 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
     result,
     reason: `${reason}; cabang belum diketahui, bot menanyakan cabang`,
     branchChosen: '',
-    awaiting: { action: 'serah', text: msg },
+    awaiting: { action, text: msg },
     ...base,
   })
   // Cabang baru ditanyakan saat dibutuhkan, yaitu sebelum serah terima ke admin.
-  const serah = (reason: string, result: string, sizes: Size[] = []): Outcome =>
-    !branch && !ctx.forceOwner ? ask(reason, result, sizes) : serahNow(reason, result, sizes)
+  const serah = (reason: string, result: string, sizes: Size[] = [], reply?: string, extra?: Record<string, string>): Outcome =>
+    !branch && !ctx.forceOwner ? ask(reason, result, sizes) : serahNow(reason, result, sizes, reply, extra)
   const say = (kind: Outcome['kind'], reply: string, reason: string, result: string, sizes: Size[] = []): Outcome => ({
     kind,
     reply,
@@ -226,7 +242,11 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
   const sizes = findSizes(msg)
   const ring = sizes.length ? null : findRing(msg)
   const vocab = brandVocabulary(tires)
-  const terms = [...new Set(tokens(msg).filter((w) => vocab.has(w) && !CHAT_WORDS.has(w)))]
+  const lower = msg.toLowerCase()
+  // Merek by order dikenali dari namanya walau tidak ada di data stok, supaya pencarian menyaring merek itu.
+  const byOrder = (ctx.byOrderBrands ?? []).filter((n) => n.trim() && hasWord(lower, n.trim().toLowerCase()))
+  const byOrderTerms = byOrder.flatMap((n) => tokens(n))
+  const terms = [...new Set([...tokens(msg).filter((w) => vocab.has(w) && !CHAT_WORDS.has(w)), ...byOrderTerms])]
   const jasa = matchServices(msg, ctx.services ?? [], sizes, ring)
   const matchTerms = (t: Tire) => terms.every((w) => tokens(t.brand).includes(w))
   const whyParts: string[] = []
@@ -236,6 +256,32 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
   // Kalau pesan menyebut jasa, ukuran dan ring hanya dipakai untuk memilih tarif jasa, stok tidak dicari.
   const jasaMode = jasa.groups.length > 0
 
+  // Stok per cabang. Saklar mati: cabang baris diabaikan, semua baris satu stok seperti dulu.
+  const perCabang = !!ctx.stokPerCabang
+  const cabangBaris = (t: Tire) => (perCabang && t.cabang ? t.cabang : null)
+  const terlihat = (t: Tire) => {
+    const c = cabangBaris(t)
+    return c === null || (!!branch && c === branch.slug)
+  }
+  const cabangLainPunya = (rows: Tire[]) =>
+    branch ? [...new Set(rows.filter((t) => usable(t) && cabangBaris(t) !== null && cabangBaris(t) !== branch.slug).map((t) => cabangBaris(t)!))] : []
+  const namaCabang = (slug: string) => {
+    const b = ctx.branches.find((x) => x.slug === slug)
+    return b ? labelCabang(b) : slug
+  }
+  const tersediaLain: { ukuran: string; cabang: string[] }[] = []
+
+  // Baris bercabang hanya disebut setelah cabang pelanggan diketahui: tanyakan cabang lebih dulu.
+  if (perCabang && !branch && !ctx.forceOwner && !jasaMode && (sizes.length || terms.length)) {
+    const kandidat = sizes.length
+      ? tires.filter((t) => sizes.slice(0, 3).some((z) => z.norm === t.sizeNorm) && (!terms.length || matchTerms(t)))
+      : tires.filter((t) => (!ring || t.ring === ring) && matchTerms(t))
+    if (kandidat.some((t) => cabangBaris(t) !== null)) {
+      const what = sizes.length ? sizes.slice(0, 3).map((z) => z.label).join(', ') : [ring ? `ring ${ring}` : '', terms.join(' ')].filter(Boolean).join(' ')
+      return ask(`stok ${what} tercatat per cabang`, `${what}: stok per cabang, menunggu cabang`, sizes, 'stok')
+    }
+  }
+
   // Stok
   let stockFailed = false
   if (jasaMode) {
@@ -243,14 +289,18 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
   } else if (sizes.length) {
     const found: string[] = []
     for (const s of sizes.slice(0, 3)) {
-      const rows = tires.filter((t) => t.sizeNorm === s.norm && (!terms.length || matchTerms(t)))
+      const semua = tires.filter((t) => t.sizeNorm === s.norm && (!terms.length || matchTerms(t)))
+      const rows = semua.filter(terlihat)
       const ok = rows.filter(usable).sort(byPrice)
       if (!ok.length) {
         stockFailed = true
+        const lain = cabangLainPunya(semua)
+        if (lain.length) tersediaLain.push({ ukuran: s.label, cabang: lain })
         // Pelanggan menyebut merek yang tidak ada: laporkan juga kondisi ukuran tanpa filter merek.
-        const all = tires.filter((t) => t.sizeNorm === s.norm)
-        resultParts.push(`Ukuran ${s.label}${terms.length ? ` (${terms.join(' ')})` : ''}: ${describeMissing(rows)}${terms.length && !rows.length ? `; tanpa filter merek ${describeMissing(all)}` : ''}`)
-        whyParts.push(`${s.norm}: ${describeMissing(rows)}`)
+        const all = tires.filter((t) => t.sizeNorm === s.norm && terlihat(t))
+        const diLain = lain.length ? `; tersedia di cabang ${daftarNama(lain.map(namaCabang))}` : ''
+        resultParts.push(`Ukuran ${s.label}${terms.length ? ` (${terms.join(' ')})` : ''}: ${describeMissing(rows)}${terms.length && !rows.length ? `; tanpa filter merek ${describeMissing(all)}` : ''}${diLain}`)
+        whyParts.push(`${s.norm}: ${describeMissing(rows)}${diLain}`)
         continue
       }
       resultParts.push(`Ukuran ${s.label}: ${ok.length} baris ready`)
@@ -263,13 +313,17 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
       answers.push(renderTemplate(tpl.stokAda, { cabang, ukuran, daftar }))
     }
   } else if (ring || terms.length) {
-    const rows = tires.filter((t) => (!ring || t.ring === ring) && (!terms.length || matchTerms(t)))
+    const semua = tires.filter((t) => (!ring || t.ring === ring) && (!terms.length || matchTerms(t)))
+    const rows = semua.filter(terlihat)
     const ok = rows.filter(usable).sort(byPrice)
     const what = [ring ? `ring ${ring}` : '', terms.join(' ')].filter(Boolean).join(' ')
     if (!ok.length) {
       stockFailed = true
-      resultParts.push(`${what}: ${describeMissing(rows)}`)
-      whyParts.push(`${what}: ${describeMissing(rows)}`)
+      const lain = cabangLainPunya(semua)
+      if (lain.length) tersediaLain.push({ ukuran: what, cabang: lain })
+      const diLain = lain.length ? `; tersedia di cabang ${daftarNama(lain.map(namaCabang))}` : ''
+      resultParts.push(`${what}: ${describeMissing(rows)}${diLain}`)
+      whyParts.push(`${what}: ${describeMissing(rows)}${diLain}`)
     } else if (ok.length > MAX_LIST) {
       // Terlalu banyak untuk dijawab: minta ukuran, bukan kirim seluruh daftar.
       return say('tanya_ukuran', renderTemplate(tpl.tanyaUkuran, { cabang }), `${what}: ${ok.length} baris ready, minta ukuran`, `${what}: ${ok.length} baris ready`)
@@ -281,11 +335,13 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
   }
 
   // Jasa
+  let jasaFailed = false
   if (jasa.groups.length) {
     if (jasa.failed) {
       resultParts.push(jasa.failed)
       whyParts.push(jasa.failed)
       stockFailed = true
+      jasaFailed = true
     } else {
       answers.push(renderTemplate(tpl.jasaAda, { cabang, jasa: jasa.groups.join(', ').toLowerCase(), daftar: jasa.rows.map(serviceLine).join('\n') }))
       resultParts.push(`Jasa ${jasa.groups.join(', ')}: ${jasa.rows.length} baris tarif`)
@@ -315,11 +371,27 @@ function core(text: string, tires: Tire[], ctx: BotContext, branch: BotBranch | 
   if (!jasaMode && !sizes.length && ring && !terms.length) {
     return say('tanya_ukuran', renderTemplate(tpl.tanyaUkuran, { cabang }), `ring ${ring} saja, minta ukuran lengkap`, `ring ${ring}`)
   }
-  if (stockFailed || !answers.length) return serah(whyParts.join('; ') || 'tidak ada jawaban dari data', resultParts.join('; ') || 'tidak ada hasil', sizes)
+  if (stockFailed || !answers.length) {
+    const why = whyParts.join('; ') || 'tidak ada jawaban dari data'
+    const result = resultParts.join('; ') || 'tidak ada hasil'
+    // Kosong di cabang pelanggan tapi ada di cabang lain: sebut nama cabangnya saja, tanpa angka stok dan harga.
+    if (branch && tersediaLain.length && !jasaFailed) {
+      const lain = daftarNama([...new Set(tersediaLain.flatMap((x) => x.cabang))].map(namaCabang))
+      const ukuran = tersediaLain.map((x) => x.ukuran).join(', ')
+      return serahNow(`${why}; tersedia di cabang lain`, result, sizes, tpl.tersediaCabangLain, { cabangLain: lain, ukuran })
+    }
+    // Merek by order yang stoknya kosong: bisa dipesan dulu, serahkan ke admin cabang.
+    if (byOrder.length && !jasaMode) {
+      const ukuran = sizes.slice(0, 3).map((s) => s.label).join(', ') || (ring ? `ring ${ring}` : 'yang ditanyakan')
+      const merek = daftarNama(byOrder)
+      return serah(`${why}; merek by order ${merek}`, `${result}; merek by order: ${merek}`, sizes, tpl.merekByOrder, { merek, ukuran })
+    }
+    return serah(why, result, sizes)
+  }
   return say(jasaMode ? 'jasa_ada' : 'stok_ada', answers.join('\n\n'), whyParts.join('; '), resultParts.join('; '), sizes)
 }
 
-const branchChoices = (branches: BotBranch[]) => branches.map((b, i) => `${i + 1}. ${b.name.replace(/\s*\(.*\)\s*/, '').trim()}`).join('\n')
+const branchChoices = (branches: BotBranch[]) => branches.map((b, i) => `${i + 1}. ${labelCabang(b)}`).join('\n')
 
 // Jawaban angka atas pertanyaan cabang: "1" untuk cabang pertama, "2" untuk kedua.
 export function parseBranchPick(text: string, branches: BotBranch[]): BotBranch | null {
@@ -333,7 +405,7 @@ export function handle(text: string, tires: Tire[], ctx: BotContext): Outcome {
   const msg = text.trim()
   const detected = detectBranch(msg, ctx.branches)
   const known = ctx.knownBranch ? (ctx.branches.find((b) => b.slug === ctx.knownBranch) ?? null) : null
-  const label = (b: BotBranch) => b.name.replace(/\s*\(.*\)\s*/, '').trim()
+  const label = labelCabang
   const plain = (kind: Outcome['kind'], reply: string, reason: string, b: BotBranch | null, awaiting: Outcome['awaiting'] = null): Outcome => ({
     kind,
     reply,

@@ -15,14 +15,27 @@ export const loadSosmed = async (): Promise<Sosmed> => mergeSosmed(await read('b
 
 export async function loadContext(settings?: BotSettings): Promise<{ ctx: BotContext; tires: Tire[]; settings: BotSettings }> {
   const s = settings ?? (await loadBotSettings())
-  const [branches, tires, services, templates] = await Promise.all([
-    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
-    db.stockTire.findMany({ where: { aktif: true }, select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true } }),
+  const [branches, rows, services, templates, byOrder] = await Promise.all([
+    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } }),
+    db.stockTire.findMany({ where: { aktif: true }, select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true, cabangId: true } }),
     db.servicePrice.findMany({ orderBy: { sort: 'asc' } }),
     loadTemplates(),
+    db.brand.findMany({ where: { byOrder: true }, select: { name: true } }),
   ])
+  // Mesin jawab memakai slug cabang. Cabang yang sudah tidak ada tetap dianggap bercabang (tidak pernah cocok).
+  const slug = (id: number | null) => (id === null ? null : (branches.find((b) => b.id === id)?.slug ?? `cabang-${id}`))
+  const tires: Tire[] = rows.map(({ cabangId, ...t }) => ({ ...t, cabang: slug(cabangId) }))
   return {
-    ctx: { branches: branches.map((b) => ({ ...b, aliases: s.branchAliases[b.slug] ?? [] })), adminNumbers: s.adminNumbers, ownerNumber: s.ownerNumber, templates, services: services as Service[], jamBuka: jamBukaText(s) },
+    ctx: {
+      branches: branches.map((b) => ({ slug: b.slug, name: b.name, aliases: s.branchAliases[b.slug] ?? [] })),
+      adminNumbers: s.adminNumbers,
+      ownerNumber: s.ownerNumber,
+      templates,
+      services: services as Service[],
+      jamBuka: jamBukaText(s),
+      stokPerCabang: s.stokPerCabang,
+      byOrderBrands: byOrder.map((b) => b.name),
+    },
     tires,
     settings: s,
   }
