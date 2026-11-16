@@ -28,7 +28,9 @@ export type PriceProblem = {
   imported: boolean // true kalau barisnya tetap masuk (dengan harga kosong)
 }
 
-export type ParseResult = { rows: ParsedTire[]; problems: PriceProblem[]; skipped: number }
+// asal sejajar dengan rows: nomor baris berkas dan isi kolom Cabang (hanya kalau baris judul punya kolom "Cabang").
+export type AsalBaris = { line: number; cabang?: string }
+export type ParseResult = { rows: ParsedTire[]; problems: PriceProblem[]; skipped: number; asal?: AsalBaris[]; adaKolomCabang?: boolean }
 
 // Parser CSV sederhana: kutip ganda, koma di dalam kutip, CRLF.
 export function parseCsv(text: string): string[][] {
@@ -87,12 +89,29 @@ export function parsePricelist(csv: string): ParseResult {
   const table = parseCsv(csv)
   // Awal tiap kelompok kolom = kolom yang berisi "Ukuran Ban".
   const starts: number[] = []
+  const kolomCabang: number[] = []
   for (const r of table) {
     r.forEach((c, i) => {
       if (clean(c).toLowerCase() === 'ukuran ban' && !starts.includes(i)) starts.push(i)
     })
-    if (starts.length) break
+    if (starts.length) {
+      r.forEach((c, i) => {
+        if (clean(c).toLowerCase() === 'cabang') kolomCabang.push(i)
+      })
+      break
+    }
   }
+  starts.sort((a, b) => a - b)
+  // Kolom Cabang milik kelompok terdekat di kirinya (atau kelompok pertama kalau ada di paling kiri).
+  // Kalau hanya ada satu kolom Cabang, kolom itu berlaku untuk semua kelompok di baris yang sama.
+  const cabangUntuk = new Map<number, number>()
+  for (const k of kolomCabang) {
+    const c0 = [...starts].reverse().find((s0) => s0 <= k) ?? starts[0]
+    if (!cabangUntuk.has(c0)) cabangUntuk.set(c0, k)
+  }
+  if (kolomCabang.length === 1) for (const c0 of starts) if (!cabangUntuk.has(c0)) cabangUntuk.set(c0, kolomCabang[0])
+  const adaKolomCabang = kolomCabang.length > 0
+  const asal: AsalBaris[] = []
   const rows: ParsedTire[] = []
   const problems: PriceProblem[] = []
   let skipped = 0
@@ -108,6 +127,7 @@ export function parsePricelist(csv: string): ParseResult {
       const note = clean(r[c0 + 4])
       if (!size && !brand && !priceRaw && !stockRaw) continue
       if (size.toLowerCase() === 'ukuran ban') continue
+      const kc = cabangUntuk.get(c0)
       const g = RE_GROUP.exec(size)
       if (g && !brand && !priceRaw && !stockRaw) {
         group.set(c0, { name: size, ring: Number(g[1]) })
@@ -145,10 +165,11 @@ export function parsePricelist(csv: string): ParseResult {
         stock,
         note,
       })
+      asal.push(adaKolomCabang ? { line, cabang: kc === undefined ? '' : clean(r[kc]) } : { line })
       if (reasons.length) problems.push({ ...base, reason: reasons.join('; '), imported: true })
     }
   })
-  return { rows, problems, skipped }
+  return { rows, problems, skipped, asal, adaKolomCabang }
 }
 
 // ---- Baris yang diubah manual dan sinkron berikutnya ----

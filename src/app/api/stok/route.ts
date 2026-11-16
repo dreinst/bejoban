@@ -1,7 +1,10 @@
 // Stok saat ini dengan nama kolom gaya BejoStock. Hanya untuk sesi admin (dicek di sini, proxy hanya menjaga /admin).
-// Owner melihat semua. Admin cabang hanya melihat listing cabangnya dan tidak melihat stok ban.
+// Owner melihat semua. Admin cabang hanya melihat baris cabangnya (listing dan stok ban), tanpa baris stok ban tanpa cabang.
+// Stok ban: cabang_id diberikan berarti hanya baris cabang itu. Tanpa cabang_id (owner), semua baris ikut dan
+// baris yang belum ditetapkan cabangnya muncul dengan cabang_id null.
 import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { saringStokBan } from '@/lib/tire/cabang'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 
@@ -25,10 +28,7 @@ export async function GET(req: Request) {
       select: { productId: true, branchId: true, stock: true, product: { select: { kode: true, slug: true } } },
       orderBy: [{ branchId: 'asc' }, { productId: 'asc' }],
     }),
-    // Stok ban belum per cabang, jadi hanya ikut kalau tidak menyaring cabang.
-    cabangId === null
-      ? db.stockTire.findMany({ where: { aktif: true }, select: { kode: true, stock: true, importedAt: true, manualAt: true }, orderBy: { id: 'asc' } })
-      : Promise.resolve([]),
+    db.stockTire.findMany({ where: { aktif: true }, select: { kode: true, cabangId: true, stock: true, importedAt: true, manualAt: true }, orderBy: { id: 'asc' } }),
     db.bukuStok.groupBy({ by: ['kodeProduk', 'cabangId'], _max: { waktu: true } }),
   ])
   const waktu = new Map(terakhir.map((t) => [`${t.kodeProduk}|${t.cabangId ?? ''}`, t._max.waktu]))
@@ -39,9 +39,9 @@ export async function GET(req: Request) {
       const kode = l.product.kode || l.product.slug
       return { sumber: 'listing', produk_id: l.productId, kode, cabang_id: l.branchId, jumlah: l.stock, batas_minimum: null, diperbarui: iso(waktu.get(`${kode}|${l.branchId}`)) }
     }),
-    ...ban.map((b) => {
+    ...saringStokBan(ban, cabangId).map((b) => {
       const tAlt = b.manualAt && b.manualAt > b.importedAt ? b.manualAt : b.importedAt
-      return { sumber: 'stok_ban', produk_id: null, kode: b.kode, cabang_id: null, jumlah: b.stock, batas_minimum: null, diperbarui: iso(waktu.get(`${b.kode}|`) ?? tAlt) }
+      return { sumber: 'stok_ban', produk_id: null, kode: b.kode, cabang_id: b.cabangId, jumlah: b.stock, batas_minimum: null, diperbarui: iso(waktu.get(`${b.kode}|${b.cabangId ?? ''}`) ?? tAlt) }
     }),
   ]
   return Response.json({ data }, { headers: NO_STORE })

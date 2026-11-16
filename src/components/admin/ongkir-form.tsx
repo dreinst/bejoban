@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 
-type Size = { sizeNorm: string; sizeRaw: string; ring: number }
+// cabang: slug cabang yang punya ukuran ini, string kosong untuk baris stok tanpa cabang.
+type Size = { sizeNorm: string; sizeRaw: string; ring: number; cabang: string[] }
 type Branch = { slug: string; name: string }
 type Defaults = { mode: string; size: string; qty: number; kg: string; pl: string; lb: string; tg: string; cabang: string; packing: boolean; q: string; city: string }
 
@@ -11,6 +12,9 @@ const labelCls = 'block text-xs font-semibold text-neutral-700'
 // Kolom yang tidak dipakai oleh mode terpilih dinonaktifkan (dan tidak ikut terkirim), supaya jelas mana yang dihitung.
 export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defaults; sizes: Size[]; cities: string[]; branches: Branch[]; packingFee: string }) {
   const [mode, setMode] = useState(d.mode)
+  const [cabang, setCabang] = useState(d.cabang || branches[0]?.slug || '')
+  // Daftar ukuran mengikuti cabang asal: baris cabang itu ditambah baris tanpa cabang.
+  const pilihan = sizes.filter((s) => s.cabang.includes('') || s.cabang.includes(cabang))
   const stok = mode === 'stok'
   const velg = mode === 'velg'
   const manual = mode === 'manual'
@@ -25,9 +29,9 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
         </select>
       </label>
       <label className={`${labelCls} md:col-span-2`}>Ukuran ban
-        <select name="size" defaultValue={d.size} disabled={!stok} className={inputCls}>
-          <option value="">{sizes.length ? 'Pilih ukuran' : 'Stok kosong, impor dulu'}</option>
-          {sizes.map((s) => <option key={s.sizeNorm} value={s.sizeNorm}>{s.sizeRaw.trim()} (R{s.ring})</option>)}
+        <select key={cabang} name="size" defaultValue={pilihan.some((s) => s.sizeNorm === d.size) ? d.size : ''} disabled={!stok} className={inputCls}>
+          <option value="">{pilihan.length ? 'Pilih ukuran' : 'Stok cabang ini kosong, impor dulu'}</option>
+          {pilihan.map((s) => <option key={s.sizeNorm} value={s.sizeNorm}>{s.sizeRaw.trim()} (R{s.ring})</option>)}
         </select>
       </label>
       <label className={labelCls}>Jumlah
@@ -45,7 +49,7 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
         </span>
       </label>
       <label className={labelCls}>Cabang asal
-        <select name="cabang" defaultValue={d.cabang} className={inputCls}>
+        <select name="cabang" value={cabang} onChange={(e) => setCabang(e.target.value)} className={inputCls}>
           {branches.map((b) => <option key={b.slug} value={b.slug}>{b.name.replace(/\s*\(.*\)/, '')}</option>)}
         </select>
       </label>

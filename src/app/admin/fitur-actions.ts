@@ -4,14 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
-import { parsePricelist } from '@/lib/tire/pricelist'
+import { parsePricelist, type ParseResult } from '@/lib/tire/pricelist'
+import { namaPendek, pisahPerCabang } from '@/lib/tire/cabang'
+import { tetapkanTanpaCabang } from '@/lib/stok/tetapkan'
 import { CARRIERS, type Carrier, type ShippingSettings } from '@/lib/ongkir/types'
 import { mergeSettings } from '@/lib/ongkir/calc'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { mergeBot, normalizeNumber, type BotSettings } from '@/lib/bot/policy'
 import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/respond'
 import { CHANNELS, TEMPLATE_KEYS, type Sosmed, type Templates } from '@/lib/bot/templates'
-import { applyImport } from '@/lib/tire/import'
+import { applyImport, gabungRingkasan, simpanRingkasan, type ImportSource, type RingkasanImpor } from '@/lib/tire/import'
 import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
 import { mergeSitus } from '@/lib/situs'
 import { nextStatus, type Status } from '@/lib/bot/conversation'
@@ -38,38 +40,91 @@ const saveSetting = (key: string, value: unknown) =>
 /* ---------- Stok ban ---------- */
 
 const MAX_CSV = 2_000_000
+const STOK_PAGE = '/admin/stok-ban'
+// Nilai pilihan "sheet gabungan" di form: baris dibagi menurut kolom Cabang di sumber.
+const GABUNGAN = '__gabungan'
+
+type Tujuan = { jenis: 'tanpa' } | { jenis: 'cabang'; id: number; slug: string; name: string } | { jenis: 'gabungan' }
+
+// Tujuan impor dari form: kosong = tanpa cabang (perilaku lama), slug cabang, atau sheet gabungan.
+async function tujuanImpor(fd: FormData): Promise<Tujuan> {
+  const v = str(fd, 'cabang', 40)
+  if (!v) return { jenis: 'tanpa' }
+  if (v === GABUNGAN) return { jenis: 'gabungan' }
+  const b = await db.branch.findUnique({ where: { slug: v }, select: { id: true, slug: true, name: true } })
+  if (!b) return go(STOK_PAGE, 'Cabang tidak ditemukan', 'err')
+  return { jenis: 'cabang', ...b }
+}
+
+const labelTujuan = (t: Tujuan) => (t.jenis === 'cabang' ? `cabang ${namaPendek(t.name)}` : t.jenis === 'gabungan' ? 'sheet gabungan' : 'tanpa cabang')
+
+// Jalankan impor sesuai tujuan dan kembalikan pesan hasil. Sheet gabungan diimpor per cabang, satu transaksi per cabang.
+async function jalankanImpor(r: ParseResult, source: ImportSource, tujuan: Tujuan, s: { uid: number }): Promise<string> {
+  const pengguna = penggunaDari(s)
+  const aksi = source === 'sheet' ? 'sinkron' : 'impor'
+  if (tujuan.jenis === 'gabungan') {
+    if (!r.adaKolomCabang) go(STOK_PAGE, 'Sumber ini tidak punya kolom "Cabang" di baris judul. Pilih cabangnya, atau tambahkan kolom Cabang.', 'err')
+    const branches = await db.branch.findMany({ select: { id: true, slug: true, name: true } })
+    const { bagian, masalah } = pisahPerCabang(r, branches)
+    if (!bagian.length) go(STOK_PAGE, `Tidak ada baris dengan cabang yang dikenali (${masalah.length} baris dilewati). Isi kolom Cabang dengan Batu atau Karanglo.`, 'err')
+    const list: RingkasanImpor[] = []
+    for (const b of bagian) list.push(await applyImport(b.hasil, source, pengguna, b.cabang.id, false))
+    const sum = gabungRingkasan(list, source, { ...r, skipped: r.skipped + masalah.length, problems: [...masalah, ...r.problems] })
+    await simpanRingkasan(sum)
+    await catat(s, aksi, 'stok_ban', { sumber: source, cabang: 'gabungan', bagian: sum.bagian, cabangTakDikenal: masalah.length })
+    const rinci = bagian.map((b, i) => `${namaPendek(b.cabang.name)} ${list[i].total}`).join(', ')
+    return `${sum.total} baris masuk (${rinci})${masalah.length ? `, ${masalah.length} baris dilewati karena cabangnya kosong atau tidak dikenal` : ''}`
+  }
+  if (r.adaKolomCabang) go(STOK_PAGE, 'Sumber ini punya kolom "Cabang". Pilih "Sheet gabungan (kolom Cabang)" supaya baris dibagi menurut kolom itu.', 'err')
+  const cabangId = tujuan.jenis === 'cabang' ? tujuan.id : null
+  const sum = await applyImport(r, source, pengguna, cabangId)
+  await catat(s, aksi, 'stok_ban', { sumber: source, cabangId, total: sum.total, dibuat: sum.created, dinonaktifkan: sum.deactivated, diaktifkan: sum.reactivated, stokBerubah: sum.stockChanges })
+  return `${sum.total} baris masuk ke ${labelTujuan(tujuan)}`
+}
 
 export async function importStock(fd: FormData) {
   const s = await requireOwner()
+  const tujuan = await tujuanImpor(fd)
   const file = fd.get('file')
   let text = str(fd, 'paste', MAX_CSV)
   if (file instanceof File && file.size > 0) {
-    if (file.size > MAX_CSV) go('/admin/stok-ban', 'Berkas terlalu besar (maksimal 2 MB)', 'err')
+    if (file.size > MAX_CSV) go(STOK_PAGE, 'Berkas terlalu besar (maksimal 2 MB)', 'err')
     text = await file.text()
   }
-  if (!text.trim()) go('/admin/stok-ban', 'Pilih berkas CSV atau tempel isinya dulu', 'err')
+  if (!text.trim()) go(STOK_PAGE, 'Pilih berkas CSV atau tempel isinya dulu', 'err')
   const r = parsePricelist(text)
-  if (!r.rows.length) go('/admin/stok-ban', 'Tidak ada baris ban yang terbaca. Pastikan ada kolom "Ukuran Ban".', 'err')
-  const sum = await applyImport(r, 'berkas', penggunaDari(s))
-  await catat(s, 'impor', 'stok_ban', { sumber: 'berkas', total: sum.total, dibuat: sum.created, dinonaktifkan: sum.deactivated, diaktifkan: sum.reactivated, stokBerubah: sum.stockChanges })
-  go('/admin/stok-ban', `${sum.total} baris masuk`)
+  if (!r.rows.length) go(STOK_PAGE, 'Tidak ada baris ban yang terbaca. Pastikan ada kolom "Ukuran Ban".', 'err')
+  go(STOK_PAGE, await jalankanImpor(r, 'berkas', tujuan, s))
 }
 
-// Sinkron dari Google Sheets: ambil ekspor CSV lalu jalankan impor yang sama.
+// Kunci Setting untuk URL sheet. "stok.sheet" (lama) tetap dipakai untuk baris tanpa cabang.
+const kunciSheet = (t: Tujuan) => (t.jenis === 'cabang' ? `stok.sheet.${t.slug}` : t.jenis === 'gabungan' ? 'stok.sheet.gabungan' : 'stok.sheet')
+
+// Sinkron dari Google Sheets: ambil ekspor CSV lalu jalankan impor yang sama. URL disimpan per tujuan.
 export async function syncSheet(fd: FormData) {
   const s = await requireOwner()
+  const tujuan = await tujuanImpor(fd)
   const url = str(fd, 'url', 500)
-  if (!url) go('/admin/stok-ban', 'Isi URL spreadsheet dulu', 'err')
+  if (!url) go(STOK_PAGE, 'Isi URL spreadsheet dulu', 'err')
   const u = sheetCsvUrl(url, process.env.NODE_ENV !== 'production')
-  if (!u.ok) go('/admin/stok-ban', u.error, 'err')
-  await saveSetting('stok.sheet', { url })
+  if (!u.ok) go(STOK_PAGE, u.error, 'err')
+  await saveSetting(kunciSheet(tujuan), { url })
   const got = await fetchSheetCsv((u as { csvUrl: string }).csvUrl)
-  if (!got.ok) go('/admin/stok-ban', got.error, 'err')
+  if (!got.ok) go(STOK_PAGE, got.error, 'err')
   const r = parsePricelist((got as { text: string }).text)
-  if (!r.rows.length) go('/admin/stok-ban', 'Spreadsheet terbaca tapi tidak ada baris ban. Pastikan ada kolom "Ukuran Ban".', 'err')
-  const sum = await applyImport(r, 'sheet', penggunaDari(s))
-  await catat(s, 'sinkron', 'stok_ban', { sumber: 'sheet', total: sum.total, dibuat: sum.created, dinonaktifkan: sum.deactivated, diaktifkan: sum.reactivated, stokBerubah: sum.stockChanges })
-  go('/admin/stok-ban', `Sinkron selesai, ${sum.total} baris`)
+  if (!r.rows.length) go(STOK_PAGE, 'Spreadsheet terbaca tapi tidak ada baris ban. Pastikan ada kolom "Ukuran Ban".', 'err')
+  go(STOK_PAGE, `Sinkron selesai, ${await jalankanImpor(r, 'sheet', tujuan, s)}`)
+}
+
+// Tetapkan semua baris tanpa cabang ke satu cabang. Wajib centang "Yakin".
+export async function tetapkanCabang(fd: FormData) {
+  const s = await requireOwner()
+  if (fd.get('yakin') !== 'on') go(STOK_PAGE, 'Centang "Yakin" dulu', 'err')
+  const b = await db.branch.findUnique({ where: { slug: str(fd, 'cabang', 40) }, select: { id: true, name: true } })
+  if (!b) return go(STOK_PAGE, 'Pilih cabang tujuan', 'err')
+  const h = await tetapkanTanpaCabang(b.id, penggunaDari(s))
+  await catat(s, 'tetapkan_cabang', 'stok_ban', { cabangId: b.id, dipindah: h.dipindah, dilewati: h.dilewati })
+  go(STOK_PAGE, `${h.dipindah} baris ditetapkan ke ${namaPendek(b.name)}${h.dilewati ? `, ${h.dilewati} baris dilewati karena kodenya sudah ada di cabang itu` : ''}`)
 }
 
 // Ubah satu baris stok langsung di tabel. Baris diberi penanda manual.

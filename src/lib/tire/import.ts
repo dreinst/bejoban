@@ -7,13 +7,18 @@ export type ImportSource = 'berkas' | 'sheet'
 // Terapkan hasil impor ke database dengan upsert per kode, jadi id baris tetap antar impor.
 // Baris yang hilang dari sumber dinonaktifkan (tidak dihapus) dan aktif lagi kalau muncul kembali.
 // Baris manual yang dikunci tidak ditimpa. Tiap perubahan stok dicatat di buku_stok bertipe impor.
-export async function applyImport(r: ParseResult, source: ImportSource, pengguna: string | null = null) {
+//
+// Impor bekerja per cabang: cabangId berisi id cabang, atau null untuk baris tanpa cabang (perilaku lama).
+// Semua langkah (cocokkan kode, gabung baris manual, nonaktifkan yang hilang) hanya melihat baris cabang itu,
+// jadi impor ke satu cabang tidak menyentuh cabang lain maupun baris tanpa cabang.
+// simpan = false: ringkasan tidak ditulis ke stok.lastImport (dipakai impor sheet gabungan yang menulis sendiri).
+export async function applyImport(r: ParseResult, source: ImportSource, pengguna: string | null = null, cabangId: number | null = null, simpan = true) {
   const now = new Date()
-  const refId = `impor:${source}:${now.toISOString()}`
+  const refId = `impor:${source}:${cabangId ?? 'tanpa'}:${now.toISOString()}`
   const hasil = await db.$transaction(
     async (tx) => {
       const isi = await isiKodeKosong(tx)
-      const lama = await tx.stockTire.findMany()
+      const lama = await tx.stockTire.findMany({ where: { cabangId } })
       const byKode = new Map(lama.map((o) => [o.kode!, o]))
       const manual: ManualRow[] = lama
         .filter((o) => o.manual)
@@ -40,7 +45,7 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
         const o = byKode.get(kode)
         let id: number
         if (!o) {
-          id = (await tx.stockTire.create({ data: { ...nilai, kode, stock: 0, importedAt: now } })).id
+          id = (await tx.stockTire.create({ data: { ...nilai, kode, cabangId, stock: 0, importedAt: now } })).id
           n.created++
         } else {
           id = o.id
@@ -60,13 +65,13 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
       }
 
       const kodeSumber = new Set(merged.rows.map((x) => x.kode))
-      await tx.stockTire.updateMany({ where: { kode: { in: [...kodeSumber] } }, data: { importedAt: now } })
+      await tx.stockTire.updateMany({ where: { cabangId, kode: { in: [...kodeSumber] } }, data: { importedAt: now } })
       // Hilang dari sumber: nonaktifkan, kecuali baris manual terkunci (tetap dipakai seperti sebelumnya).
       const hilang = lama.filter((o) => !kodeSumber.has(o.kode!) && o.aktif && !(o.manual && o.lockManual)).map((o) => o.id)
       if (hilang.length) await tx.stockTire.updateMany({ where: { id: { in: hilang } }, data: { aktif: false } })
       n.deactivated = hilang.length
 
-      const aktif = await tx.stockTire.findMany({ where: { aktif: true }, select: { price: true } })
+      const aktif = await tx.stockTire.findMany({ where: { aktif: true, cabangId }, select: { price: true } })
       return { ...n, isi, merged, aktif }
     },
     { timeout: 60_000, maxWait: 10_000 },
@@ -74,6 +79,7 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
   const summary = {
     at: now.toISOString(),
     source,
+    cabangId,
     total: hasil.aktif.length,
     withPrice: hasil.aktif.filter((x) => x.price !== null).length,
     noPrice: hasil.aktif.filter((x) => x.price === null).length,
@@ -90,6 +96,40 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
     problems: r.problems.slice(0, 300),
     problemCount: r.problems.length,
   }
-  await db.setting.upsert({ where: { key: 'stok.lastImport' }, create: { key: 'stok.lastImport', value: JSON.stringify(summary) }, update: { value: JSON.stringify(summary) } })
+  if (simpan) await simpanRingkasan(summary)
   return summary
+}
+
+export type RingkasanImpor = Awaited<ReturnType<typeof applyImport>>
+
+export const simpanRingkasan = (summary: unknown) =>
+  db.setting.upsert({ where: { key: 'stok.lastImport' }, create: { key: 'stok.lastImport', value: JSON.stringify(summary) }, update: { value: JSON.stringify(summary) } })
+
+// Gabungkan ringkasan beberapa impor cabang (sheet dengan kolom Cabang) jadi satu ringkasan untuk halaman stok.
+// Angka dijumlahkan, rincian tiap cabang disimpan di `bagian`, dan masalah tambahan (cabang tak dikenal) ikut didaftar.
+export function gabungRingkasan(list: RingkasanImpor[], source: ImportSource, r: ParseResult) {
+  const jumlah = (k: 'total' | 'withPrice' | 'noPrice' | 'manualKept' | 'manualOrphans' | 'manualOverwritten' | 'created' | 'updated' | 'deactivated' | 'reactivated' | 'stockChanges' | 'codesFilled') =>
+    list.reduce((n, x) => n + x[k], 0)
+  return {
+    at: list[0]?.at ?? new Date().toISOString(),
+    source,
+    cabangId: null,
+    gabungan: true,
+    bagian: list.map((x) => ({ cabangId: x.cabangId, total: x.total, created: x.created, deactivated: x.deactivated, reactivated: x.reactivated, stockChanges: x.stockChanges })),
+    total: jumlah('total'),
+    withPrice: jumlah('withPrice'),
+    noPrice: jumlah('noPrice'),
+    skipped: r.skipped,
+    manualKept: jumlah('manualKept'),
+    manualOrphans: jumlah('manualOrphans'),
+    manualOverwritten: jumlah('manualOverwritten'),
+    created: jumlah('created'),
+    updated: jumlah('updated'),
+    deactivated: jumlah('deactivated'),
+    reactivated: jumlah('reactivated'),
+    stockChanges: jumlah('stockChanges'),
+    codesFilled: jumlah('codesFilled'),
+    problems: r.problems.slice(0, 300),
+    problemCount: r.problems.length,
+  }
 }

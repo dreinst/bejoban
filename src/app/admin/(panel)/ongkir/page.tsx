@@ -27,18 +27,27 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const [settings, cities, sizes, branches] = await Promise.all([
     loadShippingSettings(),
     dbRateSource.listCities(),
-    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring'], where: { aktif: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }] }),
-    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
+    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring', 'cabangId'], where: { aktif: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }] }),
+    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } }),
   ])
-  const uniqSizes = [...new Map(sizes.map((s) => [s.sizeNorm, s])).values()]
+  // Ukuran per cabang asal: baris cabang itu ditambah baris tanpa cabang (slug kosong) selama masih ada.
+  const slugOf = (id: number | null) => (id === null ? '' : (branches.find((b) => b.id === id)?.slug ?? `#${id}`))
+  const bySize = new Map<string, { sizeNorm: string; sizeRaw: string; ring: number; cabang: string[] }>()
+  for (const s of sizes) {
+    const g = bySize.get(s.sizeNorm) ?? { sizeNorm: s.sizeNorm, sizeRaw: s.sizeRaw, ring: s.ring, cabang: [] }
+    if (!g.cabang.includes(slugOf(s.cabangId))) g.cabang.push(slugOf(s.cabangId))
+    bySize.set(s.sizeNorm, g)
+  }
+  const allSizes = [...bySize.values()]
   const mode = ['velg', 'manual'].includes(one('mode')) ? one('mode') : 'stok'
   const size = one('size')
   const qty = Math.min(Math.round(num(one('qty'))) || 1, 200)
   const usePacking = one('packing') === '1'
-  const tire = uniqSizes.find((s) => s.sizeNorm === size)
+  const cabang = branches.find((b) => b.slug === one('cabang')) ?? branches[0]
+  const adaDiCabang = (x: { cabang: string[] }) => x.cabang.includes('') || (!!cabang && x.cabang.includes(cabang.slug))
+  const tire = allSizes.find((s) => s.sizeNorm === size && adaDiCabang(s))
   const kg = num(one('kg'))
   const dims = { l: num(one('pl')), w: num(one('lb')), h: num(one('tg')) }
-  const cabang = branches.find((b) => b.slug === one('cabang')) ?? branches[0]
   const originLabel = cabang ? cabang.name.replace(/\s*\(.*\)/, '') : settings.origin
   const q = one('q').trim().slice(0, 120)
   const pickIdx = one('pick') === '' ? -1 : Number(one('pick'))
@@ -57,7 +66,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   let error = ''
   if (city) {
     if (mode === 'stok') {
-      if (!tire) error = 'Pilih ukuran ban dari stok.'
+      if (!tire) error = 'Pilih ukuran ban dari stok cabang asal.'
       else {
         input = { tires: { count: qty, ring: tire.ring }, usePacking }
         desc = `${qty} ban ${tire.sizeRaw.trim()} ke ${city}`
@@ -99,9 +108,9 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
       <Card title="Hitung">
         <OngkirForm
           d={{ mode, size, qty, kg: kg ? String(kg) : '', pl: dims.l ? String(dims.l) : '', lb: dims.w ? String(dims.w) : '', tg: dims.h ? String(dims.h) : '', cabang: cabang?.slug ?? '', packing: usePacking, q, city: cityText }}
-          sizes={uniqSizes}
+          sizes={allSizes}
           cities={cities}
-          branches={branches}
+          branches={branches.map((b) => ({ slug: b.slug, name: b.name }))}
           packingFee={rp(settings.packingPerTire)}
         />
       </Card>
