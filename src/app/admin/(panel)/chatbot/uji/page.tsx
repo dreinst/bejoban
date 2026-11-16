@@ -28,7 +28,7 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
               <TextField label="Pesan uji" name="q" required maxLength={500} placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" autoComplete="off" />
             </FormGrid>
             <details className="mt-4 rounded-lg border border-line px-3 py-2">
-              <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Uji lanjutan</summary>
+              <summary className="adm-sum flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Uji lanjutan</summary>
               <p className="mb-3 mt-1 text-xs text-mute">Untuk mencoba keadaan tertentu. Kalau dibiarkan, bot diuji seperti pelanggan baru dan memakai pengaturan yang sedang berlaku.</p>
               <FormGrid cols={1}>
                 <SelectField label="Cabang yang sudah diingat untuk nomor ini" name="known" defaultValue="">
@@ -62,7 +62,7 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
                 </>
               )}
               <details className="text-xs text-mute">
-                <summary className="flex min-h-8 cursor-pointer items-center font-semibold max-md:min-h-11">Alasan pencocokan (untuk pengembang)</summary>
+                <summary className="adm-sum flex min-h-8 cursor-pointer items-center font-semibold max-md:min-h-11">Alasan pencocokan (untuk pengembang)</summary>
                 <p className="mt-1 break-words">{current.reason || '-'}</p>
               </details>
             </div>

@@ -2,13 +2,14 @@ import { requireOwner } from '@/lib/auth'
 import { resetBotTemplate, resetBotTemplates, saveBotTemplate } from '../../../fitur-actions'
 import { TemplateForm } from '@/components/admin/template-form'
 import { loadTemplates } from '@/lib/bot/respond'
-import { DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KE_ADMIN, TEMPLATE_KEYS, type TemplateKey } from '@/lib/bot/templates'
+import { renderTemplate } from '@/lib/text/template'
+import { DEFAULT_TEMPLATES, SAMPLE_VARS, TEMPLATE_INFO, TEMPLATE_KE_ADMIN, TEMPLATE_KEYS, type TemplateKey } from '@/lib/bot/templates'
 import { Badge, PageBody, PageHeader, Section } from '@/components/admin/ui'
 import { DataTable } from '@/components/admin/data-table'
 import { ConfirmDialog, Drawer } from '@/components/admin/overlay'
 
-// Cuplikan satu baris: baris baru jadi spasi, dipotong CSS sesuai lebar sel.
-const ringkas = (t: string) => t.replace(/\s*\n\s*/g, ' ')
+// Cuplikan satu baris dengan contoh isi variabel (tanpa kurung kurawal): baris baru jadi spasi, dipotong CSS sesuai lebar sel.
+const ringkas = (t: string) => renderTemplate(t, SAMPLE_VARS).replace(/\s*\n\s*/g, ' ')
 
 export default async function TemplatChatbot() {
   await requireOwner()

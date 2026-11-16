@@ -122,7 +122,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
 
       {adaHasil ? (
         <details id="form" className="adm-card px-5 py-1">
-          <summary className="flex min-h-12 cursor-pointer items-center font-display text-base font-extrabold text-ink">Ubah perhitungan</summary>
+          <summary className="adm-sum flex min-h-12 cursor-pointer items-center font-display text-base font-extrabold text-ink">Ubah perhitungan</summary>
           <div className="max-w-[760px] pb-5 pt-2">{form}</div>
         </details>
       ) : (
@@ -192,7 +192,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                       <p className="mt-1 text-sm text-ink">Estimasi {q2.etaDays ? `${q2.etaDays} hari` : 'belum diisi'}</p>
                     </div>
                     <details className="rounded-lg border border-line px-3 py-1">
-                      <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Rincian</summary>
+                      <summary className="adm-sum flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Rincian</summary>
                       <dl className="mb-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
                         <dt>Berat asli</dt><dd>{q2.actualKg} kg</dd>
                         <dt>Berat volume</dt><dd>{q2.volumeKg} kg</dd>

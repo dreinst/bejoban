@@ -84,7 +84,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
             ),
           },
           { key: 'cabang', header: 'Cabang', cell: (c) => pendek(branches.find((b) => b.slug === c.branchSlug)?.name ?? '(belum diketahui)') },
-          { key: 'tanya', header: 'Pertanyaan', className: 'max-w-[240px]', cell: (c) => c.question },
+          { key: 'tanya', header: 'Pertanyaan', mobileLabel: false, className: 'max-w-[240px]', cell: (c) => c.question },
           { key: 'ukuran', header: 'Ukuran', cell: (c) => c.sizes.split(',').filter(Boolean).join(', ') || '-' },
           { key: 'hasil', header: 'Hasil pencarian', mobile: 'hide', className: 'max-w-[240px] text-xs text-mute', cell: (c) => c.result || '-' },
           {

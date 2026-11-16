@@ -66,6 +66,11 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   .adm-btn-lg { min-height: 3rem; padding: .75rem 1.5rem; }
   .adm-btn-line { font-weight: 600; color: #0a0a0a; background: #fff; border: 1px solid #0a0a0a; }
   .adm-btn-line:hover { background: var(--color-soft); }
+  /* Judul lipatan (details): tanda panah di kanan yang berputar saat terbuka. */
+  .adm-sum { list-style: none; gap: .5rem; justify-content: space-between; }
+  .adm-sum::-webkit-details-marker { display: none; }
+  .adm-sum::after { content: ''; flex: none; width: .5rem; height: .5rem; margin-right: .25rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); }
+  details[open] > .adm-sum::after { transform: rotate(-135deg) translate(-2px, -2px); }
   .adm-btn-ghost { font-weight: 600; color: #0a0a0a; background: transparent; border: 1px solid transparent; }
   .adm-btn-ghost:hover { background: var(--color-soft); }
   .adm-btn-danger { font-weight: 700; color: #fff; background: #b91c1c; border: 1px solid #991b1b; border-bottom: 3px solid #7f1d1d; }
