@@ -9,9 +9,21 @@ const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'] })
 
 export const viewport: Viewport = { themeColor: '#0a0a0a' }
 
+// Dasar alamat untuk gambar Open Graph, dari SITE_URL. Tanpa ini Next memakai http://localhost:3000,
+// sehingga pratinjau tautan di WhatsApp dan sosial media tidak memuat gambarnya.
+function dasarAlamat(): URL | undefined {
+  const s = (process.env.SITE_URL ?? '').trim()
+  try {
+    return s ? new URL(s) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const { site } = await getContent()
   return {
+    metadataBase: dasarAlamat(),
     title: site.seoTitle,
     description: site.seoDescription,
     openGraph: site.ogImage ? { images: [site.ogImage] } : undefined,
