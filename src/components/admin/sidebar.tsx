@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronUp, LayoutDashboard, Menu, MessageCircle, Package, Settings, Store, Truck, X, type LucideIcon } from 'lucide-react'
 import { activeFor, type AdminMenu } from '@/lib/admin-menu'
+import { hapusCatatan } from './panel-simpan'
 
 const ICON: Record<string, LucideIcon> = {
   ringkasan: LayoutDashboard,
@@ -131,7 +132,7 @@ function ProfileMenu({ name, role, logout, onPick }: { name: string; role: strin
           <Link href="/" target="_blank" onClick={pick} className={item}>Lihat situs<span className="sr-only"> (tab baru)</span></Link>
           <Link href="/admin/akun" onClick={pick} className={item}>Akun saya</Link>
           {!owner && <Link href="/admin/cabang" onClick={pick} className={item}>Data cabang saya</Link>}
-          <form action={logout}>
+          <form action={logout} onSubmit={hapusCatatan}>
             <button type="submit" className={item}>Keluar</button>
           </form>
         </div>

@@ -73,10 +73,16 @@ export function FormGrid({ children, cols = 2 }: { children: ReactNode; cols?: 1
   return <div className={`grid gap-4 ${c}`}>{children}</div>
 }
 
+/** Tempat galat simpan tampil, tepat di atas baris tombol. Diisi oleh panel samping dan FormPulih lewat tampilkanGalat. */
+export function GalatSlot() {
+  return <div data-galat-slot role="alert" className="mb-1 basis-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-800 empty:hidden" />
+}
+
 /** Baris tombol di bawah form. Di dalam Drawer menempel di bawah panel. Tombol utama di kanan. */
 export function FormActions({ children, note }: { children: ReactNode; note?: ReactNode }) {
   return (
     <div className="adm-form-actions mt-5 flex flex-wrap items-center justify-end gap-2">
+      <GalatSlot />
       {note && <p className="mr-auto text-xs text-mute">{note}</p>}
       {children}
     </div>

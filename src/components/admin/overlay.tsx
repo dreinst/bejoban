@@ -4,14 +4,15 @@ import { createPortal } from 'react-dom'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
 import { X } from 'lucide-react'
-import { catatKirim, hapusCatatan, lanjutkanPanel, pulihkan } from './panel-simpan'
+import { catatKirim, hapusCatatan, lanjutkanPanel, pulihkan, tampilkanGalat } from './panel-simpan'
 
 // Panel samping (Drawer) dan dialog konfirmasi (ConfirmDialog) di atas elemen <dialog> modal:
 // fokus terkunci di dalamnya, Escape atau klik di luar menutup, lalu fokus kembali ke tombol pemicu.
 // Isi hanya dipasang saat terbuka, jadi tiap baris tabel boleh punya Drawer sendiri tanpa menggandakan form.
 // Setelah aksi server berhasil (alamat mendapat ?ok=), panel menutup dan toast sukses muncul.
 // Kalau simpan ditolak (?err=), halaman dipasang ulang oleh Next, jadi panel samping dibuka lagi dari catatan
-// di panel-simpan.ts: isian yang sudah diketik diisi ulang dan galatnya tampil di dalam panel, dekat tombol simpan.
+// di panel-simpan.ts: isian yang sudah diketik diisi ulang dan galatnya tampil tepat di atas baris tombol simpan
+// (slot di FormActions). Kalau form tidak punya slot, galat tampil di dasar panel.
 
 const Ctx = createContext<{ close: () => void } | null>(null)
 const diam = () => () => {}
@@ -41,7 +42,9 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
   const [lanjut] = useState(() => (drawer ? lanjutkanPanel(path, kunci ?? title, ok, err) : null))
   const [open, setOpen] = useState(defaultOpen || !!lanjut)
   const [galat, setGalat] = useState<string | null>(lanjut?.err ?? null)
-  const sisaIsian = useRef(lanjut ? { isian: lanjut.isian, form: lanjut.form } : null)
+  // Urutan form di panel yang galatnya sedang ditampilkan (panel boleh punya lebih dari satu form).
+  const [formGalat, setFormGalat] = useState(lanjut?.form ?? 0)
+  const bawah = useRef<HTMLParagraphElement>(null)
   const diKlien = useDiKlien()
   const btn = useRef<HTMLButtonElement>(null)
   const dlg = useRef<HTMLDialogElement>(null)
@@ -60,17 +63,23 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
     const d = dlg.current
     if (open && diKlien && d) {
       if (!d.open) d.showModal()
-      if (sisaIsian.current) {
-        pulihkan(d, sisaIsian.current.isian, sisaIsian.current.form)
-        sisaIsian.current = null
-      }
+      const isian = lanjut?.ambil()
+      if (isian) pulihkan(d, isian, lanjut?.form)
       const pertama = d.querySelector<HTMLElement>('[autofocus], [data-autofocus], input:not([type=hidden]):not([disabled]), select, textarea, [data-body] button, [data-body] a')
       ;(pertama ?? d.querySelector<HTMLElement>('[data-close]'))?.focus()
       pernah.current = true
     } else if (!open && pernah.current) {
       btn.current?.focus()
     }
-  }, [open, diKlien])
+  }, [open, diKlien, lanjut])
+
+  // Galat di slot dekat tombol simpan; di dasar panel hanya kalau form tidak punya slot.
+  useEffect(() => {
+    const d = dlg.current
+    if (!open || !diKlien || !d) return
+    const dipakai = tampilkanGalat(d, formGalat, galat)
+    if (bawah.current) bawah.current.textContent = galat && !dipakai ? galat : ''
+  }, [open, diKlien, galat, formGalat])
 
   const close = () => {
     setOpen(false)
@@ -101,6 +110,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
             onSubmit={(e) => {
               if (!drawer || !(e.target instanceof HTMLFormElement)) return
               catatKirim(path, kunci ?? title, e.target)
+              setFormGalat(Math.max(Array.from(dlg.current?.querySelectorAll('form') ?? []).indexOf(e.target), 0))
               setGalat(null)
             }}
           >
@@ -118,11 +128,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
                 <div data-body className="min-h-0 flex-1 overflow-y-auto p-5">
                   {children}
                 </div>
-                {galat && (
-                  <p role="alert" className="shrink-0 border-t border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-800">
-                    {galat}
-                  </p>
-                )}
+                <p ref={bawah} role="alert" className="shrink-0 border-t border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-800 empty:hidden" />
               </div>
             </Ctx.Provider>
           </dialog>,
