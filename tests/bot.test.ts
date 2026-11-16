@@ -169,3 +169,13 @@ test('merek atau ring saja yang terlalu banyak hasilnya: minta ukuran, bukan kir
   assert.ok(!o.reply.includes('Rp'))
   assert.equal(handle('ring 15', tires, ctx).kind, 'tanya_ukuran')
 })
+
+test('nama variabel templat ditampilkan huruf kecil berspasi', async () => {
+  const { namaVariabel, TEMPLATE_INFO, TEMPLATE_KEYS, TEMPLATE_KE_ADMIN } = await import('../src/lib/bot/templates')
+  assert.equal(namaVariabel('nomorAdmin'), 'nomor admin')
+  assert.equal(namaVariabel('cabang'), 'cabang')
+  assert.equal(namaVariabel('cabangLain'), 'cabang lain')
+  // Semua templat ada di salah satu kelompok tabel Templat pesan.
+  assert.equal(TEMPLATE_KEYS.length, 12)
+  assert.ok(TEMPLATE_KE_ADMIN.every((k) => k in TEMPLATE_INFO))
+})

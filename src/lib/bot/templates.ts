@@ -41,6 +41,12 @@ export const TEMPLATE_INFO: Record<TemplateKey, { label: string; when: string; v
   diLuarJam: { label: 'Di luar jam aktif', when: 'Pesan masuk di luar jam aktif bot.', vars: ['cabang', 'jamBuka'] },
 }
 
+// Nama variabel untuk tampilan: "nomorAdmin" menjadi "nomor admin". Isi templat tetap memakai {nomorAdmin}.
+export const namaVariabel = (v: string) => v.replace(/([A-Z])/g, ' $1').toLowerCase()
+
+// Templat yang dikirim ke admin atau owner; sisanya dikirim ke pelanggan.
+export const TEMPLATE_KE_ADMIN: readonly TemplateKey[] = ['ringkasanAdmin']
+
 export const DEFAULT_TEMPLATES: Templates = {
   sapaan: 'Halo kak, selamat datang di {cabang}. Kakak cari ban ukuran berapa? Contohnya 185/65 R15, nanti saya cek stok dan harganya.',
   tanyaUkuran: 'Boleh tahu ukuran bannya, kak? Contohnya 185/65 R15 atau 165-13, nanti saya cek stok dan harganya.',

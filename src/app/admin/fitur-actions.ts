@@ -12,7 +12,7 @@ import { mergeSettings } from '@/lib/ongkir/calc'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { mergeBot, normalizeNumber, type BotSettings } from '@/lib/bot/policy'
 import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/respond'
-import { CHANNELS, TEMPLATE_KEYS, type Sosmed, type Templates } from '@/lib/bot/templates'
+import { CHANNELS, DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KEYS, type Sosmed, type TemplateKey } from '@/lib/bot/templates'
 import { applyImport, gabungRingkasan, simpanRingkasan, type ImportSource, type RingkasanImpor } from '@/lib/tire/import'
 import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
 import { mergeSitus } from '@/lib/situs'
@@ -451,18 +451,30 @@ export async function saveBotAdmins(fd: FormData) {
   go(BOT_PAGE, 'Nomor admin tersimpan')
 }
 
-export async function saveBotTemplates(fd: FormData) {
+// Simpan satu templat. Kunci dicek terhadap daftar kunci yang dikenal, nama di pesan galat memakai label tampilan.
+export async function saveBotTemplate(fd: FormData) {
   const s = await requireOwner()
+  const key = str(fd, 'key', 40)
+  if (!(TEMPLATE_KEYS as readonly string[]).includes(key)) return go(TEMPLAT_PAGE, 'Templat tidak dikenal', 'err')
+  const k = key as TemplateKey
+  const v = String(fd.get('value') ?? '').trim().slice(0, 1000)
+  if (!v) return go(TEMPLAT_PAGE, `Templat "${TEMPLATE_INFO[k].label}" tidak boleh kosong`, 'err')
   const cur = await loadTemplates()
-  const next = { ...cur } as Templates
-  for (const k of TEMPLATE_KEYS) {
-    const v = String(fd.get(`tpl_${k}`) ?? '').trim().slice(0, 1000)
-    if (!v) go(TEMPLAT_PAGE, `Templat "${k}" tidak boleh kosong`, 'err')
-    next[k] = v
-  }
-  await saveSetting('bot.templates', next)
-  await catat(s, 'simpan', 'templat_bot', { jumlah: TEMPLATE_KEYS.length })
-  go(TEMPLAT_PAGE, 'Templat pesan tersimpan')
+  await saveSetting('bot.templates', { ...cur, [k]: v })
+  await catat(s, 'simpan', 'templat_bot', { kunci: k })
+  go(TEMPLAT_PAGE, `Templat "${TEMPLATE_INFO[k].label}" tersimpan`)
+}
+
+// Kembalikan satu templat ke kalimat bawaan; templat lain tidak berubah.
+export async function resetBotTemplate(fd: FormData) {
+  const s = await requireOwner()
+  const key = str(fd, 'key', 40)
+  if (!(TEMPLATE_KEYS as readonly string[]).includes(key)) return go(TEMPLAT_PAGE, 'Templat tidak dikenal', 'err')
+  const k = key as TemplateKey
+  const cur = await loadTemplates()
+  await saveSetting('bot.templates', { ...cur, [k]: DEFAULT_TEMPLATES[k] })
+  await catat(s, 'reset', 'templat_bot', { kunci: k })
+  go(TEMPLAT_PAGE, `Templat "${TEMPLATE_INFO[k].label}" dikembalikan ke bawaan`)
 }
 
 export async function resetBotTemplates() {
