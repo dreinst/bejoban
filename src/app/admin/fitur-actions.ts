@@ -12,7 +12,7 @@ import { mergeSettings } from '@/lib/ongkir/calc'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { mergeBot, normalizeNumber, type BotSettings } from '@/lib/bot/policy'
 import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/respond'
-import { CHANNELS, DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KEYS, type Sosmed, type TemplateKey } from '@/lib/bot/templates'
+import { CHANNELS, CHANNEL_LABEL, DEFAULT_SOSMED, DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KEYS, type Channel, type TemplateKey } from '@/lib/bot/templates'
 import { applyImport, gabungRingkasan, simpanRingkasan, type ImportSource, type RingkasanImpor } from '@/lib/tire/import'
 import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
 import { branchLabel, mergeSitus } from '@/lib/situs'
@@ -510,22 +510,35 @@ export async function resetBotTemplate(fd: FormData) {
 
 export async function resetBotTemplates() {
   const s = await requireOwner()
-  await db.setting.deleteMany({ where: { key: 'bot.templates' } })
+  await db.setting.deleteMany({ where: { key: { in: ['bot.templates', 'bot.sosmed'] } } })
   await catat(s, 'reset', 'templat_bot')
-  go(TEMPLAT_PAGE, 'Templat dikembalikan ke bawaan')
+  go(TEMPLAT_PAGE, 'Semua templat dikembalikan ke bawaan')
 }
 
+// Simpan teks balasan otomatis satu aplikasi sosial media. Kanal dicek terhadap daftar yang dikenal.
 export async function saveSosmed(fd: FormData) {
   const s = await requireOwner()
+  const key = str(fd, 'key', 40)
+  if (!(CHANNELS as readonly string[]).includes(key)) return go(TEMPLAT_PAGE, 'Aplikasi tidak dikenal', 'err')
+  const c = key as Channel
+  const v = String(fd.get('value') ?? '').trim().slice(0, 1000)
+  if (!v) return go(TEMPLAT_PAGE, `Balasan ${CHANNEL_LABEL[c]} tidak boleh kosong`, 'err')
   const cur = await loadSosmed()
-  const next = { ...cur } as Sosmed
-  for (const c of CHANNELS) {
-    const v = String(fd.get(`sosmed_${c}`) ?? '').trim().slice(0, 1000)
-    if (v) next[c] = v
-  }
-  await saveSetting('bot.sosmed', next)
-  await catat(s, 'simpan', 'templat_sosmed', { saluran: CHANNELS.length })
-  go(BOT_PAGE, 'Templat sosial media tersimpan')
+  await saveSetting('bot.sosmed', { ...cur, [c]: v })
+  await catat(s, 'simpan', 'templat_sosmed', { saluran: c })
+  go(TEMPLAT_PAGE, `Balasan ${CHANNEL_LABEL[c]} tersimpan`)
+}
+
+// Kembalikan teks satu aplikasi sosial media ke bawaan; yang lain tidak berubah.
+export async function resetSosmed(fd: FormData) {
+  const s = await requireOwner()
+  const key = str(fd, 'key', 40)
+  if (!(CHANNELS as readonly string[]).includes(key)) return go(TEMPLAT_PAGE, 'Aplikasi tidak dikenal', 'err')
+  const c = key as Channel
+  const cur = await loadSosmed()
+  await saveSetting('bot.sosmed', { ...cur, [c]: DEFAULT_SOSMED[c] })
+  await catat(s, 'reset', 'templat_sosmed', { saluran: c })
+  go(TEMPLAT_PAGE, `Balasan ${CHANNEL_LABEL[c]} dikembalikan ke bawaan`)
 }
 
 // Admin menandai percakapan selesai. Tidak tersedia: bot mengirim kalimat penutup.

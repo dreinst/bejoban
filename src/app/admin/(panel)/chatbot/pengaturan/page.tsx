@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
-import { saveBotAdmins, saveBotHours, saveSosmed } from '../../../fitur-actions'
-import { SosmedEditor } from '@/components/admin/sosmed-editor'
+import { saveBotAdmins, saveBotHours } from '../../../fitur-actions'
 import { NomorUji } from '@/components/admin/nomor-uji'
 import { FormPulih } from '@/components/admin/form-pulih'
-import { loadBotSettings, loadSosmed } from '@/lib/bot/respond'
-import { alamatSitus, getSitus } from '@/lib/situs-server'
-import { branchLabel, waNumber } from '@/lib/situs'
+import { loadBotSettings } from '@/lib/bot/respond'
+import { getSitus } from '@/lib/situs-server'
+import { branchLabel } from '@/lib/situs'
 import { Badge, PageBody, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
 import { CheckField, FormActions, FormGrid, TextField } from '@/components/admin/field'
 import { SubmitButton } from '@/components/admin/overlay'
@@ -16,17 +15,15 @@ import { SubmitButton } from '@/components/admin/overlay'
 // Nilai yang diubah di tempat lain (nomor WhatsApp utama dan nomor cabang) hanya dibaca di sini, dengan tautan ke tempat ubahnya.
 export default async function PengaturanWhatsapp() {
   await requireOwner()
-  const [s, sosmed, situs, branches, origin] = await Promise.all([loadBotSettings(), loadSosmed(), getSitus(), db.branch.findMany({ orderBy: { sort: 'asc' } }), alamatSitus()])
+  const [s, situs, branches] = await Promise.all([loadBotSettings(), getSitus(), db.branch.findMany({ orderBy: { sort: 'asc' } })])
   const tersambung = ['WAHA_URL', 'WAHA_API_KEY', 'WAHA_SESSION'].every((k) => !!process.env[k])
   const kirim = process.env.BOT_SEND === '1'
-  // Tautan pendek situs, supaya klik terhitung dan teks tidak basi kalau nomor diganti.
-  const tautanWa = branches.map((b) => `- ${branchLabel(b.name)}: ${origin}/wa/${b.slug}`).join('\n')
   const mainNumber = situs.mainWhatsapp || null
   const diamSemua = s.enabled && s.restrictNumbers && s.testNumbers.length === 0
   const statusBot = !s.enabled ? <Badge tone="outline">Mati</Badge> : diamSemua ? <Badge tone="outline">Aktif, tapi diam ke semua orang</Badge> : s.restrictNumbers ? <Badge>Aktif, hanya {s.testNumbers.length} nomor uji</Badge> : <Badge>Aktif</Badge>
   return (
     <PageBody>
-      <PageHeader title="Pengaturan bot" note="Bot aktif dan jam layanan, sambungan WhatsApp, nomor admin, dan teks balasan sosial media. Kalimat yang dikirim bot ada di tab Templat pesan." />
+      <PageHeader title="Pengaturan bot" note="Bot aktif dan jam layanan, sambungan WhatsApp, dan nomor admin per cabang. Kalimat bot dan balasan sosial media ada di tab Templat pesan." />
       {diamSemua && (
         <div role="alert" className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <p className="font-semibold">Bot sedang diam ke semua orang.</p>
@@ -109,24 +106,6 @@ export default async function PengaturanWhatsapp() {
               <FormActions><SubmitButton>Simpan nomor admin</SubmitButton></FormActions>
             </form>
           </FormPulih>
-        </Section>
-
-        <Section
-          id="sosmed"
-          title="Balasan otomatis sosial media"
-          wide
-          description={
-            <>
-              Pelanggan di Instagram, Facebook, dan TikTok diarahkan ke WhatsApp lewat tautan pendek situs. Salin teks ini ke fitur balasan otomatis di tiap aplikasi.
-              Nomor tujuan: {mainNumber ?? branches.map((b) => waNumber(situs, b)).join(' dan ')}.{' '}
-              <Link href="/admin/situs" className="font-semibold underline">Ubah di Situs, Tautan WhatsApp</Link>
-            </>
-          }
-        >
-          <form action={saveSosmed}>
-            <SosmedEditor initial={sosmed} tautanWa={tautanWa} />
-            <FormActions><SubmitButton>Simpan teks sosial media</SubmitButton></FormActions>
-          </form>
         </Section>
       </SettingsGrid>
     </PageBody>

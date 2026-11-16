@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { renderTemplate } from '@/lib/text/template'
 import { SAMPLE_VARS, namaVariabel } from '@/lib/bot/templates'
-import { TextAreaField } from './field'
+import { GalatSlot, TextAreaField } from './field'
 import { CloseButton, SubmitButton } from './overlay'
 
 type Aksi = (fd: FormData) => void | Promise<void>
@@ -16,6 +16,11 @@ export function TemplateForm({
   vars,
   simpan,
   kembalikan,
+  label = 'Isi templat',
+  pratinjau = 'Pratinjau dengan contoh isi',
+  contoh = SAMPLE_VARS,
+  tombolSimpan = 'Simpan templat',
+  tombolKembali = 'Kembalikan templat ini ke bawaan',
 }: {
   kunci: string
   nilai: string
@@ -23,6 +28,12 @@ export function TemplateForm({
   vars: string[]
   simpan: Aksi
   kembalikan: Aksi
+  label?: string
+  pratinjau?: string
+  /** Isi variabel untuk pratinjau. */
+  contoh?: Record<string, string>
+  tombolSimpan?: string
+  tombolKembali?: string
 }) {
   const [v, setV] = useState(nilai)
 
@@ -45,7 +56,7 @@ export function TemplateForm({
     <form action={simpan} className="space-y-4">
       <input type="hidden" name="key" value={kunci} />
       <p className="text-sm text-mute">{when}</p>
-      <TextAreaField label="Isi templat" name="value" required rows={8} maxLength={1000} value={v} onChange={(e) => setV(e.target.value)} />
+      <TextAreaField label={label} name="value" required rows={8} maxLength={1000} value={v} onChange={(e) => setV(e.target.value)} />
       {vars.length > 0 && (
         <div>
           <p className="mb-1 text-xs font-semibold text-neutral-700" id={`var-${kunci}`}>Isi otomatis yang bisa disisipkan</p>
@@ -59,13 +70,14 @@ export function TemplateForm({
         </div>
       )}
       <div>
-        <p className="mb-1 text-xs font-semibold text-neutral-700">Pratinjau dengan contoh isi</p>
-        <pre aria-live="polite" className="min-h-[5rem] whitespace-pre-wrap break-words rounded-lg bg-soft px-3 py-2 font-sans text-sm text-ink">{renderTemplate(v, SAMPLE_VARS)}</pre>
+        <p className="mb-1 text-xs font-semibold text-neutral-700">{pratinjau}</p>
+        <pre aria-live="polite" className="min-h-[5rem] whitespace-pre-wrap break-words rounded-lg bg-soft px-3 py-2 font-sans text-sm text-ink">{renderTemplate(v, contoh)}</pre>
       </div>
       <div className="adm-form-actions mt-5 flex flex-wrap items-center justify-end gap-2">
-        <button type="submit" formAction={kembalikan} formNoValidate className="adm-btn-ghost mr-auto">Kembalikan templat ini ke bawaan</button>
+        <GalatSlot />
+        <button type="submit" formAction={kembalikan} formNoValidate className="adm-btn-ghost mr-auto">{tombolKembali}</button>
         <CloseButton />
-        <SubmitButton>Simpan templat</SubmitButton>
+        <SubmitButton>{tombolSimpan}</SubmitButton>
       </div>
     </form>
   )
