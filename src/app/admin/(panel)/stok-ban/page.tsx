@@ -14,6 +14,10 @@ type LastImport = {
   manualKept?: number
   manualOrphans?: number
   manualOverwritten?: number
+  created?: number
+  deactivated?: number
+  reactivated?: number
+  stockChanges?: number
   problemCount: number
   problems: { line: number; group: string; size: string; brand: string; priceRaw: string; stockRaw: string; reason: string; imported: boolean }[]
 }
@@ -27,6 +31,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const ring = Number(sp.ring) || 0
   const f = ['masalah', 'manual'].includes(String(sp.f)) ? String(sp.f) : ''
   const where = {
+    aktif: true,
     ...(ring && { ring }),
     ...(f === 'masalah' && { priceIssue: { not: '' } }),
     ...(f === 'manual' && { manual: true }),
@@ -35,10 +40,10 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const [rows, count, rings, last, sheet, issues] = await Promise.all([
     db.stockTire.findMany({ where, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: 100 }),
     db.stockTire.count({ where }),
-    db.stockTire.groupBy({ by: ['ring'], _count: true, orderBy: { ring: 'asc' } }),
+    db.stockTire.groupBy({ by: ['ring'], where: { aktif: true }, _count: true, orderBy: { ring: 'asc' } }),
     db.setting.findUnique({ where: { key: 'stok.lastImport' } }),
     db.setting.findUnique({ where: { key: 'stok.sheet' } }),
-    db.stockTire.count({ where: { priceIssue: { not: '' } } }),
+    db.stockTire.count({ where: { aktif: true, priceIssue: { not: '' } } }),
   ])
   const li: LastImport | null = last ? JSON.parse(last.value) : null
   const sheetUrl: string = sheet ? JSON.parse(sheet.value).url : ''
@@ -51,7 +56,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
     <div className="max-w-6xl space-y-4">
       <h1 className="text-2xl font-bold text-ink">Stok ban</h1>
       <p className="text-sm text-neutral-500">
-        Data dari pricelist internal. Dipakai kalkulator ongkir dan chatbot stok, tidak tampil di toko. Mengimpor atau sinkron mengganti seluruh stok, kecuali baris yang diubah manual dan dikunci.
+        Data dari pricelist internal. Dipakai kalkulator ongkir dan chatbot stok, tidak tampil di toko. Impor atau sinkron memperbarui baris yang sama (dikenali dari ukuran dan merek), kecuali baris yang diubah manual dan dikunci. Baris yang hilang dari sumber dinonaktifkan dan aktif lagi kalau muncul kembali. Tiap perubahan stok tercatat di buku stok.
       </p>
 
       <Card title="Sinkron dari Google Sheets">
@@ -90,6 +95,9 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             <b>{li.total}</b> baris masuk ({li.withPrice} dengan harga, {li.noPrice} tanpa harga). <b>{li.skipped}</b> baris dilewati. {li.problemCount} baris bermasalah.
             {(li.manualKept ?? 0) + (li.manualOrphans ?? 0) + (li.manualOverwritten ?? 0) > 0 && (
               <> Baris manual: {li.manualKept ?? 0} dipertahankan, {li.manualOrphans ?? 0} tidak ada lagi di sumber tapi disimpan, {li.manualOverwritten ?? 0} ditimpa.</>
+            )}
+            {li.deactivated !== undefined && (
+              <> Baris baru {li.created ?? 0}, dinonaktifkan {li.deactivated}, diaktifkan kembali {li.reactivated ?? 0}, stok berubah {li.stockChanges ?? 0}.</>
             )}
           </p>
           {li.problems.length > 0 && (

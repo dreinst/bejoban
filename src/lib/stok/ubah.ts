@@ -93,3 +93,14 @@ export function hapusListing(p: { productId: number; branchId: number; pengguna?
     return true
   })
 }
+
+// Hapus produk. Listing ikut terhapus (cascade), jadi sisa stok tiap cabang dicatat keluar dulu (koreksi ke 0).
+export function hapusProduk(p: { productId: number; pengguna?: string | null }) {
+  const { productId } = p
+  return db.$transaction(async (tx) => {
+    for (const l of await tx.listing.findMany({ where: { productId }, select: { branchId: true } }))
+      await ubahStokTx(tx, { target: { jenis: 'listing', productId, branchId: l.branchId }, setKe: 0, tipe: 'koreksi', pengguna: p.pengguna, refId: `produk:${productId}` })
+    const { count } = await tx.product.deleteMany({ where: { id: productId } })
+    return count > 0
+  })
+}

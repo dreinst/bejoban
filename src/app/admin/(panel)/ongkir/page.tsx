@@ -27,7 +27,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const [settings, cities, sizes, branches] = await Promise.all([
     loadShippingSettings(),
     dbRateSource.listCities(),
-    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring'], orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }] }),
+    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring'], where: { aktif: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }] }),
     db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
   ])
   const uniqSizes = [...new Map(sizes.map((s) => [s.sizeNorm, s])).values()]

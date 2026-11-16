@@ -33,12 +33,12 @@ export async function verifyToken(token?: string): Promise<Session | null> {
   }
 }
 
-// Cek ulang ke database supaya akun yang dihapus/diubah perannya langsung kehilangan akses.
+// Cek ulang ke database supaya akun yang dihapus, dinonaktifkan, atau diubah perannya langsung kehilangan akses.
 export async function getSession(): Promise<Session | null> {
   const s = await verifyToken((await cookies()).get(COOKIE)?.value)
   if (!s) return null
   const u = await db.user.findUnique({ where: { id: s.uid } })
-  if (!u) return null
+  if (!u || !u.aktif) return null
   return { uid: u.id, role: u.role as Session['role'], branchId: u.branchId, name: u.name || u.username }
 }
 

@@ -17,7 +17,7 @@ export async function loadContext(settings?: BotSettings): Promise<{ ctx: BotCon
   const s = settings ?? (await loadBotSettings())
   const [branches, tires, services, templates] = await Promise.all([
     db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
-    db.stockTire.findMany({ select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true } }),
+    db.stockTire.findMany({ where: { aktif: true }, select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true } }),
     db.servicePrice.findMany({ orderBy: { sort: 'asc' } }),
     loadTemplates(),
   ])

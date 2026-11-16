@@ -7,11 +7,16 @@ import { db } from '@/lib/db'
 import { createSession, destroySession, requireOwner, requireUser, canEditBranch, loginBlocked, loginFailed, loginOk } from '@/lib/auth'
 import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
+import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
+import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
 const int = (fd: FormData, k: string) => Math.max(0, Math.round(Number(String(fd.get(k) ?? '0').replace(/\D/g, '')) || 0))
 const isMedia = (v: unknown): v is string => typeof v === 'string' && /^\/media\/[\w-]+\.(webp|png|jpg|svg)$/.test(v)
 const safeLink = (v: string) => (/^(https?:\/\/|\/(?!\/)|#)/.test(v) ? v : '')
+// Satu baris log_aktivitas per aksi admin yang mengubah data.
+const catat = (s: { uid: number }, aksi: string, entitas: string, data: Record<string, unknown> = {}) =>
+  catatAktivitas({ pengguna: penggunaDari(s), aksi, entitas, data })
 const done = (path: string, msg = 'Tersimpan') => {
   revalidatePath('/', 'layout')
   redirect(`${path}${path.includes('?') ? '&' : '?'}ok=${encodeURIComponent(msg)}`)
@@ -29,6 +34,7 @@ export async function login(_: unknown, fd: FormData) {
     loginFailed(key)
     return { error: 'Username atau password salah.' }
   }
+  if (!u.aktif) return { error: 'Akun ini dinonaktifkan. Hubungi owner.' }
   loginOk(key)
   await createSession({ uid: u.id, role: u.role as 'OWNER' | 'BRANCH_ADMIN', branchId: u.branchId, name: u.name || u.username })
   redirect('/admin')
@@ -71,26 +77,26 @@ export async function saveProduct(fd: FormData) {
     const listing = {
       price: int(fd, `b${b.id}_price`),
       comparePrice: int(fd, `b${b.id}_compare`),
-      stock: int(fd, `b${b.id}_stock`),
       available: fd.get(`b${b.id}_sell`) === 'on',
       flashSale: fd.get(`b${b.id}_flash`) === 'on',
     }
+    const ref = { productId: product.id, branchId: b.id, pengguna: penggunaDari(s), refId: `produk:${product.id}` }
     if (!listing.available && !listing.price) {
-      await db.listing.deleteMany({ where: { productId: product.id, branchId: b.id } })
+      await hapusListing(ref)
       continue
     }
-    await db.listing.upsert({
-      where: { productId_branchId: { productId: product.id, branchId: b.id } },
-      create: { productId: product.id, branchId: b.id, ...listing },
-      update: listing,
-    })
+    // Stok diubah lewat buku stok (src/lib/stok), satu transaksi dengan harga listing.
+    await simpanListing({ ...ref, data: listing, stok: int(fd, `b${b.id}_stock`) })
   }
+  await catat(s, id ? 'ubah' : 'tambah', 'produk', { id: product.id })
   done(`/admin/produk/${product.id}`)
 }
 
 export async function deleteProduct(fd: FormData) {
-  await requireOwner()
-  await db.product.delete({ where: { id: int(fd, 'id') } })
+  const s = await requireOwner()
+  const id = int(fd, 'id')
+  await hapusProduk({ productId: id, pengguna: penggunaDari(s) })
+  await catat(s, 'hapus', 'produk', { id })
   done('/admin/produk', 'Produk dihapus')
 }
 
@@ -105,14 +111,14 @@ export async function savePrices(fd: FormData) {
     const listing = {
       price: int(fd, `p${productId}_price`),
       comparePrice: int(fd, `p${productId}_compare`),
-      stock: int(fd, `p${productId}_stock`),
       available: fd.get(`p${productId}_sell`) === 'on',
       flashSale: fd.get(`p${productId}_flash`) === 'on',
     }
     const exists = await db.listing.findUnique({ where: { productId_branchId: { productId, branchId } } })
     if (!exists && !listing.available && !listing.price) continue
-    await db.listing.upsert({ where: { productId_branchId: { productId, branchId } }, create: { productId, branchId, ...listing }, update: listing })
+    await simpanListing({ productId, branchId, data: listing, stok: int(fd, `p${productId}_stock`), pengguna: penggunaDari(s), refId: `harga:${branchId}` })
   }
+  await catat(s, 'simpan', 'harga_cabang', { cabang: branchId, produk: ids.length })
   done(`/admin/harga?cabang=${branchId}`, 'Harga tersimpan')
 }
 
@@ -137,7 +143,7 @@ function clean(fields: Field[], input: Record<string, unknown>): Record<string, 
 }
 
 export async function saveSection(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const section = sectionByKey(str(fd, 'key', 50))
   if (!section) redirect('/admin/konten')
   let raw: Record<string, unknown> = {}
@@ -146,13 +152,14 @@ export async function saveSection(fd: FormData) {
   } catch {}
   const value = JSON.stringify(clean(section.fields, raw))
   await db.setting.upsert({ where: { key: section.key }, create: { key: section.key, value }, update: { value } })
+  await catat(s, 'simpan', 'konten', { kunci: section.key })
   done(`/admin/konten/${section.key}`)
 }
 
 /* ---------- Kategori & merek ---------- */
 
 export async function saveCategory(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const id = int(fd, 'id')
   const name = str(fd, 'name', 60)
   if (!name) redirect('/admin/kategori?err=Nama wajib diisi')
@@ -160,19 +167,21 @@ export async function saveCategory(fd: FormData) {
   const data = { name, slug: slugify(name), sort: int(fd, 'sort'), image: isMedia(image) ? image : '' }
   if (id) await db.category.update({ where: { id }, data })
   else await db.category.create({ data })
+  await catat(s, id ? 'ubah' : 'tambah', 'kategori', { id: id || null, nama: name })
   done('/admin/kategori')
 }
 
 export async function deleteCategory(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const id = int(fd, 'id')
   await db.product.updateMany({ where: { categoryId: id }, data: { categoryId: null } })
   await db.category.delete({ where: { id } })
+  await catat(s, 'hapus', 'kategori', { id })
   done('/admin/kategori', 'Kategori dihapus')
 }
 
 export async function saveBrand(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const id = int(fd, 'id')
   const name = str(fd, 'name', 60)
   if (!name) redirect('/admin/merek?err=Nama wajib diisi')
@@ -180,14 +189,16 @@ export async function saveBrand(fd: FormData) {
   const data = { name, sort: int(fd, 'sort'), logo: isMedia(logo) ? logo : '' }
   if (id) await db.brand.update({ where: { id }, data })
   else await db.brand.create({ data })
+  await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name })
   done('/admin/merek')
 }
 
 export async function deleteBrand(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const id = int(fd, 'id')
   await db.product.updateMany({ where: { brandId: id }, data: { brandId: null } })
   await db.brand.delete({ where: { id } })
+  await catat(s, 'hapus', 'merek', { id })
   done('/admin/merek', 'Merek dihapus')
 }
 
@@ -213,13 +224,14 @@ export async function saveBranch(fd: FormData) {
   }
   if (id) await db.branch.update({ where: { id }, data })
   else await db.branch.create({ data: { ...data, slug: slugify(name) || `cabang-${Date.now()}` } })
+  await catat(s, id ? 'ubah' : 'tambah', 'cabang', { id: id || null, nama: name })
   done('/admin/cabang')
 }
 
 /* ---------- Pengguna ---------- */
 
 export async function saveUser(fd: FormData) {
-  await requireOwner()
+  const s = await requireOwner()
   const id = int(fd, 'id')
   const username = str(fd, 'username', 40).toLowerCase().replace(/[^a-z0-9._]/g, '')
   const password = str(fd, 'password', 200)
@@ -228,13 +240,17 @@ export async function saveUser(fd: FormData) {
   if (!username) redirect('/admin/pengguna?err=Username wajib diisi')
   if (role === 'BRANCH_ADMIN' && !branchId) redirect('/admin/pengguna?err=Admin cabang wajib punya cabang')
   if ((!id || password) && password.length < 8) redirect('/admin/pengguna?err=Password minimal 8 karakter')
-  const data = { username, name: str(fd, 'name', 60), role, branchId, ...(password && { passwordHash: await bcrypt.hash(password, 10) }) }
+  // Status aktif hanya diubah kalau form mengirim penandanya, supaya form lain tidak menonaktifkan akun tanpa sengaja.
+  const aktif = fd.has('aktif_form') ? fd.get('aktif') === 'on' : undefined
+  if (id && id === s.uid && aktif === false) redirect('/admin/pengguna?err=Tidak bisa menonaktifkan akun sendiri')
+  const data = { username, name: str(fd, 'name', 60), role, branchId, ...(aktif !== undefined && { aktif }), ...(password && { passwordHash: await bcrypt.hash(password, 10) }) }
   try {
     if (id) await db.user.update({ where: { id }, data })
     else await db.user.create({ data: { ...data, passwordHash: data.passwordHash! } })
   } catch {
     redirect('/admin/pengguna?err=Username sudah dipakai')
   }
+  await catat(s, id ? 'ubah' : 'tambah', 'pengguna', { id: id || null, username, peran: role, ...(aktif !== undefined && { aktif }), gantiPassword: !!password })
   done('/admin/pengguna')
 }
 
@@ -243,6 +259,7 @@ export async function deleteUser(fd: FormData) {
   const id = int(fd, 'id')
   if (id === s.uid) redirect('/admin/pengguna?err=Tidak bisa menghapus akun sendiri')
   await db.user.delete({ where: { id } })
+  await catat(s, 'hapus', 'pengguna', { id })
   done('/admin/pengguna', 'Pengguna dihapus')
 }
 
@@ -253,5 +270,6 @@ export async function changePassword(fd: FormData) {
   const pw = str(fd, 'new', 200)
   if (pw.length < 8) redirect('/admin/akun?err=Password baru minimal 8 karakter')
   await db.user.update({ where: { id: s.uid }, data: { passwordHash: await bcrypt.hash(pw, 10) } })
+  await catat(s, 'ganti_password', 'pengguna', { id: s.uid })
   done('/admin/akun', 'Password diganti')
 }

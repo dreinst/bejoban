@@ -2,6 +2,7 @@
 // Format: beberapa kelompok kolom berdampingan (Ukuran Ban, Merk, Harga Jual, Stok, Keterangan),
 // dengan baris judul kelompok ring seperti "R15" atau "R14 (Muatan + MT)".
 import { normalizeSize } from './size'
+import { bentukKode, kodeDasar } from '../stok/kode'
 
 export type ParsedTire = {
   groupName: string
@@ -152,28 +153,29 @@ export function parsePricelist(csv: string): ParseResult {
 
 // ---- Baris yang diubah manual dan sinkron berikutnya ----
 
-export type ManualRow = ParsedTire & { lockManual: boolean }
-
-const keyOf = (r: { sizeNorm: string; brand: string }) => `${r.sizeNorm}|${r.brand.toLowerCase().replace(/\s+/g, ' ').trim()}`
+export type ManualRow = ParsedTire & { lockManual: boolean; kode?: string | null }
 
 // Gabungkan baris hasil impor baru dengan baris manual yang dikunci.
-// Baris dikenali lewat ukuran dan merek (urutan kemunculan dipakai untuk baris kembar).
+// Baris dikenali lewat kode stabil (src/lib/stok/kode.ts): ukuran|merek, dengan sufiks #2, #3 untuk baris kembar.
 // Baris manual yang dikunci dan ada di data baru: nilai manual dipertahankan.
 // Baris manual yang dikunci tapi tidak ada di data baru: tetap disimpan (orphan).
 // Baris manual yang tidak dikunci: ditimpa data baru.
 export function mergeManual(fresh: ParsedTire[], manual: ManualRow[]) {
+  const kode = bentukKode(fresh)
+  const idx = new Map(kode.map((k, i) => [k, i]))
   const used = new Set<number>()
   let kept = 0
-  const rows = fresh.map((r) => ({ ...r, manual: false, lockManual: true }))
+  const rows = fresh.map((r, i) => ({ ...r, kode: kode[i], manual: false, lockManual: true }))
   const orphans: ManualRow[] = []
   for (const m of manual.filter((x) => x.lockManual)) {
-    const i = rows.findIndex((r, idx) => !used.has(idx) && keyOf(r) === keyOf(m))
-    if (i < 0) {
+    const k = m.kode || kodeDasar(m)
+    const i = idx.get(k)
+    if (i === undefined || used.has(i)) {
       orphans.push(m)
       continue
     }
     used.add(i)
-    rows[i] = { ...m, manual: true, lockManual: true } as (typeof rows)[number]
+    rows[i] = { ...m, kode: k, manual: true, lockManual: true }
     kept++
   }
   const overwritten = manual.filter((x) => !x.lockManual).length

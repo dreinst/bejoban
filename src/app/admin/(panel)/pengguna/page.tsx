@@ -25,6 +25,9 @@ export default async function Pengguna() {
         </select>
       </label>
       <label className={labelCls}>{u ? 'Password baru (kosongkan kalau tidak diganti)' : 'Password (min. 8 karakter)'}<input name="password" type="password" autoComplete="new-password" className={inputCls} /></label>
+      <input type="hidden" name="aktif_form" value="1" />
+      <label className={`${labelCls} flex items-center gap-2`}><input type="checkbox" name="aktif" defaultChecked={u?.aktif ?? true} disabled={u?.id === s.uid} />Akun aktif (nonaktif: tidak bisa login)</label>
+      {u?.id === s.uid && <input type="hidden" name="aktif" value="on" />}
       <div className="flex items-end"><button className="adm-btn">Simpan</button></div>
     </form>
   )

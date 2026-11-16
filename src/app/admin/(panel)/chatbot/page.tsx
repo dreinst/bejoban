@@ -18,7 +18,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
     db.botConversation.findMany({ where: { ...(status && { status }), ...(cabang && { branchSlug: cabang === '-' ? '' : cabang }) }, orderBy: { updatedAt: 'desc' }, take: 60 }),
     db.botConversation.groupBy({ by: ['status'], _count: true }),
     db.botLog.findMany({ where: { source: 'UJI' }, orderBy: { id: 'desc' }, take: 8 }),
-    db.stockTire.count(),
+    db.stockTire.count({ where: { aktif: true } }),
     logId ? db.botLog.findUnique({ where: { id: logId } }) : null,
   ])
   const branches = await db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } })

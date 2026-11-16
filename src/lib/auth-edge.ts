@@ -1,6 +1,7 @@
 import { jwtVerify } from 'jose'
 
-// Cek cepat di proxy. Otorisasi sebenarnya tetap di server (lib/auth.ts).
+// Cek cepat di proxy. Otorisasi sebenarnya tetap di server (lib/auth.ts): proxy tidak membaca database,
+// jadi akun nonaktif atau terhapus baru ditolak oleh getSession di halaman, aksi, dan route API.
 export async function verifyToken(token?: string) {
   if (!token) return false
   try {
