@@ -46,15 +46,15 @@ export default async function Kalender({ searchParams }: PageProps<'/admin/kalen
   const akan = semua.filter((r) => r.tanggal >= kini)
   const lewat = semua.filter((r) => r.tanggal < kini).reverse()
   const list = saringan === 'akan' ? akan : saringan === 'lewat' ? lewat : semua
-  const tambah = (
-    <Drawer trigger="+ Tambah tanggal" triggerClassName="adm-btn" title="Tambah tanggal" description="Hari libur toko atau tanggal promo.">
+  const tambah = (kosong = false) => (
+    <Drawer trigger="+ Tambah tanggal" triggerClassName="adm-btn" title="Tambah tanggal" kunci={kosong ? 'tambah-tanggal-kosong' : undefined} description="Hari libur toko atau tanggal promo.">
       <FormTanggal />
     </Drawer>
   )
 
   return (
     <PageBody>
-      <PageHeader title="Kalender libur dan promo" note="Hari libur toko dan tanggal promo. Tanggal yang sudah lewat tetap disimpan sebagai riwayat." actions={tambah} />
+      <PageHeader title="Kalender libur dan promo" note="Hari libur toko dan tanggal promo. Tanggal yang sudah lewat tetap disimpan sebagai riwayat." actions={tambah()} />
       <ListToolbar count={list.length} noun="tanggal">
         <FilterChips
           label="Saring tanggal"
@@ -107,7 +107,7 @@ export default async function Kalender({ searchParams }: PageProps<'/admin/kalen
           semua.length ? (
             <Empty title={saringan === 'akan' ? 'Tidak ada tanggal yang akan datang' : 'Tidak ada tanggal yang sudah lewat'}>Pilih Semua untuk melihat seluruh tanggal.</Empty>
           ) : (
-            <Empty title="Belum ada tanggal">Tambah hari libur toko atau tanggal promo pertama lewat tombol di kanan atas.</Empty>
+            <Empty title="Belum ada tanggal" action={tambah(true)}>Tambah hari libur toko atau tanggal promo pertama.</Empty>
           )
         }
       />

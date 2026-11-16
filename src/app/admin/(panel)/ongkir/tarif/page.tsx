@@ -78,8 +78,9 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
     const p = new URLSearchParams(Object.entries({ q, e: c }).filter(([, v]) => v))
     return `/admin/ongkir/tarif${p.size ? `?${p}` : ''}`
   }
-  const tambah = (
-    <Drawer trigger="+ Tambah tarif" triggerClassName="adm-btn" title="Tambah tarif" description="Satu tarif untuk satu ekspedisi dan satu kota." defaultOpen={Boolean(kota)}>
+  // Dipakai di header dan di keadaan kosong; `kunci` membedakan keduanya.
+  const tambah = (kosong = false) => (
+    <Drawer trigger="+ Tambah tarif" triggerClassName="adm-btn" title="Tambah tarif" kunci={kosong ? 'tambah-tarif-kosong' : undefined} description="Satu tarif untuk satu ekspedisi dan satu kota." defaultOpen={Boolean(kota) && !kosong}>
       <FormTarif kota={kota} />
     </Drawer>
   )
@@ -97,7 +98,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
         actions={
           <>
             {tempel}
-            {tambah}
+            {tambah()}
           </>
         }
       />
@@ -159,7 +160,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
           q || e ? (
             <Empty title="Tarif tidak ditemukan">Tidak ada tarif yang cocok dengan saringan ini. Ubah kata cari atau pilih Semua.</Empty>
           ) : (
-            <Empty title="Belum ada tarif">Tambah tarif pertama lewat tombol di kanan atas, atau tempel banyak baris sekaligus dari daftar harga agen.</Empty>
+            <Empty title="Belum ada tarif" action={tambah(true)}>Tambah tarif pertama, atau tempel banyak baris sekaligus dari daftar harga agen.</Empty>
           )
         }
       />
