@@ -125,9 +125,9 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Situs, Tautan WhatsApp | `/admin/situs` | ya | |
 | Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang hanya melihat cabangnya. |
 | Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset password di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
-| Pengaturan, WhatsApp dan chatbot | `/admin/pengaturan/whatsapp` | ya | |
-| Pengaturan, Ongkir | `/admin/pengaturan/ongkir` | ya | |
-| Pengaturan, Kalender | `/admin/kalender` | ya | Saringan Akan datang, Sudah lewat, Semua. |
+| Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. |
+| Ongkir, Pengaturan | `/admin/ongkir/pengaturan` | ya | Khusus owner. |
+| Kalender (tanpa tab) | `/admin/kalender` | ya | Disembunyikan dari menu, datanya belum dipakai. Saringan Akan datang, Sudah lewat, Semua. |
 | Akun saya | `/admin/akun` | ya | |
 | Panduan ukuran foto | `/admin/panduan-foto` | ya | |
 | Login | `/admin/login` | ya | Label terlihat. |

@@ -65,7 +65,7 @@ function FormTempel() {
   )
 }
 
-// Tarif per kota. Angka dasar (asal kirim, kemasan, packing) ada di Pengaturan, tab Ongkir.
+// Tarif per kota. Angka dasar (asal kirim, kemasan, packing) ada di menu Ongkir, tab Pengaturan.
 export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/tarif'>) {
   await requireOwner()
   const sp = await searchParams

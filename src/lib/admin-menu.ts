@@ -51,6 +51,7 @@ export const ADMIN_MENU: AdminMenu[] = [
       { key: 'percakapan', label: 'Percakapan', href: '/admin/chatbot' },
       { key: 'uji', label: 'Kotak uji', href: '/admin/chatbot/uji', owner: true },
       { key: 'templat', label: 'Templat pesan', href: '/admin/chatbot/templat', owner: true },
+      { key: 'pengaturan-bot', label: 'Pengaturan bot', href: '/admin/chatbot/pengaturan', owner: true },
     ],
   },
   {
@@ -60,6 +61,7 @@ export const ADMIN_MENU: AdminMenu[] = [
     tabs: [
       { key: 'hitung', label: 'Hitung', href: '/admin/ongkir' },
       { key: 'tarif', label: 'Tarif', href: '/admin/ongkir/tarif', owner: true },
+      { key: 'pengaturan-ongkir', label: 'Pengaturan', href: '/admin/ongkir/pengaturan', owner: true },
     ],
   },
   {
@@ -82,18 +84,17 @@ export const ADMIN_MENU: AdminMenu[] = [
     tabs: [
       { key: 'cabang', label: 'Cabang', href: '/admin/cabang' },
       { key: 'pengguna', label: 'Pengguna', href: '/admin/pengguna' },
-      { key: 'whatsapp', label: 'WhatsApp dan chatbot', href: '/admin/pengaturan/whatsapp' },
-      { key: 'ongkir', label: 'Ongkir', href: '/admin/pengaturan/ongkir' },
-      { key: 'kalender', label: 'Kalender libur dan promo', href: '/admin/kalender' },
     ],
   },
 ]
 
 // Alamat lama yang dialihkan. Dipakai next.config.ts (redirects) dan tes.
 // Alamat lain yang pindah menu tetap sama, jadi tidak perlu dialihkan.
+// /admin/kalender sengaja tidak punya tab: datanya belum dipakai bot maupun situs, halaman dan datanya tetap ada.
 export const LEGACY_REDIRECTS: { source: string; destination: string }[] = [
   { source: '/admin/produk', destination: '/admin/harga' },
-  { source: '/admin/chatbot/pengaturan', destination: '/admin/pengaturan/whatsapp' },
+  { source: '/admin/pengaturan/whatsapp', destination: '/admin/chatbot/pengaturan' },
+  { source: '/admin/pengaturan/ongkir', destination: '/admin/ongkir/pengaturan' },
 ]
 
 export const legacyDestination = (pathname: string) => LEGACY_REDIRECTS.find((r) => r.source === pathname)?.destination ?? null

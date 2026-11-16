@@ -10,7 +10,7 @@ import { Badge, PageBody, PageHeader, Section, SettingsGrid } from '@/components
 import { CheckField, FormActions, FormGrid, TextAreaField, TextField } from '@/components/admin/field'
 import { SubmitButton } from '@/components/admin/overlay'
 
-// Pengaturan WhatsApp dan chatbot, satu form dan satu tombol simpan per bagian. Templat pesan ada di menu Chatbot.
+// Pengaturan WhatsApp dan chatbot, satu form dan satu tombol simpan per bagian. Templat pesan ada di tab Templat pesan.
 export default async function PengaturanWhatsapp() {
   await requireOwner()
   const [s, sosmed, situs, branches] = await Promise.all([loadBotSettings(), loadSosmed(), getSitus(), db.branch.findMany({ orderBy: { sort: 'asc' } })])
@@ -20,7 +20,7 @@ export default async function PengaturanWhatsapp() {
   const mainNumber = situs.mainWhatsapp || null
   return (
     <PageBody>
-      <PageHeader title="WhatsApp dan chatbot" note="Sambungan, jam aktif, nomor admin, dan teks balasan sosial media. Templat pesan bot ada di menu Chatbot." />
+      <PageHeader title="Pengaturan bot" note="Sambungan WhatsApp, jam aktif, nomor admin, dan teks balasan sosial media. Kalimat yang dikirim bot ada di tab Templat pesan." />
       <SettingsGrid>
         <Section id="sambungan" title="Sambungan WhatsApp" description="Satu nomor melayani kedua cabang. Bot mengenali cabang dari kalimat pembuka tombol WhatsApp di situs.">
           <dl className="grid gap-y-3 text-sm sm:grid-cols-[190px_1fr]">

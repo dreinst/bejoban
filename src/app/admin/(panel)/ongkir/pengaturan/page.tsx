@@ -22,7 +22,7 @@ export default async function PengaturanOngkir() {
   ] as const
   return (
     <PageBody>
-      <PageHeader title="Pengaturan ongkir" note="Angka dasar yang dipakai kalkulator ongkir. Tarif per kota diisi di menu Ongkir, tab Tarif." />
+      <PageHeader title="Pengaturan ongkir" note="Angka dasar yang dipakai kalkulator ongkir. Tarif per kota diisi di tab Tarif." />
       <SettingsGrid>
         <Section id="asal" title="Asal kirim dan titik cabang" description="Titik toko dipakai untuk jarak garis lurus ke alamat tujuan. Di Google Maps, klik kanan titik toko lalu salin dua angka koordinatnya.">
           <form action={saveShipSettings}>

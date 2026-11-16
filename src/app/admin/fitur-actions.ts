@@ -159,7 +159,7 @@ export async function saveStockRow(fd: FormData) {
 /* ---------- Ongkir ---------- */
 
 const TARIF_PAGE = '/admin/ongkir/tarif'
-const SHIP_PAGE = '/admin/pengaturan/ongkir'
+const SHIP_PAGE = '/admin/ongkir/pengaturan'
 
 function carrierOf(raw: string): Carrier | null {
   const s = raw.toLowerCase().replace(/[^a-z]/g, '')
@@ -403,7 +403,7 @@ export async function testBot(fd: FormData) {
 }
 
 const time = (v: string, fallback: string) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : fallback)
-const BOT_PAGE = '/admin/pengaturan/whatsapp'
+const BOT_PAGE = '/admin/chatbot/pengaturan'
 const TEMPLAT_PAGE = '/admin/chatbot/templat'
 
 export async function saveBotHours(fd: FormData) {
