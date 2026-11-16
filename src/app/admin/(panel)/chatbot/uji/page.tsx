@@ -2,11 +2,10 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { clearBotLogs, testBot } from '../../../fitur-actions'
-import { Badge, Empty, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
+import { waktuWib } from '@/lib/format'
+import { Badge, Empty, PageBody, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
 import { FormActions, FormGrid, SelectField, TextField } from '@/components/admin/field'
 import { ConfirmDialog, SubmitButton } from '@/components/admin/overlay'
-
-const wib = (d: Date) => d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 // Kotak uji: mencoba jawaban bot tanpa membuat percakapan dan tanpa mengirim apa pun ke WhatsApp.
 export default async function UjiChatbot({ searchParams }: PageProps<'/admin/chatbot/uji'>) {
@@ -20,24 +19,30 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
   const [custReply, adminPart] = (current?.reply ?? '').split('\n\n[Ringkasan ke admin')
   const label = 'mb-1 text-xs font-semibold text-neutral-700'
   return (
-    <div className="space-y-5">
+    <PageBody>
       <PageHeader title="Kotak uji" note="Ketik pesan seperti pelanggan untuk melihat balasan bot. Tidak membuat percakapan dan tidak mengirim apa pun ke WhatsApp." />
       <SettingsGrid>
         <Section id="uji" title="Pesan uji" description="Hasilnya tampil di bawah formulir dan tersimpan di riwayat.">
           <form action={testBot}>
             <FormGrid cols={1}>
               <TextField label="Pesan uji" name="q" required maxLength={500} placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" autoComplete="off" />
-              <SelectField label="Cabang yang sudah diingat untuk nomor ini" name="known" defaultValue="">
-                <option value="">Belum ada</option>
-                {branches.map((b) => <option key={b.slug} value={b.slug}>{b.name.replace(/\s*\(.*\)/, '')}</option>)}
-              </SelectField>
-              <TextField label="Pesan asal (opsional)" name="pending" maxLength={500} placeholder="mis. ada ban 225/45 R17?" hint="Isi kalau mengetes jawaban 1 atau 2 untuk pertanyaan cabang." autoComplete="off" />
-              <SelectField label="Stok per cabang untuk uji ini" name="perCabang" defaultValue="">
-                <option value="">Ikut pengaturan</option>
-                <option value="on">Nyala</option>
-                <option value="off">Mati</option>
-              </SelectField>
             </FormGrid>
+            <details className="mt-4 rounded-lg border border-line px-3 py-2">
+              <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Uji lanjutan</summary>
+              <p className="mb-3 mt-1 text-xs text-mute">Untuk mencoba keadaan tertentu. Kalau dibiarkan, bot diuji seperti pelanggan baru dan memakai pengaturan yang sedang berlaku.</p>
+              <FormGrid cols={1}>
+                <SelectField label="Cabang yang sudah diingat untuk nomor ini" name="known" defaultValue="">
+                  <option value="">Belum ada</option>
+                  {branches.map((b) => <option key={b.slug} value={b.slug}>{b.name.replace(/\s*\(.*\)/, '')}</option>)}
+                </SelectField>
+                <TextField label="Pesan asal (opsional)" name="pending" maxLength={500} placeholder="mis. ada ban 225/45 R17?" hint="Isi kalau mengetes jawaban 1 atau 2 untuk pertanyaan cabang." autoComplete="off" />
+                <SelectField label="Stok per cabang untuk uji ini" name="perCabang" defaultValue="">
+                  <option value="">Ikut pengaturan</option>
+                  <option value="on">Nyala</option>
+                  <option value="off">Mati</option>
+                </SelectField>
+              </FormGrid>
+            </details>
             <FormActions>
               <SubmitButton pending="Menguji...">Kirim uji</SubmitButton>
             </FormActions>
@@ -56,7 +61,10 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
                   <pre className="whitespace-pre-wrap rounded-lg border border-dashed border-[#cfcfcf] bg-white px-3 py-2 font-sans">{'[Ringkasan ke admin' + adminPart}</pre>
                 </>
               )}
-              <p className="text-xs text-mute">Alasan pencocokan: {current.reason || '-'}</p>
+              <details className="text-xs text-mute">
+                <summary className="flex min-h-8 cursor-pointer items-center font-semibold max-md:min-h-11">Alasan pencocokan (untuk pengembang)</summary>
+                <p className="mt-1 break-words">{current.reason || '-'}</p>
+              </details>
             </div>
           )}
         </Section>
@@ -87,7 +95,7 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
               {logs.map((l) => (
                 <li key={l.id} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
                   <Link href={`/admin/chatbot/uji?log=${l.id}`} className={`min-w-0 break-words underline ${l.id === logId ? 'font-bold' : ''}`}>{l.input}</Link>
-                  <span className="text-xs text-mute">{wib(l.createdAt)}</span>
+                  <span className="text-xs text-mute">{waktuWib(l.createdAt)}</span>
                 </li>
               ))}
             </ul>
@@ -96,6 +104,6 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
           )}
         </Section>
       </SettingsGrid>
-    </div>
+    </PageBody>
   )
 }

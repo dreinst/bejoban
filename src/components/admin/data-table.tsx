@@ -28,6 +28,7 @@ export function DataTable<T>({
   caption,
   empty,
   muted,
+  actionsBelow,
 }: {
   rows: T[]
   rowKey: (row: T) => string | number
@@ -42,11 +43,13 @@ export function DataTable<T>({
   empty?: ReactNode
   /** Baris diredupkan, mis. item nonaktif. */
   muted?: (row: T) => boolean
+  /** Di layar kecil aksi turun ke baris sendiri di bawah kartu (untuk tombol panjang). */
+  actionsBelow?: boolean
 }) {
   if (!rows.length) return <>{empty}</>
   return (
     <div className="adm-card overflow-hidden">
-      <table className="adm-table" data-thumb={thumb ? '' : undefined}>
+      <table className="adm-table" data-thumb={thumb ? '' : undefined} data-actions={actionsBelow ? 'below' : undefined}>
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>

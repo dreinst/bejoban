@@ -109,6 +109,10 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
     .adm-table td[data-role=hide] { display: none; }
     .adm-table td[data-role=actions] { grid-column: 2; grid-row: 1 / span 6; align-self: start; }
     .adm-table[data-thumb] td[data-role=actions] { grid-column: 3; }
+    .adm-table[data-actions=below] td[data-role=actions], .adm-table[data-actions=below][data-thumb] td[data-role=actions] { grid-column: 1 / -1; grid-row: auto; margin-top: .5rem; width: 100% !important; }
+    .adm-table[data-actions=below] .adm-row-actions { flex-direction: row; flex-wrap: wrap; justify-content: stretch; }
+    .adm-table[data-actions=below] .adm-row-actions > * { flex: 1 1 10rem; }
+    .adm-table[data-actions=below] .adm-row-actions .adm-btn-line, .adm-table[data-actions=below] .adm-row-actions form { width: 100%; }
     .adm-row-actions { flex-direction: column; align-items: stretch; }
   }
 
