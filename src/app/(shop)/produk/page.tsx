@@ -3,8 +3,11 @@ import { db } from '@/lib/db'
 import { currentBranch, listProducts } from '@/lib/shop'
 import { ProductCard } from '@/components/product-card'
 import { getSitus } from '@/lib/situs-server'
+import { Icon } from '@/components/icons'
 
 export const metadata = { title: 'Produk | Bejo Ban' }
+
+const tampilDiCabang = (branchId: number) => ({ active: true, listings: { some: { branchId, available: true } } })
 
 export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const sp = await searchParams
@@ -14,8 +17,9 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const [{ branch }, { showPrices }] = await Promise.all([currentBranch(), getSitus()])
   const [products, categories, brands] = await Promise.all([
     listProducts(branch.id, f, { sort }),
-    db.category.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
-    db.brand.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
+    // Saringan hanya menawarkan jenis dan merek yang punya produk tampil di cabang ini, supaya pengunjung tidak berujung di daftar kosong.
+    db.category.findMany({ where: { aktif: true, products: { some: tampilDiCabang(branch.id) } }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
+    db.brand.findMany({ where: { aktif: true, products: { some: tampilDiCabang(branch.id) } }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
   ])
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ q: f.q, kategori: f.category, merek: f.brand, mobil: f.fitment, urut: sort, ...patch }).filter(([, v]) => v) as [string, string][])
@@ -53,7 +57,14 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
       ) : (
-        <p className="py-20 text-center">Produk belum ditemukan di cabang ini. Coba kata kunci lain atau tanyakan lewat WhatsApp.</p>
+        <div className="mx-auto max-w-md py-20 text-center">
+          <p className="text-lg font-semibold text-ink">Belum ada produk yang cocok di {branch.name.replace(/\s*\(.*\)/, '')}.</p>
+          <p className="mt-2 text-mute">Tanyakan langsung lewat WhatsApp, kami bantu carikan{f.q ? ` untuk "${f.q}"` : ''}.</p>
+          <a href={`/wa/${branch.slug}${f.q ? `?p=${encodeURIComponent(f.q)}` : ''}`} target="_blank" rel="noopener" className="btn btn-k mt-6 h-[52px] w-full text-base">
+            <Icon name="wa" size={20} c="#ffffff" d="#161616" />
+            Tanya lewat WhatsApp
+          </a>
+        </div>
       )}
     </div>
   )
