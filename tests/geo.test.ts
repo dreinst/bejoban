@@ -55,3 +55,16 @@ test('jarak garis lurus', () => {
   assert.ok(km > 650 && km < 700, String(km))
   assert.equal(Math.round(distanceKm(jakarta, jakarta)), 0)
 })
+
+test('titik toko dibaca dari tautan Google Maps atau dua angka koordinat', async () => {
+  const { bacaTitik } = await import('../src/lib/geo/titik')
+  assert.deepEqual(bacaTitik('-7.8826, 112.5272'), { lat: -7.8826, lon: 112.5272 })
+  assert.deepEqual(bacaTitik('-7,8826 112,5272'), { lat: -7.8826, lon: 112.5272 })
+  assert.deepEqual(bacaTitik('https://www.google.com/maps/place/Bejo+Ban/@-7.8826,112.5272,17z/data=!3m1'), { lat: -7.8826, lon: 112.5272 })
+  assert.deepEqual(bacaTitik('https://www.google.com/maps/place/X/data=!4m2!3d-7.9!4d112.6'), { lat: -7.9, lon: 112.6 })
+  assert.deepEqual(bacaTitik('https://maps.google.com/?q=-7.9,112.6'), { lat: -7.9, lon: 112.6 })
+  assert.equal(bacaTitik('https://maps.app.goo.gl/abcd1234'), null)
+  assert.equal(bacaTitik('https://maps.google.com/?q=Bejo+Ban+Batu'), null)
+  assert.equal(bacaTitik('99, 300'), null)
+  assert.equal(bacaTitik(''), null)
+})

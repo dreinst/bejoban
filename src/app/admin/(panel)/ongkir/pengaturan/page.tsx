@@ -2,10 +2,10 @@ import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { saveShipSettings } from '../../../fitur-actions'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
-import { SAMPLE_LABEL } from '@/lib/ongkir/types'
+import { branchLabel } from '@/lib/situs'
 import { inputCls } from '@/components/admin/form-cls'
 import { PageBody, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
-import { CheckField, FormActions, FormGrid, TextField } from '@/components/admin/field'
+import { FormActions, FormGrid, TextField } from '@/components/admin/field'
 import { SubmitButton } from '@/components/admin/overlay'
 
 // Angka dasar kalkulator ongkir. Tiap bagian punya form dan tombol simpan sendiri (lihat saveShipSettings).
@@ -24,52 +24,61 @@ export default async function PengaturanOngkir() {
     <PageBody>
       <PageHeader title="Pengaturan ongkir" note="Angka dasar yang dipakai kalkulator ongkir. Tarif per kota diisi di tab Tarif." />
       <SettingsGrid>
-        <Section id="asal" title="Asal kirim dan titik cabang" description="Titik toko dipakai untuk jarak garis lurus ke alamat tujuan. Di Google Maps, klik kanan titik toko lalu salin dua angka koordinatnya.">
-          <form action={saveShipSettings}>
-            {bagian('asal')}
-            <FormGrid>
-              <TextField className="sm:col-span-2" label="Nama asal kirim" name="origin" defaultValue={s.origin} placeholder="mis. Cabang Batu" />
-              {branches.map((b) => {
-                const nama = b.name.replace(/\s*\(.*\)/, '')
-                return (
-                  <div key={b.slug} className="grid grid-cols-2 gap-3 sm:col-span-2">
-                    <TextField label={`Lintang ${nama}`} name={`lat_${b.slug}`} defaultValue={s.origins[b.slug]?.lat ?? ''} />
-                    <TextField label={`Bujur ${nama}`} name={`lon_${b.slug}`} defaultValue={s.origins[b.slug]?.lon ?? ''} />
-                  </div>
-                )
-              })}
-            </FormGrid>
-            <FormActions><SubmitButton>Simpan asal kirim</SubmitButton></FormActions>
-          </form>
-        </Section>
-
         <div className="space-y-5">
+          <Section id="asal" title="Asal kirim dan titik cabang" description="Titik toko dipakai untuk jarak garis lurus ke alamat tujuan.">
+            <form action={saveShipSettings}>
+              {bagian('asal')}
+              <FormGrid cols={1}>
+                <TextField label="Nama asal kirim" name="origin" defaultValue={s.origin} placeholder="mis. Cabang Batu" />
+                {branches.map((b) => {
+                  const t = s.origins[b.slug]
+                  const ada = t?.lat != null && t?.lon != null
+                  return (
+                    <TextField
+                      key={b.slug}
+                      label={`Titik toko ${branchLabel(b.name)}`}
+                      name={`titik_${b.slug}`}
+                      placeholder="Tempel tautan Google Maps"
+                      autoComplete="off"
+                      hint={`${ada ? `Tersimpan: ${t.lat}, ${t.lon}. ` : 'Belum diisi, jarak garis lurus tidak dihitung. '}Buka toko di Google Maps, salin tautannya (bukan tautan pendek) atau klik kanan titik toko lalu salin dua angkanya. Kosongkan kalau tidak diubah.`}
+                    />
+                  )
+                })}
+              </FormGrid>
+              <FormActions><SubmitButton>Simpan asal kirim</SubmitButton></FormActions>
+            </form>
+          </Section>
+
           <Section id="hitung" title="Berat volume dan packing" description="Berat volume = panjang x lebar x tinggi (cm) dibagi angka pembagi dari ekspedisi.">
             <form action={saveShipSettings}>
               {bagian('hitung')}
-              <FormGrid>
-                <TextField label="Pembagi volume J&T Cargo" name="divJnt" defaultValue={s.divisor.JNT_CARGO} inputMode="numeric" />
-                <TextField label="Pembagi volume Baraka" name="divBaraka" defaultValue={s.divisor.BARAKA} inputMode="numeric" />
-                <TextField className="sm:col-span-2" label="Packing per ban (Rp)" hint="Isi 0 untuk tanpa packing." name="packing" defaultValue={s.packingPerTire} inputMode="numeric" />
+              <FormGrid cols={1}>
+                <TextField label="Packing per ban (Rp)" hint="Isi 0 untuk tanpa packing." name="packing" defaultValue={s.packingPerTire} inputMode="numeric" />
               </FormGrid>
+              <details className="mt-4 rounded-[10px] border border-line px-4 py-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink">Angka pembagi ekspedisi (jarang diubah)</summary>
+                <FormGrid>
+                  <TextField className="mt-3" label="Pembagi volume J&T Cargo" name="divJnt" defaultValue={s.divisor.JNT_CARGO} inputMode="numeric" />
+                  <TextField className="mt-3" label="Pembagi volume Baraka" name="divBaraka" defaultValue={s.divisor.BARAKA} inputMode="numeric" />
+                </FormGrid>
+              </details>
               <FormActions><SubmitButton>Simpan berat volume dan packing</SubmitButton></FormActions>
             </form>
           </Section>
-
-          <Section id="velg" title="Berat dan kemasan velg" description="Berat velg perkiraan toko. Kalau ukuran kemasan diisi 0, berat volume velg tidak dihitung.">
-            <form action={saveShipSettings}>
-              {bagian('velg')}
-              <FormGrid>
-                <TextField label="Berat per velg (kg)" name="velgW" defaultValue={s.velg.weightKg} inputMode="decimal" />
-                <TextField label="Panjang (cm)" name="velgL" defaultValue={s.velg.lengthCm} inputMode="decimal" />
-                <TextField label="Lebar (cm)" name="velgB" defaultValue={s.velg.widthCm} inputMode="decimal" />
-                <TextField label="Tinggi (cm)" name="velgT" defaultValue={s.velg.heightCm} inputMode="decimal" />
-                <TextField className="sm:col-span-2" label="Sumber angka" name="velgNote" defaultValue={s.velgNote} />
-              </FormGrid>
-              <FormActions><SubmitButton>Simpan velg</SubmitButton></FormActions>
-            </form>
-          </Section>
         </div>
+
+        <Section id="velg" title="Berat dan kemasan velg" description="Berat velg perkiraan toko. Kalau ukuran kemasan diisi 0, berat volume velg tidak dihitung.">
+          <form action={saveShipSettings}>
+            {bagian('velg')}
+            <FormGrid>
+              <TextField label="Berat per velg (kg)" name="velgW" defaultValue={s.velg.weightKg} inputMode="decimal" />
+              <TextField label="Panjang (cm)" name="velgL" defaultValue={s.velg.lengthCm} inputMode="decimal" />
+              <TextField label="Lebar (cm)" name="velgB" defaultValue={s.velg.widthCm} inputMode="decimal" />
+              <TextField label="Tinggi (cm)" name="velgT" defaultValue={s.velg.heightCm} inputMode="decimal" />
+            </FormGrid>
+            <FormActions><SubmitButton>Simpan velg</SubmitButton></FormActions>
+          </form>
+        </Section>
 
         <Section id="kemasan" title="Kemasan ban per ring" wide description="Berat dan ukuran kemasan satu ban. Beberapa ban dihitung bertumpuk.">
           <form action={saveShipSettings}>
@@ -100,9 +109,7 @@ export default async function PengaturanOngkir() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-3">
-              <CheckField label="Angka ini masih contoh" name="ringPackSample" defaultChecked={s.ringPackSample} hint={`Hasil hitung diberi label "${SAMPLE_LABEL}".`} />
-            </div>
+            {s.ringPackSample && <p className="mt-3 text-xs text-mute">Angka di tabel ini masih contoh, jadi hasil hitung ongkir diberi label contoh. Setelah kamu mengubah angkanya dan menyimpan, label itu hilang.</p>}
             <FormActions><SubmitButton>Simpan kemasan ban</SubmitButton></FormActions>
           </form>
         </Section>

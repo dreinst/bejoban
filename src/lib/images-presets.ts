@@ -22,3 +22,6 @@ export const PRESETS = {
 } as const
 
 export type PresetKey = keyof typeof PRESETS
+
+// Jenis foto yang boleh diunggah admin cabang: hanya foto cabangnya sendiri (halaman Data cabang saya). Selebihnya khusus owner.
+export const PRESET_ADMIN_CABANG: readonly PresetKey[] = ['branch']

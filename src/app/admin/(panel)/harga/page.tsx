@@ -3,6 +3,9 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { parseImages } from '@/lib/format'
 import { savePrices } from '../../actions'
+import { saveTampilHarga } from '../../fitur-actions'
+import { getSitus } from '@/lib/situs-server'
+import { CheckField } from '@/components/admin/field'
 import { Badge, Empty, PageBody, PageHeader } from '@/components/admin/ui'
 import { DataTable, FilterChips, ListToolbar, Thumb } from '@/components/admin/data-table'
 import { inputCls } from '@/components/admin/form-cls'
@@ -25,7 +28,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
   const sp = await searchParams
   const q = String(sp.q ?? '').trim().slice(0, 60)
   const f = ['tanpa-foto', 'stok0'].includes(String(sp.f)) ? String(sp.f) : ''
-  const branches = await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }] })
+  const [branches, situs] = await Promise.all([db.branch.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }] }), getSitus()])
   const branchId = owner ? (branches.some((b) => b.id === Number(sp.cabang)) ? Number(sp.cabang) : branches[0].id) : s.branchId!
   const branch = branches.find((b) => b.id === branchId)!
   const where = {
@@ -62,6 +65,19 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
         note="Produk yang tampil di situs, dengan harga dan stok per cabang. Ubah banyak baris sekaligus lalu tekan Simpan. Produk yang tidak dicentang Dijual tidak tampil di cabang ini."
         actions={tambah}
       />
+      {owner && (
+        <form action={saveTampilHarga} className="adm-card flex flex-wrap items-center justify-between gap-x-6 gap-y-2 p-4">
+          <input type="hidden" name="cabang" value={branchId} />
+          <CheckField
+            className="min-w-0 flex-1 basis-80"
+            label="Tampilkan harga di situs"
+            name="showPrices"
+            defaultChecked={situs.showPrices}
+            hint="Kalau mati, beranda dan halaman produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Harga jasa tidak pernah tampil di situs."
+          />
+          <SubmitButton className="adm-btn-line">Simpan</SubmitButton>
+        </form>
+      )}
       {owner && (
         <FilterChips
           label="Pilih cabang"

@@ -15,7 +15,8 @@ import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/re
 import { CHANNELS, DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KEYS, type Sosmed, type TemplateKey } from '@/lib/bot/templates'
 import { applyImport, gabungRingkasan, simpanRingkasan, type ImportSource, type RingkasanImpor } from '@/lib/tire/import'
 import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
-import { mergeSitus } from '@/lib/situs'
+import { branchLabel, mergeSitus } from '@/lib/situs'
+import { bacaTitik } from '@/lib/geo/titik'
 import { nextStatus, type Status } from '@/lib/bot/conversation'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { ubahStokTx } from '@/lib/stok/ubah'
@@ -235,6 +236,9 @@ export async function importRates(fd: FormData) {
   go(TARIF_PAGE, `${ok} tarif masuk${bad.length ? `, ${bad.length} baris dilewati (${bad.slice(0, 5).join(', ')})` : ''}`)
 }
 
+const samaKemasan = (a: ShippingSettings['ringPack'], b: ShippingSettings['ringPack']) =>
+  Array.from({ length: 8 }, (_, i) => String(12 + i)).every((r) => (['weightKg', 'lengthCm', 'widthCm', 'heightCm'] as const).every((k) => (a[r]?.[k] ?? 0) === (b[r]?.[k] ?? 0)))
+
 // Form pengaturan ongkir dipecah per bagian (asal, hitung, velg, kemasan). Hanya bagian yang dikirim
 // yang diperbarui; bagian lain tetap memakai nilai tersimpan. Tanpa penanda bagian, semua diperbarui.
 export async function saveShipSettings(fd: FormData) {
@@ -258,14 +262,14 @@ export async function saveShipSettings(fd: FormData) {
   }
   let origins: ShippingSettings['origins'] = old.origins
   if (ubah('asal')) {
-    origins = {}
-    for (const b of await db.branch.findMany({ select: { slug: true } })) {
-      const lat = str(fd, `lat_${b.slug}`, 20).replace(',', '.')
-      const lon = str(fd, `lon_${b.slug}`, 20).replace(',', '.')
-      const la = lat === '' ? null : Number(lat)
-      const lo = lon === '' ? null : Number(lon)
-      if ((la !== null && !(la >= -90 && la <= 90)) || (lo !== null && !(lo >= -180 && lo <= 180))) go(SHIP_PAGE, `Koordinat cabang ${b.slug} tidak valid`, 'err')
-      origins[b.slug] = { lat: la, lon: lo }
+    // Titik toko ditempel sebagai tautan Google Maps atau dua angka koordinat. Kosong berarti titik lama dipertahankan.
+    origins = { ...old.origins }
+    for (const b of await db.branch.findMany({ select: { slug: true, name: true } })) {
+      const isi = str(fd, `titik_${b.slug}`, 600)
+      if (!isi) continue
+      const t = bacaTitik(isi)
+      if (!t) go(SHIP_PAGE, `Titik ${branchLabel(b.name)} tidak terbaca. Pakai tautan lengkap dari Google Maps (bukan tautan pendek), atau tempel dua angka koordinat seperti -7.8826, 112.5272.`, 'err')
+      origins[b.slug] = t!
     }
   }
   let divisor = old.divisor
@@ -279,9 +283,10 @@ export async function saveShipSettings(fd: FormData) {
     divisor,
     packingPerTire: ubah('hitung') ? int(fd, 'packing') : old.packingPerTire,
     ringPack,
-    ringPackSample: ubah('kemasan') ? fd.get('ringPackSample') === 'on' : old.ringPackSample,
+    // Label "angka contoh" hilang setelah owner mengubah angka kemasan dan menyimpannya.
+    ringPackSample: ubah('kemasan') && !samaKemasan(ringPack, old.ringPack) ? false : old.ringPackSample,
     velg: velgPack,
-    velgNote: ubah('velg') ? str(fd, 'velgNote', 120) : old.velgNote,
+    velgNote: ubah('velg') && fd.has('velgNote') ? str(fd, 'velgNote', 120) : old.velgNote,
     origins,
   })
   await saveSetting('ongkir', next)
@@ -352,8 +357,11 @@ export async function deleteService(fd: FormData) {
 
 /* ---------- Pengaturan situs publik ---------- */
 
-// Halaman Tautan WhatsApp punya tiga form (nomor, pembuka, harga). Hanya bagian yang dikirim yang
-// diperbarui; bagian lain tetap memakai nilai tersimpan. Tanpa penanda bagian, semua diperbarui.
+// Halaman Tautan WhatsApp punya dua form (nomor utama dan kalimat pembuka). Hanya bagian yang dikirim yang
+// diperbarui; bagian lain tetap memakai nilai tersimpan. Tanpa penanda bagian, keduanya diperbarui.
+// Tampil atau tidaknya harga ada di saveTampilHarga (halaman Produk situs).
+const NAMA_PEMBUKA = { umum: 'tombol umum', produk: 'halaman produk' } as const
+
 export async function saveSitus(fd: FormData) {
   const s = await requireOwner()
   const bagian = str(fd, 'bagian', 20)
@@ -361,17 +369,37 @@ export async function saveSitus(fd: FormData) {
   const row = await db.setting.findUnique({ where: { key: 'situs' } })
   const cur = mergeSitus(row ? JSON.parse(row.value) : null)
   const main = str(fd, 'mainWhatsapp', 30)
-  if (ubah('nomor') && main && !/^62\d{8,13}$/.test(normalizeNumber(main))) go('/admin/situs', 'Nomor WhatsApp utama tidak valid', 'err')
+  if (ubah('nomor') && main && !/^62\d{8,13}$/.test(normalizeNumber(main))) go('/admin/situs', 'Nomor WhatsApp utama tidak valid. Tulis seperti 0812xxxxxxxx atau 62812xxxxxxxx.', 'err')
   const op = (k: string) => str(fd, k, 300)
   const next = mergeSitus({
     mainWhatsapp: ubah('nomor') ? (main ? normalizeNumber(main) : '') : cur.mainWhatsapp,
-    showPrices: ubah('harga') ? fd.get('showPrices') === 'on' : cur.showPrices,
+    showPrices: cur.showPrices,
     openers: ubah('pembuka') ? { umum: op('opUmum'), produk: op('opProduk') } : cur.openers,
   })
-  for (const [k, v] of Object.entries(next.openers)) if (!v.trim()) go('/admin/situs', `Kalimat pembuka ${k} tidak boleh kosong`, 'err')
+  if (ubah('pembuka')) {
+    // Bot mengenali cabang dari nama cabang di kalimat pembuka, jadi {cabang} tidak boleh hilang.
+    for (const [k, v] of Object.entries(next.openers) as [keyof typeof NAMA_PEMBUKA, string][]) {
+      const nama = NAMA_PEMBUKA[k]
+      if (!v.trim()) go('/admin/situs', `Kalimat pembuka ${nama} tidak boleh kosong`, 'err')
+      if (!v.includes('{cabang}')) go('/admin/situs', `Kalimat pembuka ${nama} harus memuat {cabang}. Bot mengenali cabang pelanggan dari kata itu.`, 'err')
+    }
+    if (!next.openers.produk.includes('{produk}')) go('/admin/situs', 'Kalimat pembuka halaman produk harus memuat {produk} supaya nama produknya ikut terkirim.', 'err')
+  }
   await saveSetting('situs', next)
   await catat(s, 'simpan', 'pengaturan_situs', { kunci: 'situs', bagian: bagian || 'semua' })
-  go('/admin/situs', bagian === 'nomor' ? 'Nomor WhatsApp utama tersimpan' : bagian === 'pembuka' ? 'Kalimat pembuka tersimpan' : bagian === 'harga' ? 'Pengaturan harga di situs tersimpan' : 'Pengaturan situs tersimpan')
+  go('/admin/situs', bagian === 'nomor' ? 'Nomor WhatsApp utama tersimpan' : bagian === 'pembuka' ? 'Kalimat pembuka tersimpan' : 'Pengaturan situs tersimpan')
+}
+
+// Sakelar "Tampilkan harga di situs". Hanya owner; dicek di server walau sakelarnya sudah disembunyikan dari admin cabang.
+export async function saveTampilHarga(fd: FormData) {
+  const s = await requireOwner()
+  const row = await db.setting.findUnique({ where: { key: 'situs' } })
+  const cur = mergeSitus(row ? JSON.parse(row.value) : null)
+  const tampil = fd.get('showPrices') === 'on'
+  await saveSetting('situs', { ...cur, showPrices: tampil })
+  await catat(s, 'simpan', 'pengaturan_situs', { kunci: 'situs', bagian: 'harga', tampil })
+  const cabang = int(fd, 'cabang')
+  go(`/admin/harga${cabang ? `?cabang=${cabang}` : ''}`, tampil ? 'Harga sekarang tampil di situs' : 'Harga disembunyikan dari situs')
 }
 
 /* ---------- Chatbot ---------- */
@@ -427,7 +455,10 @@ export async function saveBotHours(fd: FormData) {
   })
   await saveSetting('bot', next)
   await catat(s, 'simpan', 'pengaturan_bot', { bagian: 'jam', nomorUji: testNumbers.length, stokPerCabang: next.stokPerCabang })
-  go(BOT_PAGE, given.length > testNumbers.length ? `Tersimpan, ${given.length - testNumbers.length} nomor tidak valid atau dobel dibuang` : 'Jam dan batas kirim tersimpan')
+  const buang = given.length > testNumbers.length ? `${given.length - testNumbers.length} nomor tidak valid atau dobel dibuang. ` : ''
+  // Kombinasi ini membuat bot diam ke semua orang; tetap disimpan, tetapi owner diberi tahu.
+  const diam = next.enabled && next.restrictNumbers && !testNumbers.length ? 'Peringatan: bot diam ke semua orang karena nomor uji kosong.' : ''
+  go(BOT_PAGE, `Pengaturan bot tersimpan. ${buang}${diam}`.trim())
 }
 
 export async function saveBotAdmins(fd: FormData) {
@@ -435,17 +466,17 @@ export async function saveBotAdmins(fd: FormData) {
   const cur = await loadBotSettings()
   const adminNumbers: Record<string, string> = {}
   const branchAliases: Record<string, string[]> = {}
-  for (const b of await db.branch.findMany({ select: { slug: true } })) {
+  for (const b of await db.branch.findMany({ select: { slug: true, name: true } })) {
     branchAliases[b.slug] = str(fd, `alias_${b.slug}`, 200).toLowerCase().split(/[,;\n]/).map((x) => x.trim()).filter((x) => /^[a-z0-9 ]{3,30}$/.test(x))
     const raw = str(fd, `admin_${b.slug}`, 30)
     if (!raw) continue
     const n = normalizeNumber(raw)
-    if (!/^62\d{8,13}$/.test(n)) go(BOT_PAGE, `Nomor admin ${b.slug} tidak valid`, 'err')
+    if (!/^62\d{8,13}$/.test(n)) go(BOT_PAGE, `Nomor admin ${branchLabel(b.name)} tidak valid. Tulis seperti 0812xxxxxxxx.`, 'err')
     adminNumbers[b.slug] = n
   }
   const ownerRaw = str(fd, 'ownerNumber', 30)
   const ownerNumber = ownerRaw ? normalizeNumber(ownerRaw) : ''
-  if (ownerNumber && !/^62\d{8,13}$/.test(ownerNumber)) go(BOT_PAGE, 'Nomor owner tidak valid', 'err')
+  if (ownerNumber && !/^62\d{8,13}$/.test(ownerNumber)) go(BOT_PAGE, 'Nomor owner tidak valid. Tulis seperti 0812xxxxxxxx.', 'err')
   await saveSetting('bot', mergeBot({ ...cur, adminNumbers, ownerNumber, branchAliases }))
   await catat(s, 'simpan', 'pengaturan_bot', { bagian: 'nomor_admin', cabang: Object.keys(adminNumbers).length })
   go(BOT_PAGE, 'Nomor admin tersimpan')

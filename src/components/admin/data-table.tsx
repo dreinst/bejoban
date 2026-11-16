@@ -31,6 +31,7 @@ export function DataTable<T>({
   empty,
   muted,
   actionsBelow,
+  tanpaBingkai,
 }: {
   rows: T[]
   rowKey: (row: T) => string | number
@@ -47,10 +48,12 @@ export function DataTable<T>({
   muted?: (row: T) => boolean
   /** Di layar kecil aksi turun ke baris sendiri di bawah kartu (untuk tombol panjang). */
   actionsBelow?: boolean
+  /** Tabel di dalam kartu <Section>: tanpa bingkai sendiri supaya tidak ada kartu di dalam kartu. */
+  tanpaBingkai?: boolean
 }) {
   if (!rows.length) return <>{empty}</>
   return (
-    <div className="adm-card overflow-hidden">
+    <div className={tanpaBingkai ? 'overflow-hidden rounded-[10px] border border-line' : 'adm-card overflow-hidden'}>
       <table className="adm-table" data-thumb={thumb ? '' : undefined} data-actions={actionsBelow ? 'below' : undefined}>
         <caption className="sr-only">{caption}</caption>
         <thead>

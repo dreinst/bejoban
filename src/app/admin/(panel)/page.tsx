@@ -29,7 +29,16 @@ export default async function Dashboard() {
     { n: noPhoto, label: 'Produk tanpa foto', hint: 'tampil di situs tanpa gambar', href: '/admin/harga?f=tanpa-foto' },
   ].filter((t) => t.n > 0)
 
+  const kartu = 'adm-card block p-5 transition hover:-translate-y-px hover:shadow-md'
   let info: React.ReactNode = null
+  if (!owner) {
+    info = (
+      <Link href="/admin/cabang" className={kartu}>
+        <p className="font-display text-base font-extrabold text-ink">Data cabang saya</p>
+        <p className="mt-1 text-sm text-mute">Alamat, jam buka, WhatsApp, dan foto {cabang?.name.replace(/\s*\(.*\)/, '') ?? 'cabang kamu'} yang tampil di situs. Buka untuk mengubahnya.</p>
+      </Link>
+    )
+  }
   if (owner) {
     const [klik, branches, last] = await Promise.all([
       db.waClick.groupBy({ by: ['branch'], where: { day: { gte: sevenDaysAgo() } }, _sum: { count: true } }),
@@ -38,7 +47,6 @@ export default async function Dashboard() {
     ])
     const li = last ? (JSON.parse(last.value) as { at: string; source?: string; total: number; problemCount: number }) : null
     const click = (slug: string) => klik.find((k) => k.branch === slug)?._sum.count ?? 0
-    const kartu = 'adm-card block p-5 transition hover:-translate-y-px hover:shadow-md'
     info = (
       <div className="grid gap-5 lg:grid-cols-2">
         <Link href="/admin/situs" className={kartu}>
