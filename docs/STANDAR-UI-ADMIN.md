@@ -15,7 +15,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 7. Hierarki tombol. Satu tombol utama hitam (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan hitam. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
 8. Unggah gambar ringkas (`ImageField`, `ImagesInput`): pratinjau 56 px, tombol Ganti dan Hapus, satu baris keterangan ukuran dengan tautan "Panduan ukuran".
 9. Kepadatan seragam lewat komponen bersama. Jangan menulis kelas tabel, chip, atau kartu sendiri di halaman.
-10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu. Aksi utama tidak boleh butuh gulir mendatar. Aksi baris (Ubah, Hapus) tampil sejajar dalam satu baris di dasar kartu, sakelar tidak boleh pecah dua baris.
+10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu, targetnya sekitar 65 sampai 80 px per kartu untuk item sederhana. Tata letak kartu: gambar kecil di kiri, judul dan keterangan di tengah, aksi di kanan setinggi kartu (bukan baris tombol selebar penuh di dasar kartu). Tombol aksi selebar isinya, sasaran sentuh 44 px. Keterangan yang pendek digabung satu baris dengan titik tengah lewat kolom `hanyaHp` (mis. "Rp 500.000 · stok 4"), kolom aslinya diberi `mobile: 'hide'`. Kalau satu item punya lebih dari satu aksi, tombol pertama (Ubah) tetap tampil dan sisanya (Hapus, urutan naik turun, sakelar) masuk ke menu "Lainnya" lewat prop `lainnya` di `DataTable`. Semua aksi yang masuk menu wajib ikut ada di `lainnya`, karena di HP `actions` hanya menampilkan tombol pertamanya. Tabel berisi kotak isian (Produk situs) memakai `isianHp` dan `hpKolom`: kisi 4 kolom, label di atas kotak. Aksi utama tidak boleh butuh gulir mendatar. Saringan chip yang memakan beberapa baris di HP diganti `SaringHp` (pilihan berlabel yang langsung berlaku), chip tetap dipakai di layar lebar.
 11. Aksesibilitas: label terhubung ke kolom, fokus terlihat, panel dan dialog tertutup dengan Escape lalu fokus kembali ke tombol pemicu, target sentuh minimal 44 px di layar kecil, gerak dimatikan saat `prefers-reduced-motion`.
 
 12. Satu nilai hanya bisa diubah di satu tempat. Tempat lain yang menampilkannya cukup membaca, dengan tautan "Ubah di ..." ke tempat ubahnya. Contoh: Nomor WhatsApp utama diubah di Situs, Tautan WhatsApp; nomor tiap cabang di Pengaturan, Cabang; nomor admin penerima ringkasan bot di Chatbot, Pengaturan bot; sakelar harga di Produk situs.
@@ -28,7 +28,9 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 | `PageBody` | `ui.tsx` | server | Pembatas lebar: `list` 1200 px, `form` 640 px |
 | `SettingsGrid`, `Section` | `ui.tsx` | server | Halaman pengaturan: kartu per bagian, dua kolom di layar lebar |
 | `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana status, keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
-| `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris. `hanyaHp` menambah kolom khusus kartu HP, `tanpaBingkai` untuk tabel di dalam `Section` |
+| `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris. `hanyaHp` menambah kolom khusus kartu HP, `tanpaBingkai` untuk tabel di dalam `Section`, `lainnya` isi menu "Lainnya" di HP, `isianHp` dan `hpKolom` untuk kartu berisi kotak isian |
+| `MenuLainnya` | `menu-lainnya.tsx` | klien | Tombol "..." 44 px di kartu HP dengan daftar aksi jarang dipakai. Tetap terbuka selama dialog dari dalamnya tampil, Escape menutup |
+| `SaringHp` | `saring-hp.tsx` | klien | Pilihan saringan berlabel untuk HP, tiap pilihan membawa alamat tujuan |
 | `BilahSimpan` | `bilah-simpan.tsx` | klien | Bilah simpan di dasar area konten untuk tabel sunting cepat, muncul bila ada baris berubah |
 | `ListToolbar`, `FilterChips`, `Halaman` | `data-table.tsx` | server | Jumlah item, pencarian `?q=`, saringan chip, navigasi `?hal=` untuk daftar panjang |
 | `TextField`, `SelectField`, `TextAreaField`, `CheckField`, `FormGrid`, `FormActions` | `field.tsx` | server | Kolom form berlabel dengan bantuan dan galat |
@@ -113,7 +115,7 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Menu, tab | Alamat | Status | Catatan |
 | --- | --- | --- | --- |
 | Ringkasan | `/admin` | ya | Kartu angka hanya untuk yang perlu ditindaklanjuti. Owner dan admin cabang. |
-| Stok dan harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah. |
+| Stok dan harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah, 50 baris per halaman. Saringan berlabel Ring, Cabang, Keadaan (pilihan di HP, chip di layar lebar). |
 | Stok dan harga, Harga jasa | `/admin/harga-jasa` | ya | Urutan naik turun, form lengkap di panel. |
 | Stok dan harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris. Bawaan hanya produk yang tampil, chip Disembunyikan (N) untuk sisanya. Satu tombol Simpan ada di bilah bawah (`BilahSimpan`) yang selebar area konten dan hanya muncul bila ada perubahan. Tambah produk bergaris karena tombol utamanya Simpan. |
 | Form produk | `/admin/produk/[id]` | ya | Halaman sendiri karena panjang. Hapus lewat dialog. |
@@ -129,7 +131,7 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Situs, Tautan WhatsApp | `/admin/situs` | ya | Tautan pendek, nomor utama, kalimat pembuka (wajib memuat `{cabang}`). Sakelar harga ada di Produk situs. |
 | Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang langsung melihat formnya (Data cabang saya), tanpa tabel. |
 | Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset kata sandi di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
-| Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. Bot aktif dan jam di atas, angka teknis di Pengaturan lanjutan, peringatan nomor uji kosong, sambungan WhatsApp, nomor admin per cabang. |
+| Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. Bot aktif dan jam di atas, angka teknis di Pengaturan lanjutan, peringatan nomor uji kosong di kartu paling atas (dan di Ringkasan owner bila bot aktif), sambungan WhatsApp, nomor admin per cabang. |
 | Ongkir, Pengaturan | `/admin/ongkir/pengaturan` | ya | Khusus owner. Titik toko dari tautan Google Maps. |
 | Kalender (tanpa tab) | `/admin/kalender` | ya | Disembunyikan dari menu, datanya belum dipakai. Saringan Akan datang, Sudah lewat, Semua. |
 | Akun saya | `/admin/akun` | ya | |
