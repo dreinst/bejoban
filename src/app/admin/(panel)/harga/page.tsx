@@ -12,6 +12,7 @@ import { inputCls } from '@/components/admin/form-cls'
 import { SubmitButton } from '@/components/admin/overlay'
 import { RupiahInput } from '@/components/admin/rupiah-input'
 import { PeringatanUbah } from '@/components/admin/peringatan-ubah'
+import { BilahSimpan } from '@/components/admin/bilah-simpan'
 import { namaPendek } from '@/lib/tire/cabang'
 
 const SARINGAN = [
@@ -19,6 +20,7 @@ const SARINGAN = [
   { key: 'stok0', label: 'Stok 0' },
   { key: 'tanpa-foto', label: 'Tanpa foto' },
 ]
+const SEMBUNYI = 'disembunyikan'
 
 // Produk situs: harga dan stok produk di situs per cabang, plus tautan ke detail produk.
 // Gabungan halaman Produk dan Pricelist & Stok lama (/admin/produk dialihkan ke sini).
@@ -27,22 +29,25 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
   const owner = s.role === 'OWNER'
   const sp = await searchParams
   const q = String(sp.q ?? '').trim().slice(0, 60)
-  const f = ['tanpa-foto', 'stok0'].includes(String(sp.f)) ? String(sp.f) : ''
+  const f = ['tanpa-foto', 'stok0', SEMBUNYI].includes(String(sp.f)) ? String(sp.f) : ''
   const [branches, situs] = await Promise.all([db.branch.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }] }), getSitus()])
   const branchId = owner ? (branches.some((b) => b.id === Number(sp.cabang)) ? Number(sp.cabang) : branches[0].id) : s.branchId!
   const branch = branches.find((b) => b.id === branchId)!
+  // Bawaan hanya produk yang tampil di situs. Yang disembunyikan (mis. produk contoh) dilihat lewat chip tersendiri.
   const where = {
+    active: f !== SEMBUNYI,
     ...(q && { name: { contains: q } }),
     ...(f === 'tanpa-foto' && { images: '[]' }),
     ...(f === 'stok0' && { listings: { some: { branchId, available: true, stock: 0 } } }),
   }
-  const [products, total] = await Promise.all([
+  const [products, total, nSembunyi] = await Promise.all([
     db.product.findMany({
       where,
       orderBy: [{ category: { sort: 'asc' } }, { name: 'asc' }],
       include: { brand: true, category: true, listings: { where: { branchId } } },
     }),
-    db.product.count(),
+    db.product.count({ where: { active: f !== SEMBUNYI } }),
+    db.product.count({ where: { active: false } }),
   ])
   const url = (patch: Record<string, string>) => {
     const p = new URLSearchParams(Object.entries({ cabang: owner ? String(branchId) : '', q, f, ...patch }).filter(([, v]) => v))
@@ -62,7 +67,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
     <PageBody>
       <PageHeader
         title="Produk situs"
-        note="Produk yang tampil di situs, dengan harga dan stok per cabang. Ubah banyak baris sekaligus lalu tekan Simpan. Produk yang tidak dicentang Dijual tidak tampil di cabang ini."
+        note="Harga dan stok produk per cabang. Ubah banyak baris sekaligus, dan produk yang tidak dicentang Dijual tidak tampil di cabang ini."
         actions={tambah}
       />
       {owner && (
@@ -90,10 +95,10 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
         noun="produk"
         search={{ placeholder: 'Cari nama produk', value: q, keep: { cabang: owner ? branchId : undefined, f } }}
       >
-        <FilterChips label="Saring produk" items={SARINGAN.map((x) => ({ href: url({ f: x.key }), label: x.label, active: f === x.key }))} />
+        <FilterChips label="Saring produk" items={[...SARINGAN, ...(nSembunyi || f === SEMBUNYI ? [{ key: SEMBUNYI, label: `Disembunyikan (${nSembunyi})` }] : [])].map((x) => ({ href: url({ f: x.key }), label: x.label, active: f === x.key }))} />
       </ListToolbar>
       {products.length ? (
-        <form id="form-harga" action={savePrices} className="space-y-4 pb-20">
+        <form id="form-harga" action={savePrices} className="space-y-4 pb-24">
           <PeringatanUbah formId="form-harga" />
           <input type="hidden" name="branchId" value={branchId} />
           <input type="hidden" name="ids" value={products.map((p) => p.id).join(',')} />
@@ -147,9 +152,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
               <Link href={`/admin/produk/${p.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Ubah detail ${p.name}`}>Ubah detail</Link>
             )}
           />
-          <div className="sticky bottom-4 z-10 flex justify-end">
-            <SubmitButton className="adm-btn adm-btn-lg shadow-lg">Simpan harga dan stok</SubmitButton>
-          </div>
+          <BilahSimpan formId="form-harga">Simpan harga dan stok</BilahSimpan>
         </form>
       ) : (
         <Empty title={q || f ? 'Tidak ada produk yang cocok' : 'Belum ada produk'} action={q || f ? undefined : tambah}>
