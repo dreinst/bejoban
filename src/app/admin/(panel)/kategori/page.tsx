@@ -47,6 +47,51 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
     </Drawer>
   )
 
+  const nonaktifkan = (c: (typeof list)[number]) => ({ action: setCategoryActive, fields: { id: c.id, aktif: 0 }, label: 'Nonaktifkan' })
+  const aktifkan = (c: (typeof list)[number]) =>
+    !c.aktif && (
+      <form action={setCategoryActive}>
+        <input type="hidden" name="id" value={c.id} />
+        <input type="hidden" name="aktif" value="1" />
+        <SubmitButton className="adm-btn-line adm-btn-sm w-full" pending="Memproses...">Aktifkan</SubmitButton>
+      </form>
+    )
+  const hapus = (c: (typeof list)[number]) => {
+    const aturan = aturanHapus(c.name, [{ jumlah: c._count.products, satuan: 'produk' }])
+    return (
+      aturan.boleh ? (
+        <ConfirmDialog
+          triggerLabel={`Hapus ${c.name}`}
+          title={`Hapus kategori ${c.name}?`}
+          message={
+            <>
+              <p>{c.name} tidak dipakai produk mana pun. Gambar dan urutannya ikut terhapus dan tidak bisa dikembalikan.</p>
+              {c.aktif && <p className="text-mute">Kalau hanya ingin menyembunyikannya dari situs, pilih Nonaktifkan.</p>}
+            </>
+          }
+          alternative={c.aktif ? nonaktifkan(c) : undefined}
+          confirm={{ action: deleteCategory, fields: { id: c.id }, label: 'Hapus kategori' }}
+        />
+      ) : (
+        <ConfirmDialog
+          triggerLabel={`Hapus ${c.name}`}
+          title={`${c.name} tidak bisa dihapus`}
+          message={
+            <>
+              <p>{aturan.dipakai} Kategori yang masih dipakai produk tidak bisa dihapus.</p>
+              <p className="text-mute">
+                {c.aktif
+                  ? 'Nonaktifkan supaya kategori ini tidak tampil di saringan produk dan pilihan kategori. Produknya tidak berubah.'
+                  : 'Kategori ini sudah nonaktif. Pindahkan produknya ke kategori lain dulu kalau tetap ingin menghapusnya.'}
+              </p>
+            </>
+          }
+          alternative={c.aktif ? nonaktifkan(c) : undefined}
+        />
+      )
+    )
+  }
+
   return (
     <PageBody>
       <PageHeader title="Kategori" note="Urutan di tabel sama dengan urutan saringan Jenis di halaman Produk situs. Kategori nonaktif tidak tampil di situs, tetapi produk di dalamnya tetap tampil." actions={tambah()} />
@@ -73,7 +118,7 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
               </span>
             ),
           },
-          { key: 'produk', header: 'Produk', align: 'right', className: 'w-24', cell: (c) => c._count.products.toLocaleString('id-ID') },
+          { key: 'produk', header: 'Produk', align: 'right', className: 'w-24', mobile: 'hide', cell: (c) => c._count.products.toLocaleString('id-ID') },
           ...(q
             ? []
             : [
@@ -81,6 +126,7 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
                   key: 'urutan',
                   header: 'Urutan',
                   className: 'w-28',
+                  mobile: 'hide' as const,
                   cell: (c: (typeof list)[number]) => {
                     const i = list.indexOf(c)
                     return <ReorderButtons action={moveCategory} id={c.id} label={c.name} first={i === 0} last={i === list.length - 1} />
@@ -88,54 +134,27 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
                 },
               ]),
         ]}
-        actions={(c) => {
-          const aturan = aturanHapus(c.name, [{ jumlah: c._count.products, satuan: 'produk' }])
-          const nonaktifkan = { action: setCategoryActive, fields: { id: c.id, aktif: 0 }, label: 'Nonaktifkan' }
-          return (
-            <>
-              <Drawer trigger="Ubah" triggerLabel={`Ubah ${c.name}`} title={`Ubah kategori ${c.name}`}>
-                <FormKategori c={c} />
-              </Drawer>
-              {!c.aktif && (
-                <form action={setCategoryActive}>
-                  <input type="hidden" name="id" value={c.id} />
-                  <input type="hidden" name="aktif" value="1" />
-                  <SubmitButton className="adm-btn-line adm-btn-sm w-full" pending="Memproses...">Aktifkan</SubmitButton>
-                </form>
-              )}
-              {aturan.boleh ? (
-                <ConfirmDialog
-                  triggerLabel={`Hapus ${c.name}`}
-                  title={`Hapus kategori ${c.name}?`}
-                  message={
-                    <>
-                      <p>{c.name} tidak dipakai produk mana pun. Gambar dan urutannya ikut terhapus dan tidak bisa dikembalikan.</p>
-                      {c.aktif && <p className="text-mute">Kalau hanya ingin menyembunyikannya dari situs, pilih Nonaktifkan.</p>}
-                    </>
-                  }
-                  alternative={c.aktif ? nonaktifkan : undefined}
-                  confirm={{ action: deleteCategory, fields: { id: c.id }, label: 'Hapus kategori' }}
-                />
-              ) : (
-                <ConfirmDialog
-                  triggerLabel={`Hapus ${c.name}`}
-                  title={`${c.name} tidak bisa dihapus`}
-                  message={
-                    <>
-                      <p>{aturan.dipakai} Kategori yang masih dipakai produk tidak bisa dihapus.</p>
-                      <p className="text-mute">
-                        {c.aktif
-                          ? 'Nonaktifkan supaya kategori ini tidak tampil di saringan produk dan pilihan kategori. Produknya tidak berubah.'
-                          : 'Kategori ini sudah nonaktif. Pindahkan produknya ke kategori lain dulu kalau tetap ingin menghapusnya.'}
-                      </p>
-                    </>
-                  }
-                  alternative={c.aktif ? nonaktifkan : undefined}
-                />
-              )}
-            </>
-          )
-        }}
+        lainnya={(c) => (
+          <>
+            {!q && (
+              <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm font-semibold">
+                Urutan
+                <ReorderButtons action={moveCategory} id={c.id} label={c.name} first={list.indexOf(c) === 0} last={list.indexOf(c) === list.length - 1} />
+              </div>
+            )}
+            {aktifkan(c)}
+            {hapus(c)}
+          </>
+        )}
+        actions={(c) => (
+          <>
+            <Drawer trigger="Ubah" triggerLabel={`Ubah ${c.name}`} title={`Ubah kategori ${c.name}`}>
+              <FormKategori c={c} />
+            </Drawer>
+            {aktifkan(c)}
+            {hapus(c)}
+          </>
+        )}
         empty={
           q ? (
             <Empty title="Kategori tidak ditemukan">Tidak ada kategori dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>

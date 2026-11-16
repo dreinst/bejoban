@@ -101,25 +101,42 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   @media (max-width: 767px) {
     .adm-table, .adm-table tbody { display: block; }
     .adm-table thead { display: none; }
-    .adm-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .75rem; row-gap: .125rem; align-items: center; padding: .75rem .875rem; border-top: 1px solid var(--color-line); }
+    /* Kartu: [gambar] [judul dan keterangan] [aksi]. Aksi di kanan, setinggi isi kartu, tidak di dasar. */
+    .adm-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .75rem; row-gap: 0; align-items: center; padding: .625rem .75rem; border-top: 1px solid var(--color-line); }
     .adm-table tbody tr:first-child { border-top: 0; }
     .adm-table[data-thumb] tr { grid-template-columns: auto minmax(0, 1fr) auto; }
     .adm-table td { display: block; width: auto !important; min-width: 0; padding: 0; border: 0; text-align: left !important; }
-    .adm-table td[data-role=thumb] { grid-column: 1; grid-row: 1 / span 6; align-self: start; }
+    .adm-table td[data-role=thumb] { grid-column: 1; grid-row: 1 / span 6; align-self: center; }
     .adm-table td[data-role=title], .adm-table td[data-role=meta] { grid-column: 1; }
     .adm-table[data-thumb] td[data-role=title], .adm-table[data-thumb] td[data-role=meta] { grid-column: 2; }
-    .adm-table td[data-role=title] { font-weight: 600; }
-    .adm-table td[data-role=meta] { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; font-size: .8125rem; color: var(--color-mute); }
+    .adm-table td[data-role=title] { font-weight: 600; line-height: 1.3; }
+    .adm-table td[data-role=meta] { display: flex; flex-wrap: wrap; align-items: center; gap: 0 .5rem; font-size: .8125rem; line-height: 1.35; color: var(--color-mute); }
     .adm-table td[data-role=meta][data-label]::before { content: attr(data-label) ": "; }
     .adm-table td[data-role=hide] { display: none; }
-    /* Aksi baris: satu baris sendiri di dasar kartu, tombol sejajar berbagi lebar (satu tombol tidak melebihi separuh). */
-    .adm-table td[data-role=actions], .adm-table[data-thumb] td[data-role=actions] { grid-column: 1 / -1; grid-row: auto; margin-top: .5rem; width: 100% !important; }
-    .adm-row-actions { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; }
-    .adm-row-actions > * { flex: 1 1 0; min-width: 0; max-width: calc(50% - .1875rem); }
-    .adm-row-actions .adm-btn-line, .adm-row-actions .adm-btn-danger, .adm-row-actions form { width: 100%; }
-    /* Tombol panjang (mis. percakapan chatbot): boleh melipat ke baris berikutnya dan memakai lebar penuh. */
+    /* Aksi baris: kolom kanan setinggi kartu, tombol selebar isinya dan sejajar. Tombol pertama (Ubah) tetap terlihat. */
+    .adm-table td[data-role=actions] { grid-column: 2; grid-row: 1 / span 6; align-self: center; width: auto !important; }
+    .adm-table[data-thumb] td[data-role=actions] { grid-column: 3; }
+    .adm-row-actions { flex-wrap: nowrap; justify-content: flex-end; align-items: center; }
+    .adm-row-actions > * { flex: none; }
+    /* Tabel dengan menu Lainnya: hanya tombol pertama yang tampil, sisanya (Hapus dan lain-lain) pindah ke menu. */
+    .adm-table[data-lainnya] .adm-row-actions > :not(:first-child):not(.adm-lainnya) { display: none; }
+    .adm-lainnya-isi { position: absolute; right: 0; top: calc(100% + .25rem); z-index: 20; display: flex; min-width: 13rem; flex-direction: column; gap: .25rem; padding: .375rem; background: #fff; border: 1px solid var(--color-line); border-radius: 10px; box-shadow: 0 12px 24px -8px rgba(0, 0, 0, .3); }
+    .adm-lainnya-isi > button, .adm-lainnya-isi > form > button { width: 100%; justify-content: flex-start; }
+    .adm-lainnya-isi > form { width: 100%; }
+    .adm-lainnya-isi .adm-btn-line, .adm-lainnya-isi .adm-btn-danger { border: 0; background: transparent; color: #0a0a0a; font-weight: 600; }
+    .adm-lainnya-isi .adm-btn-line:hover { background: var(--color-soft); }
+    /* Kartu berisi kotak isian (Produk situs): kisi 4 kolom, judul dan aksi di baris pertama, label di atas kotak. */
+    .adm-table[data-isian] tr { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: .5rem; column-gap: .5rem; }
+    .adm-table[data-isian] td[data-role=thumb] { grid-column: 1; grid-row: 1; align-self: center; }
+    .adm-table[data-isian] td[data-role=title] { grid-row: 1; display: flex; min-height: 3rem; flex-direction: column; justify-content: center; padding-left: 3.5rem; }
+    .adm-table[data-isian] td[data-role=actions] { grid-column: 3 / -1; grid-row: 1; justify-self: end; }
+    .adm-table[data-isian] td[data-role=meta] { display: block; }
+    .adm-table[data-isian] td[data-role=meta][data-label]::before { content: attr(data-label); display: block; margin-bottom: .125rem; font-size: .75rem; font-weight: 600; color: var(--color-mute); white-space: nowrap; }
+    /* Tombol panjang (mis. percakapan chatbot): turun ke baris sendiri di dasar kartu dan boleh melipat. */
+    .adm-table[data-actions=below] td[data-role=actions], .adm-table[data-actions=below][data-thumb] td[data-role=actions] { grid-column: 1 / -1; grid-row: auto; margin-top: .5rem; width: 100% !important; }
     .adm-table[data-actions=below] .adm-row-actions { flex-wrap: wrap; justify-content: stretch; }
-    .adm-table[data-actions=below] .adm-row-actions > * { flex: 1 1 10rem; max-width: none; }
+    .adm-table[data-actions=below] .adm-row-actions > * { flex: 1 1 10rem; }
+    .adm-table[data-actions=below] .adm-row-actions .adm-btn-line, .adm-table[data-actions=below] .adm-row-actions form { width: 100%; }
   }
 
   /* Panel samping (drawer) dan dialog. Elemen <dialog> modal: fokus terkunci, Escape menutup. */

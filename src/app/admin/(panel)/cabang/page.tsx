@@ -92,6 +92,7 @@ export default async function Cabang() {
                   key: 'urutan',
                   header: 'Urutan',
                   className: 'w-28',
+                  mobile: 'hide' as const,
                   cell: (b: (typeof list)[number]) => {
                     const i = list.indexOf(b)
                     return <ReorderButtons action={moveBranch} id={b.id} label={b.name} first={i === 0} last={i === list.length - 1} />
@@ -100,6 +101,16 @@ export default async function Cabang() {
               ]
             : []),
         ]}
+        lainnya={
+          owner
+            ? (b) => (
+                <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm font-semibold">
+                  Urutan
+                  <ReorderButtons action={moveBranch} id={b.id} label={b.name} first={list.indexOf(b) === 0} last={list.indexOf(b) === list.length - 1} />
+                </div>
+              )
+            : undefined
+        }
         actions={(b) => (
           <Drawer trigger="Ubah" triggerLabel={`Ubah ${b.name}`} title={`Ubah cabang ${b.name}`}>
             <FormCabang b={b} />

@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ImageOff } from 'lucide-react'
+import { MenuLainnya } from './menu-lainnya'
 
 // Tabel data admin. Komponen server (tanpa 'use client'), jadi fungsi sel boleh dikirim dari halaman server.
 // Di layar lebar tabel biasa. Di bawah 768 px tiap baris menjadi kartu ringkas satu item (gaya di globals.css, .adm-table):
-// gambar kecil di kiri, kolom `title` sebagai judul, kolom `meta` sebagai baris keterangan "Label: isi", aksi di kanan.
+// gambar kecil di kiri, kolom `title` sebagai judul, kolom `meta` sebagai baris keterangan "Label: isi", aksi di kanan
+// (tombol utama selebar isinya, bukan selebar kartu). Aksi tambahan masuk ke menu "Lainnya" lewat prop `lainnya`.
 
 export type Column<T> = {
   key: string
@@ -19,6 +21,8 @@ export type Column<T> = {
   className?: string
   /** Kolom ini hanya ada di tampilan kartu (HP). Dipakai untuk menggabungkan beberapa kontrol dalam satu baris kartu. */
   hanyaHp?: boolean
+  /** Hanya dipakai bersama `isianHp`: posisi kolom di kisi 4 kolom kartu HP (nilai `grid-column`, mis. '1 / 3'). */
+  hpKolom?: string
 }
 
 export function DataTable<T>({
@@ -32,6 +36,8 @@ export function DataTable<T>({
   muted,
   actionsBelow,
   tanpaBingkai,
+  lainnya,
+  isianHp,
 }: {
   rows: T[]
   rowKey: (row: T) => string | number
@@ -50,11 +56,18 @@ export function DataTable<T>({
   actionsBelow?: boolean
   /** Tabel di dalam kartu <Section>: tanpa bingkai sendiri supaya tidak ada kartu di dalam kartu. */
   tanpaBingkai?: boolean
+  /**
+   * Menu "Lainnya" yang hanya ada di HP (tombol 44 px di ujung kartu). Isi: aksi yang jarang dipakai (Hapus, urutan, sakelar).
+   * Di HP `actions` hanya menampilkan tombol pertamanya, jadi semua aksi lain wajib ikut ada di sini. Di layar lebar menu ini tidak tampil.
+   */
+  lainnya?: (row: T) => ReactNode
+  /** Kartu HP berisi kotak isian: kisi 4 kolom, label di atas kotak, posisi tiap kolom lewat `hpKolom`. Dipakai Produk situs. */
+  isianHp?: boolean
 }) {
   if (!rows.length) return <>{empty}</>
   return (
-    <div className={tanpaBingkai ? 'overflow-hidden rounded-[10px] border border-line' : 'adm-card overflow-hidden'}>
-      <table className="adm-table" data-thumb={thumb ? '' : undefined} data-actions={actionsBelow ? 'below' : undefined}>
+    <div className={tanpaBingkai ? 'overflow-hidden rounded-[10px] border border-line max-md:overflow-visible' : 'adm-card overflow-hidden max-md:overflow-visible'}>
+      <table className="adm-table" data-thumb={thumb ? '' : undefined} data-actions={actionsBelow ? 'below' : undefined} data-lainnya={lainnya ? '' : undefined} data-isian={isianHp ? '' : undefined}>
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
@@ -73,14 +86,17 @@ export function DataTable<T>({
                 const role = c.mobile ?? (i === 0 ? 'title' : 'meta')
                 const label = role === 'meta' && c.mobileLabel !== false ? c.header : undefined
                 return (
-                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} className={[c.className, c.hanyaHp && 'md:hidden'].filter(Boolean).join(' ') || undefined}>
+                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} style={c.hpKolom ? { gridColumn: c.hpKolom } : undefined} className={[c.className, c.hanyaHp && 'md:hidden'].filter(Boolean).join(' ') || undefined}>
                     {c.cell(r)}
                   </td>
                 )
               })}
               {actions && (
                 <td data-role="actions" className="w-px whitespace-nowrap">
-                  <div className="adm-row-actions">{actions(r)}</div>
+                  <div className="adm-row-actions">
+                    {actions(r)}
+                    {lainnya && <MenuLainnya>{lainnya(r)}</MenuLainnya>}
+                  </div>
                 </td>
               )}
             </tr>
@@ -140,7 +156,7 @@ export function ListToolbar({
         <form role="search" className="flex min-w-[min(100%,16rem)] flex-1 items-center gap-2 sm:max-w-md">
           {Object.entries(search.keep ?? {}).map(([k, v]) => (v === undefined || v === '' ? null : <input key={k} type="hidden" name={k} value={v} />))}
           <label className="sr-only" htmlFor="cari-daftar">{search.label ?? search.placeholder}</label>
-          <input id="cari-daftar" type="search" name="q" defaultValue={search.value} placeholder={search.placeholder} className="min-h-10 w-full min-w-0 rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
+          <input id="cari-daftar" type="search" name="q" defaultValue={search.value} placeholder={search.placeholder} className="min-h-10 w-full min-w-0 rounded-lg max-md:min-h-11 border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
           <button className="adm-btn-line adm-btn-sm">Cari</button>
         </form>
       )}

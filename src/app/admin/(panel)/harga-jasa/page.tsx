@@ -73,6 +73,23 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
     </Drawer>
   )
 
+  const hapus = (r: (typeof list)[number]) => {
+    const nama = r.variant ? `${r.name} (${r.variant})` : r.name
+    return (
+      <ConfirmDialog
+        triggerLabel={`Hapus ${nama}`}
+        title={`Hapus ${nama}?`}
+        message={
+          <>
+            <p>Baris harga ini dihapus dan tidak bisa dikembalikan.</p>
+            <p className="text-mute">Chatbot tidak lagi menjawab harga ini dan menyerahkan pertanyaannya ke admin.</p>
+          </>
+        }
+        confirm={{ action: deleteService, fields: { id: r.id }, label: 'Hapus baris' }}
+      />
+    )
+  }
+
   return (
     <PageBody>
       <PageHeader
@@ -111,7 +128,7 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
                   key: 'urutan',
                   header: 'Urutan',
                   className: 'w-28',
-                  mobileLabel: false,
+                  mobile: 'hide' as const,
                   cell: (r: (typeof list)[number]) => {
                     const i = list.indexOf(r)
                     return <ReorderButtons action={moveService} id={r.id} label={r.name} first={i === 0} last={i === list.length - 1} />
@@ -119,6 +136,17 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
                 },
               ]),
         ]}
+        lainnya={(r) => (
+          <>
+            {!q && (
+              <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm font-semibold">
+                Urutan
+                <ReorderButtons action={moveService} id={r.id} label={r.name} first={list.indexOf(r) === 0} last={list.indexOf(r) === list.length - 1} />
+              </div>
+            )}
+            {hapus(r)}
+          </>
+        )}
         actions={(r) => {
           const nama = r.variant ? `${r.name} (${r.variant})` : r.name
           return (
@@ -126,17 +154,7 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
               <Drawer trigger="Ubah" triggerLabel={`Ubah ${nama}`} title={`Ubah ${nama}`}>
                 <FormJasa r={r} />
               </Drawer>
-              <ConfirmDialog
-                triggerLabel={`Hapus ${nama}`}
-                title={`Hapus ${nama}?`}
-                message={
-                  <>
-                    <p>Baris harga ini dihapus dan tidak bisa dikembalikan.</p>
-                    <p className="text-mute">Chatbot tidak lagi menjawab harga ini dan menyerahkan pertanyaannya ke admin.</p>
-                  </>
-                }
-                confirm={{ action: deleteService, fields: { id: r.id }, label: 'Hapus baris' }}
-              />
+              {hapus(r)}
             </>
           )
         }}

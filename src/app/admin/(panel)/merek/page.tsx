@@ -54,6 +54,51 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
     </Drawer>
   )
 
+  const nonaktifkan = (b: (typeof list)[number]) => ({ action: setBrandActive, fields: { id: b.id, aktif: 0 }, label: 'Nonaktifkan' })
+  const aktifkan = (b: (typeof list)[number]) =>
+    !b.aktif && (
+      <form action={setBrandActive}>
+        <input type="hidden" name="id" value={b.id} />
+        <input type="hidden" name="aktif" value="1" />
+        <SubmitButton className="adm-btn-line adm-btn-sm w-full" pending="Memproses...">Aktifkan</SubmitButton>
+      </form>
+    )
+  const hapus = (b: (typeof list)[number]) => {
+    const aturan = aturanHapus(b.name, [{ jumlah: b._count.products, satuan: 'produk' }])
+    return (
+      aturan.boleh ? (
+        <ConfirmDialog
+          triggerLabel={`Hapus ${b.name}`}
+          title={`Hapus merek ${b.name}?`}
+          message={
+            <>
+              <p>{b.name} tidak dipakai produk mana pun. Logo dan urutannya ikut terhapus dan tidak bisa dikembalikan.</p>
+              {b.aktif && <p className="text-mute">Kalau hanya ingin menyembunyikannya dari situs, pilih Nonaktifkan.</p>}
+            </>
+          }
+          alternative={b.aktif ? nonaktifkan(b) : undefined}
+          confirm={{ action: deleteBrand, fields: { id: b.id }, label: 'Hapus merek' }}
+        />
+      ) : (
+        <ConfirmDialog
+          triggerLabel={`Hapus ${b.name}`}
+          title={`${b.name} tidak bisa dihapus`}
+          message={
+            <>
+              <p>{aturan.dipakai} Merek yang masih dipakai produk tidak bisa dihapus.</p>
+              <p className="text-mute">
+                {b.aktif
+                  ? 'Nonaktifkan supaya merek ini tidak tampil di beranda, saringan produk, dan pilihan merek. Produknya tidak berubah.'
+                  : 'Merek ini sudah nonaktif. Pindahkan produknya ke merek lain dulu kalau tetap ingin menghapusnya.'}
+              </p>
+            </>
+          }
+          alternative={b.aktif ? nonaktifkan(b) : undefined}
+        />
+      )
+    )
+  }
+
   return (
     <PageBody>
       <PageHeader
@@ -84,7 +129,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
               </span>
             ),
           },
-          { key: 'produk', header: 'Produk', align: 'right', className: 'w-24', cell: (b) => b._count.products.toLocaleString('id-ID') },
+          { key: 'produk', header: 'Produk', align: 'right', className: 'w-24', mobile: 'hide', cell: (b) => b._count.products.toLocaleString('id-ID') },
           {
             key: 'byorder',
             header: 'By order',
@@ -106,68 +151,43 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
                   },
                 },
               ]),
-          // Di HP sakelar by order dan tombol urutan berbagi satu baris kartu.
+          // Di HP produk dan status distok jadi satu baris keterangan. Sakelar dan urutan pindah ke menu Lainnya.
           {
-            key: 'atur',
-            header: 'Atur',
+            key: 'ringkas',
+            header: 'Ringkas',
             hanyaHp: true,
             mobileLabel: false,
-            cell: (b) => (
-              <span className="flex w-full items-center justify-between gap-1">
-                <QuickToggle action={setBrandByOrder} fields={{ id: b.id }} checked={b.byOrder} label={`By order ${b.name}`} onText="By order" offText="Distok" />
-                {!q && <ReorderButtons action={moveBrand} id={b.id} label={b.name} first={list.indexOf(b) === 0} last={list.indexOf(b) === list.length - 1} />}
-              </span>
-            ),
+            cell: (b) => `${b._count.products.toLocaleString('id-ID')} produk · ${b.byOrder ? 'By order' : 'Distok'}`,
           },
         ]}
-        actions={(b) => {
-          const aturan = aturanHapus(b.name, [{ jumlah: b._count.products, satuan: 'produk' }])
-          const nonaktifkan = { action: setBrandActive, fields: { id: b.id, aktif: 0 }, label: 'Nonaktifkan' }
+        lainnya={(b) => {
+          const i = list.indexOf(b)
           return (
             <>
-              <Drawer trigger="Ubah" triggerLabel={`Ubah ${b.name}`} title={`Ubah merek ${b.name}`}>
-                <FormMerek b={b} />
-              </Drawer>
-              {!b.aktif && (
-                <form action={setBrandActive}>
-                  <input type="hidden" name="id" value={b.id} />
-                  <input type="hidden" name="aktif" value="1" />
-                  <SubmitButton className="adm-btn-line adm-btn-sm w-full" pending="Memproses...">Aktifkan</SubmitButton>
-                </form>
+              <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm font-semibold">
+                By order
+                <QuickToggle action={setBrandByOrder} fields={{ id: b.id }} checked={b.byOrder} label={`By order ${b.name}`} onText="Ya" offText="Tidak" />
+              </div>
+              {!q && (
+                <div className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm font-semibold">
+                  Urutan
+                  <ReorderButtons action={moveBrand} id={b.id} label={b.name} first={i === 0} last={i === list.length - 1} />
+                </div>
               )}
-              {aturan.boleh ? (
-                <ConfirmDialog
-                  triggerLabel={`Hapus ${b.name}`}
-                  title={`Hapus merek ${b.name}?`}
-                  message={
-                    <>
-                      <p>{b.name} tidak dipakai produk mana pun. Logo dan urutannya ikut terhapus dan tidak bisa dikembalikan.</p>
-                      {b.aktif && <p className="text-mute">Kalau hanya ingin menyembunyikannya dari situs, pilih Nonaktifkan.</p>}
-                    </>
-                  }
-                  alternative={b.aktif ? nonaktifkan : undefined}
-                  confirm={{ action: deleteBrand, fields: { id: b.id }, label: 'Hapus merek' }}
-                />
-              ) : (
-                <ConfirmDialog
-                  triggerLabel={`Hapus ${b.name}`}
-                  title={`${b.name} tidak bisa dihapus`}
-                  message={
-                    <>
-                      <p>{aturan.dipakai} Merek yang masih dipakai produk tidak bisa dihapus.</p>
-                      <p className="text-mute">
-                        {b.aktif
-                          ? 'Nonaktifkan supaya merek ini tidak tampil di beranda, saringan produk, dan pilihan merek. Produknya tidak berubah.'
-                          : 'Merek ini sudah nonaktif. Pindahkan produknya ke merek lain dulu kalau tetap ingin menghapusnya.'}
-                      </p>
-                    </>
-                  }
-                  alternative={b.aktif ? nonaktifkan : undefined}
-                />
-              )}
+              {aktifkan(b)}
+              {hapus(b)}
             </>
           )
         }}
+        actions={(b) => (
+          <>
+            <Drawer trigger="Ubah" triggerLabel={`Ubah ${b.name}`} title={`Ubah merek ${b.name}`}>
+              <FormMerek b={b} />
+            </Drawer>
+            {aktifkan(b)}
+            {hapus(b)}
+          </>
+        )}
         empty={
           q ? (
             <Empty title="Merek tidak ditemukan">Tidak ada merek dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>

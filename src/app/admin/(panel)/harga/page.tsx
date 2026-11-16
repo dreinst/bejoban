@@ -58,7 +58,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
   const namaCabang = namaPendek(branch.name)
   // Kolom isian: dibungkus supaya lebarnya tetap kecil di tabel dan tidak melebar di kartu 390 px.
   const angka = (name: string, label: string, value: string | number, lebar = 'w-28') => (
-    <span className={`inline-block ${lebar} align-middle`}>
+    <span className={`inline-block ${lebar} align-middle max-md:w-full`}>
       <input name={name} inputMode="numeric" aria-label={label} defaultValue={value} className={`${inputCls} min-h-10 text-right max-md:min-h-11`} />
     </span>
   )
@@ -108,9 +108,11 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
             rowKey={(p) => p.id}
             muted={(p) => !p.active}
             thumb={(p) => <Thumb src={parseImages(p.images)[0]} alt={`Foto ${p.name}`} variant="photo" />}
+            isianHp
             columns={[
               {
                 key: 'produk',
+                hpKolom: '1 / 3',
                 header: `Produk (cabang ${namaCabang})`,
                 cell: (p) => (
                   <>
@@ -124,11 +126,12 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
                   </>
                 ),
               },
-              { key: 'harga', header: 'Harga jual', align: 'right', cell: (p) => <RupiahInput name={`p${p.id}_price`} label={`Harga jual ${p.name}`} defaultValue={p.listings[0]?.price ?? ''} /> },
-              { key: 'coret', header: 'Harga coret', align: 'right', cell: (p) => <RupiahInput name={`p${p.id}_compare`} label={`Harga coret ${p.name}`} defaultValue={p.listings[0]?.comparePrice || ''} /> },
-              { key: 'stok', header: 'Stok', align: 'right', cell: (p) => angka(`p${p.id}_stock`, `Stok ${p.name}`, p.listings[0]?.stock ?? '', 'w-20') },
+              { key: 'harga', header: 'Harga jual', align: 'right', hpKolom: '1 / 3', cell: (p) => <RupiahInput name={`p${p.id}_price`} label={`Harga jual ${p.name}`} defaultValue={p.listings[0]?.price ?? ''} /> },
+              { key: 'coret', header: 'Harga coret', align: 'right', hpKolom: '3 / -1', cell: (p) => <RupiahInput name={`p${p.id}_compare`} label={`Harga coret ${p.name}`} defaultValue={p.listings[0]?.comparePrice || ''} /> },
+              { key: 'stok', header: 'Stok', align: 'right', hpKolom: '1 / 3', cell: (p) => angka(`p${p.id}_stock`, `Stok ${p.name}`, p.listings[0]?.stock ?? '', 'w-20') },
               {
                 key: 'dijual',
+                hpKolom: '3',
                 header: 'Dijual',
                 align: 'center',
                 cell: (p) => (
@@ -139,6 +142,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
               },
               {
                 key: 'flash',
+                hpKolom: '4',
                 header: 'Promo kilat',
                 align: 'center',
                 cell: (p) => (
