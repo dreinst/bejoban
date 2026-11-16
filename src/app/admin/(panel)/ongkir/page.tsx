@@ -11,8 +11,7 @@ import { matchCity } from '@/lib/geo/match'
 import { distanceKm } from '@/lib/geo/distance'
 import type { Place } from '@/lib/geo/types'
 import { CopyButton } from '@/components/admin/copy-button'
-import { Card } from '@/components/admin/simple-list'
-import { PageHeader } from '@/components/admin/ui'
+import { PageHeader, Section } from '@/components/admin/ui'
 import { OngkirForm } from '@/components/admin/ongkir-form'
 
 const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
@@ -95,13 +94,14 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   }
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="max-w-[1200px]">
       <PageHeader
         title="Estimasi ongkir"
         note={<>Hitung ongkir J&amp;T Cargo dan Baraka Express ke seluruh Indonesia dari tarif agen. Angka berlabel &quot;{SAMPLE_LABEL}&quot; hanya untuk mencoba.</>}
       />
 
-      <Card title="Hitung">
+      <div className="grid items-start gap-5 xl:grid-cols-[640px_minmax(0,1fr)]">
+      <Section title="Hitung">
         <OngkirForm
           d={{ mode, size, qty, kg: kg ? String(kg) : '', pl: dims.l ? String(dims.l) : '', lb: dims.w ? String(dims.w) : '', tg: dims.h ? String(dims.h) : '', cabang: cabang?.slug ?? '', packing: usePacking, q, city: cityText }}
           sizes={allSizes}
@@ -109,10 +109,11 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
           branches={branches.map((b) => ({ slug: b.slug, name: b.name }))}
           packingFee={rp(settings.packingPerTire)}
         />
-      </Card>
+      </Section>
 
+      <div className="space-y-5">
       {geo && !place && (
-        <Card title={geo.places.length ? `Hasil pencarian lokasi untuk "${q.length > 60 ? q.slice(0, 60) + '...' : q}"` : 'Lokasi tidak ketemu'}>
+        <Section title={geo.places.length ? `Hasil pencarian lokasi untuk "${q.length > 60 ? q.slice(0, 60) + '...' : q}"` : 'Lokasi tidak ketemu'}>
           {geo.places.length === 0 ? (
             <div className="space-y-3 text-sm">
               <p className={geo.error ? 'font-semibold text-red-700' : 'text-neutral-700'}>
@@ -146,11 +147,11 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
             </>
           )}
           <p className="mt-2 text-[11px] text-neutral-500">Data peta © kontributor OpenStreetMap.</p>
-        </Card>
+        </Section>
       )}
 
       {place && (
-        <Card title="Lokasi tujuan">
+        <Section title="Lokasi tujuan">
           <dl className="grid grid-cols-[160px_1fr] gap-y-1 text-sm">
             <dt className="text-neutral-500">Ketepatan</dt>
             <dd><b>{PRECISION_LABEL[place.precision ?? 'kota']}</b>{place.precision === 'kota' || place.precision === 'provinsi' ? ': jarak dihitung ke titik pusat wilayah, bukan alamat persis. Untuk tarif, kota atau kabupaten yang cocok sudah cukup.' : place.precision === 'kecamatan' ? ': jarak dihitung ke titik pusat kecamatan.' : ': jarak dihitung ke titik alamat.'}</dd>
@@ -171,16 +172,16 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
             </dd>
           </dl>
           <p className="mt-2 text-xs"><Link className="underline" href={href({ pick: '' })}>Pilih lokasi lain</Link></p>
-        </Card>
+        </Section>
       )}
 
       {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
 
       {quotes.length > 0 && (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
             {quotes.map((q2) => (
-              <Card key={q2.carrier} title={`${CARRIER_LABEL[q2.carrier]} ke ${q2.city}`}>
+              <Section key={q2.carrier} title={`${CARRIER_LABEL[q2.carrier]} ke ${q2.city}`}>
                 {q2.status === 'NO_RATE' && (
                   <p className="text-sm font-semibold text-red-700">
                     Tarif belum diisi{' '}
@@ -207,13 +208,15 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                     {q2.note && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
                   </div>
                 )}
-              </Card>
+              </Section>
             ))}
           </div>
           <CopyButton text={text + (km !== null ? `\nJarak garis lurus sekitar ${Math.round(km)} km.` : '')} />
-          <pre className="whitespace-pre-wrap rounded-lg bg-white p-4 text-xs text-neutral-700 shadow-sm">{text}</pre>
+          <pre className="adm-card whitespace-pre-wrap p-4 font-sans text-xs text-neutral-700">{text}</pre>
         </>
       )}
+      </div>
+      </div>
     </div>
   )
 }

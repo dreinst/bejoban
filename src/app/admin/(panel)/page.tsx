@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { hitungPerluDicek } from '@/lib/perlu-dicek'
-import { PageHeader, StatCard } from '@/components/admin/ui'
+import { PageBody, PageHeader, StatCard } from '@/components/admin/ui'
 
 const wib = (d: Date) => d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' })
 
@@ -40,7 +40,7 @@ export default async function Dashboard() {
     const click = (slug: string) => klik.find((k) => k.branch === slug)?._sum.count ?? 0
     const kartu = 'adm-card block p-5 transition hover:-translate-y-px hover:shadow-md'
     info = (
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         <Link href="/admin/situs" className={kartu}>
           <p className="mb-3 font-display text-base font-extrabold text-ink">Klik WhatsApp, 7 hari terakhir</p>
           <ul className="divide-y divide-line text-sm">
@@ -66,16 +66,19 @@ export default async function Dashboard() {
   }
 
   return (
-    <div>
+    <PageBody>
       <PageHeader title="Ringkasan" note={owner ? undefined : `Cabang ${cabang?.name.replace(/\s*\(.*\)/, '') ?? 'kamu'}`} />
       {tugas.length ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))]">
           {tugas.map((t) => <StatCard key={t.label} label={t.label} value={t.n} hint={t.hint} href={t.href} warn />)}
         </div>
       ) : (
-        <p className="adm-card p-5 text-sm text-ink"><b>Semua beres.</b> Tidak ada stok, harga, atau percakapan yang menunggu.</p>
+        <div className="adm-card flex items-center gap-3 p-5">
+          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-base font-bold text-white">✓</span>
+          <p className="text-sm text-ink"><b>Semua beres.</b> Tidak ada stok, harga, atau percakapan yang menunggu.</p>
+        </div>
       )}
       {info}
-    </div>
+    </PageBody>
   )
 }

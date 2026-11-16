@@ -6,6 +6,7 @@ import { getContent } from '@/lib/settings'
 import { db } from '@/lib/db'
 import { saveSection } from '../../../actions'
 import { SectionEditor } from '@/components/admin/section-editor'
+import { PageBody, PageHeader } from '@/components/admin/ui'
 
 export default async function EditSection({ params }: PageProps<'/admin/konten/[key]'>) {
   await requireOwner()
@@ -14,13 +15,12 @@ export default async function EditSection({ params }: PageProps<'/admin/konten/[
   if (!section) notFound()
   const [content, products] = await Promise.all([getContent(), db.product.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })])
   return (
-    <div className="max-w-3xl">
-      <Link href="/admin/konten" className="text-sm text-neutral-500">← Tampilan beranda</Link>
-      <h1 className="mb-2 mt-2 text-2xl font-bold text-ink">{section.title}</h1>
-      {section.note && <p className="mb-4 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-800">{section.note}</p>}
-      <div className="rounded-xl bg-white p-5 shadow-sm">
+    <PageBody width="form">
+      <Link href="/admin/konten" className="inline-flex min-h-10 items-center text-sm font-semibold text-mute underline-offset-2 hover:text-ink hover:underline">← Tampilan beranda</Link>
+      <PageHeader title={section.title} note={section.note} />
+      <div className="adm-card p-5">
         <SectionEditor key={JSON.stringify(content[key])} sectionKey={key} fields={section.fields} initial={content[key]} products={products} action={saveSection} />
       </div>
-    </div>
+    </PageBody>
   )
 }
