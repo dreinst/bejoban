@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Rubik } from 'next/font/google'
 import { getContent } from '@/lib/settings'
 import './globals.css'
@@ -6,6 +6,8 @@ import './globals.css'
 // Judul memakai Rubik, isi memakai DM Sans.
 const rubik = Rubik({ variable: '--font-rubik', subsets: ['latin'], weight: ['500', '700', '800', '900'] })
 const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'] })
+
+export const viewport: Viewport = { themeColor: '#0a0a0a' }
 
 export async function generateMetadata(): Promise<Metadata> {
   const { site } = await getContent()
