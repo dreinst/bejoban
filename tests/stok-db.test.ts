@@ -82,7 +82,7 @@ test('impor upsert: id tetap, baris hilang nonaktif lalu aktif lagi, buku stok h
   // C hilang dari sumber: dinonaktifkan, tidak dihapus. Stok A berubah: satu baris buku stok.
   const s3 = await m.applyImport(hasil([{ ...A, stock: 1 }, B1, B2]), 'sheet')
   assert.deepEqual([s3.deactivated, s3.stockChanges, s3.total], [1, 1, 3])
-  const c = await m.db.stockTire.findUnique({ where: { kode: '205/65R15|merek contoh c' } })
+  const c = await m.db.stockTire.findFirst({ where: { kode: '205/65R15|merek contoh c' } })
   assert.equal(c?.aktif, false)
   assert.equal(c?.stock, 6, 'stok baris nonaktif tidak diubah')
   const bukuA2 = await m.db.bukuStok.findFirst({ where: { kodeProduk: '185/65R15|merek contoh a' }, orderBy: { id: 'desc' } })
@@ -92,14 +92,14 @@ test('impor upsert: id tetap, baris hilang nonaktif lalu aktif lagi, buku stok h
   // C muncul lagi: aktif kembali dengan id yang sama.
   const s4 = await m.applyImport(hasil([{ ...A, stock: 1 }, B1, B2, C]), 'sheet')
   assert.deepEqual([s4.reactivated, s4.created, s4.stockChanges], [1, 0, 0])
-  const c2 = await m.db.stockTire.findUnique({ where: { kode: '205/65R15|merek contoh c' } })
+  const c2 = await m.db.stockTire.findFirst({ where: { kode: '205/65R15|merek contoh c' } })
   assert.deepEqual([c2?.id, c2?.aktif], [c?.id, true])
   assert.deepEqual((await semua()).map((r) => r.id), awal.map((r) => r.id))
 })
 
 test('impor upsert: baris manual terkunci tidak ditimpa, yang tidak dikunci ditimpa', async () => {
-  const a = await m.db.stockTire.findUniqueOrThrow({ where: { kode: '185/65R15|merek contoh a' } })
-  const b = await m.db.stockTire.findUniqueOrThrow({ where: { kode: '195/60R15|merek contoh b' } })
+  const a = await m.db.stockTire.findFirstOrThrow({ where: { kode: '185/65R15|merek contoh a' } })
+  const b = await m.db.stockTire.findFirstOrThrow({ where: { kode: '195/60R15|merek contoh b' } })
   await m.db.stockTire.update({ where: { id: a.id }, data: { price: 123000, stock: 9, manual: true, lockManual: true, manualAt: new Date() } })
   await m.db.stockTire.update({ where: { id: b.id }, data: { price: 111000, manual: true, lockManual: false, manualAt: new Date() } })
   const sebelum = await jumlahBuku()

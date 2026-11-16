@@ -51,6 +51,7 @@ model Brand {
   name     String    @unique
   logo     String    @default("")
   sort     Int       @default(0)
+  byOrder  Boolean   @default(false) @map("by_order") // true: tidak distok, dipesan dulu ke distributor
   products Product[]
 }
 
@@ -116,9 +117,17 @@ model StockTire {
   importedAt DateTime  @default(now())
   // Kode stabil "ukuran|merek" (src/lib/stok/kode.ts). Kosong hanya sebelum scripts/isi-kode-stok.ts
   // atau impor pertama sesudah migrasi. SQLite mengizinkan banyak NULL pada indeks unik.
-  kode       String?   @unique @map("kode")
+  kode       String?   @map("kode")
   aktif      Boolean   @default(true) @map("aktif") // false: hilang dari sumber pricelist, diabaikan semua pembaca
+  // Cabang pemilik baris stok. null: baris lama yang belum ditetapkan cabangnya (dianggap stok bersama).
+  // Sengaja tanpa relasi (seperti buku_stok.cabang_id) supaya migrasinya cukup ADD COLUMN tanpa membangun ulang tabel.
+  cabangId   Int?      @map("cabang_id")
 
+  // Kode unik per cabang. Untuk baris tanpa cabang (cabang_id NULL) SQLite menganggap NULL selalu berbeda,
+  // jadi migrasi 20261116150000_stok_per_cabang menambah indeks unik parsial StockTire_kode_tanpa_cabang_key
+  // (kode WHERE cabang_id IS NULL) langsung di SQL. Prisma belum bisa menuliskan indeks parsial di skema.
+  @@unique([kode, cabangId])
+  @@index([cabangId])
   @@index([sizeNorm])
   @@index([ring])
 }
@@ -239,7 +248,7 @@ model BukuStok {
   saldoAkhir Int      @map("saldo_akhir")
   refId      String?  @map("ref_id")
   batchId    Int?     @map("batch_id")
-  cabangId   Int?     @map("cabang_id") // null untuk stok ban (StockTire belum per cabang)
+  cabangId   Int?     @map("cabang_id") // cabang baris stok; null untuk stok ban tanpa cabang
   kodeProduk String   @map("kode_produk") // kode StockTire, atau kode Product (slug kalau kode kosong)
   waktu      DateTime @default(now())
   pengguna   String? // id pengguna sebagai teks, kosong untuk proses otomatis

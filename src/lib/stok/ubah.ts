@@ -1,5 +1,5 @@
 // Satu-satunya jalan untuk mengubah stok. Stok dan baris buku_stok ditulis dalam satu transaksi.
-// Dua target: baris StockTire (stok ban global, cabang_id null) dan Listing (produk per cabang).
+// Dua target: baris StockTire (stok ban, cabang_id ikut baris itu, null untuk baris tanpa cabang) dan Listing (produk per cabang).
 import type { Prisma } from '@/generated/prisma/client'
 import { db } from '../db'
 import { bentukKode, kodeKembar } from './kode'
@@ -9,7 +9,7 @@ export type Tx = Prisma.TransactionClient
 
 export type TargetStok =
   | { jenis: 'stok_ban'; id: number }
-  | { jenis: 'stok_ban'; kode: string }
+  | { jenis: 'stok_ban'; kode: string; cabangId?: number | null } // kode unik per cabang, null: baris tanpa cabang
   | { jenis: 'listing'; productId: number; branchId: number }
 
 export type UbahStokInput = PerubahanStok & {
@@ -22,13 +22,21 @@ export type UbahStokInput = PerubahanStok & {
 export type HasilUbahStok = { perubahan: number; saldoAkhir: number; dicatat: boolean; kodeProduk: string }
 
 // Isi kode StockTire yang masih kosong (urut id). Kode yang sudah ada tidak diubah. Aman diulang.
+// Kode unik per cabang, jadi baris dikelompokkan per cabang_id (null juga satu kelompok).
 export async function isiKodeKosong(tx: Tx) {
-  const kosong = await tx.stockTire.findMany({ where: { kode: null }, orderBy: { id: 'asc' }, select: { id: true, sizeNorm: true, brand: true } })
+  const kosong = await tx.stockTire.findMany({ where: { kode: null }, orderBy: { id: 'asc' }, select: { id: true, sizeNorm: true, brand: true, cabangId: true } })
   if (!kosong.length) return { diisi: 0, kembar: [] as { id: number; kode: string }[] }
-  const ada = await tx.stockTire.findMany({ where: { kode: { not: null } }, select: { kode: true } })
-  const kode = bentukKode(kosong, ada.map((a) => a.kode!))
-  for (const [i, r] of kosong.entries()) await tx.stockTire.update({ where: { id: r.id }, data: { kode: kode[i] } })
-  return { diisi: kosong.length, kembar: kosong.map((r, i) => ({ id: r.id, kode: kode[i] })).filter((x) => kodeKembar(x.kode)) }
+  const kembar: { id: number; kode: string }[] = []
+  for (const cabangId of new Set(kosong.map((r) => r.cabangId))) {
+    const baris = kosong.filter((r) => r.cabangId === cabangId)
+    const ada = await tx.stockTire.findMany({ where: { kode: { not: null }, cabangId }, select: { kode: true } })
+    const kode = bentukKode(baris, ada.map((a) => a.kode!))
+    for (const [i, r] of baris.entries()) {
+      await tx.stockTire.update({ where: { id: r.id }, data: { kode: kode[i] } })
+      if (kodeKembar(kode[i])) kembar.push({ id: r.id, kode: kode[i] })
+    }
+  }
+  return { diisi: kosong.length, kembar }
 }
 
 // Saldo dibaca dari nilai terbaru di dalam transaksi. Tidak ada perubahan: tidak dicatat.
@@ -39,7 +47,9 @@ export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahSto
   let cabangId: number | null
   let simpan: (n: number) => Promise<unknown>
   if (t.jenis === 'stok_ban') {
-    const cari = () => tx.stockTire.findUnique({ where: 'id' in t ? { id: t.id } : { kode: t.kode }, select: { id: true, stock: true, kode: true } })
+    const sel = { id: true, stock: true, kode: true, cabangId: true } as const
+    const cari = () =>
+      'id' in t ? tx.stockTire.findUnique({ where: { id: t.id }, select: sel }) : tx.stockTire.findFirst({ where: { kode: t.kode, cabangId: t.cabangId ?? null }, select: sel })
     let row = await cari()
     if (!row) throw new GalatStok('Baris stok ban tidak ditemukan')
     if (!row.kode) {
@@ -49,7 +59,7 @@ export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahSto
     const id = row.id
     saldoLama = row.stock
     kodeProduk = row.kode!
-    cabangId = null
+    cabangId = row.cabangId
     simpan = (n) => tx.stockTire.update({ where: { id }, data: { stock: n } })
   } else {
     const where = { productId_branchId: { productId: t.productId, branchId: t.branchId } }
