@@ -25,9 +25,9 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 | `PageHeader` | `ui.tsx` | server | Judul, penjelas, tombol utama kanan atas |
 | `PageBody` | `ui.tsx` | server | Pembatas lebar: `list` 1200 px, `form` 640 px |
 | `SettingsGrid`, `Section` | `ui.tsx` | server | Halaman pengaturan: kartu per bagian, dua kolom di layar lebar |
-| `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana status, keadaan kosong, angka ringkasan |
+| `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana status, keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
 | `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris |
-| `ListToolbar`, `FilterChips` | `data-table.tsx` | server | Jumlah item, pencarian `?q=`, saringan chip |
+| `ListToolbar`, `FilterChips`, `Halaman` | `data-table.tsx` | server | Jumlah item, pencarian `?q=`, saringan chip, navigasi `?hal=` untuk daftar panjang |
 | `TextField`, `SelectField`, `TextAreaField`, `CheckField`, `FormGrid`, `FormActions` | `field.tsx` | server | Kolom form berlabel dengan bantuan dan galat |
 | `Drawer`, `Modal`, `ConfirmDialog`, `CloseButton`, `SubmitButton` | `overlay.tsx` | klien | Panel samping, dialog, tombol batal dan simpan |
 | `ReorderButtons`, `QuickToggle` | `row-controls.tsx` | klien | Urutan naik turun dan sakelar yang langsung menyimpan |
