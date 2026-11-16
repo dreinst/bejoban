@@ -12,6 +12,7 @@ import { distanceKm } from '@/lib/geo/distance'
 import type { Place } from '@/lib/geo/types'
 import { CopyButton } from '@/components/admin/copy-button'
 import { Card } from '@/components/admin/simple-list'
+import { PageHeader } from '@/components/admin/ui'
 import { OngkirForm } from '@/components/admin/ongkir-form'
 
 const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
@@ -53,7 +54,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const pickIdx = one('pick') === '' ? -1 : Number(one('pick'))
   const cityText = one('city').trim().slice(0, 60)
 
-  // Pencarian lokasi lewat server (OpenStreetMap secara bawaan), hasilnya di-cache di database.
+  // Pencarian lokasi lewat server (OpenStreetMap secara bawaan), hasilnya disimpan sementara di database.
   const geo = q ? await searchPlaces(q, { fresh: one('fresh') === '1' }) : null
   const place: Place | null = geo && pickIdx >= 0 ? (geo.places[pickIdx] ?? null) : null
   const match = place ? matchCity(place, cities) : null
@@ -95,15 +96,10 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
 
   return (
     <div className="max-w-5xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-ink">Estimasi ongkir</h1>
-        {user.role === 'OWNER' && (
-          <Link href="/admin/ongkir/tarif" className="adm-btn-line">Tarif dan pengaturan</Link>
-        )}
-      </div>
-      <p className="text-sm text-neutral-500">
-        J&amp;T Cargo dan Baraka Express melayani pengiriman ke seluruh Indonesia. Tarif diisi admin dari daftar harga agen, belum ada sumber tarif otomatis. Angka berlabel &quot;{SAMPLE_LABEL}&quot; hanya untuk mencoba.
-      </p>
+      <PageHeader
+        title="Estimasi ongkir"
+        note={<>Hitung ongkir J&amp;T Cargo dan Baraka Express ke seluruh Indonesia dari tarif agen. Angka berlabel &quot;{SAMPLE_LABEL}&quot; hanya untuk mencoba.</>}
+      />
 
       <Card title="Hitung">
         <OngkirForm
@@ -120,16 +116,8 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
           {geo.places.length === 0 ? (
             <div className="space-y-3 text-sm">
               <p className={geo.error ? 'font-semibold text-red-700' : 'text-neutral-700'}>
-                {geo.error ? `Pencarian lokasi gagal: ${geo.error}.` : 'Tidak ada lokasi yang cocok di semua tingkat pencarian.'}
+                {geo.error ? 'Pencarian lokasi sedang gagal. Coba lagi sebentar lagi, atau pilih kota dari tabel tarif.' : 'Tidak ada lokasi yang cocok.'}
               </p>
-              <div>
-                <p className="text-xs font-semibold text-neutral-600">Yang sudah dicoba:</p>
-                <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-xs text-neutral-600">
-                  {geo.attempts.map((a, i) => (
-                    <li key={i}>{a.label} ({a.provider}): &quot;{a.q}&quot; {a.error ? `gagal, ${a.error}` : `0 hasil${a.cached ? ', dari cache' : ''}`}</li>
-                  ))}
-                </ol>
-              </div>
               <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari ulang&quot;, atau pilih kota langsung dari tabel tarif:</p>
               <div className="flex flex-wrap gap-2">
                 {cities.map((c) => <Link key={c} href={href({ q: '', city: c })} className="rounded-full border border-ink px-3 py-1 text-xs font-semibold text-ink">{c}</Link>)}
@@ -140,7 +128,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
             <>
               {geo.level && geo.level.key !== 'utuh' && (
                 <p className="mb-2 rounded-lg bg-neutral-100 px-3 py-2 text-xs text-neutral-700">
-                  Teks utuh tidak ketemu. Hasil ini dari pencarian &quot;{geo.level.label}&quot;: &quot;{geo.level.q}&quot;.
+                  Alamat lengkap tidak ketemu. Hasil ini dari pencarian &quot;{geo.level.q}&quot;.
                 </p>
               )}
               <ul className="divide-y divide-neutral-100">
@@ -157,7 +145,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
               </ul>
             </>
           )}
-          <p className="mt-2 text-xs text-neutral-500">Sumber: {geo.provider}{geo.cached ? ' (dari cache)' : ''}. Data peta oleh kontributor OpenStreetMap.</p>
+          <p className="mt-2 text-[11px] text-neutral-500">Data peta © kontributor OpenStreetMap.</p>
         </Card>
       )}
 
@@ -172,10 +160,10 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
             <dt className="text-neutral-500">Provinsi</dt><dd>{place.province || '-'}</dd>
             <dt className="text-neutral-500">Koordinat</dt><dd>{place.lat.toFixed(5)}, {place.lon.toFixed(5)}</dd>
             <dt className="text-neutral-500">Jarak dari {originLabel}</dt>
-            <dd>{km !== null ? <>sekitar <b>{Math.round(km)} km</b> garis lurus (bukan jarak tempuh)</> : <>koordinat cabang belum diisi. <Link className="underline" href="/admin/ongkir/tarif#pengaturan">Isi di pengaturan</Link></>}</dd>
+            <dd>{km !== null ? <>sekitar <b>{Math.round(km)} km</b> garis lurus (bukan jarak tempuh)</> : <>titik cabang belum diisi.{' '}{user.role === 'OWNER' ? <Link className="underline" href="/admin/pengaturan/ongkir#asal">Isi di Pengaturan</Link> : 'Minta owner mengisinya.'}</>}</dd>
             <dt className="text-neutral-500">Cocok dengan tabel tarif</dt>
             <dd>
-              {match?.city ? <>Ya, &quot;{match.city}&quot; (lewat {match.via})</> : (
+              {match?.city ? <>Ya, &quot;{match.city}&quot;</> : (
                 <>Belum ada tarif untuk {place.city || place.name}.{' '}
                   {user.role === 'OWNER' && <Link className="font-semibold underline" href={`/admin/ongkir/tarif?kota=${encodeURIComponent(place.city || place.name)}#baru`}>Tambah tarif untuk kota ini</Link>}
                 </>
@@ -199,7 +187,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                     {user.role === 'OWNER' && <Link className="underline" href={`/admin/ongkir/tarif?kota=${encodeURIComponent(q2.city)}#baru`}>Tambah tarif</Link>}
                   </p>
                 )}
-                {q2.status === 'NO_PACK' && <p className="text-sm font-semibold text-red-700">Ukuran kemasan ring ini belum diisi (pengaturan hanya R12 sampai R19)</p>}
+                {q2.status === 'NO_PACK' && <p className="text-sm font-semibold text-red-700">Ukuran kemasan ring ini belum diisi (pengaturan hanya untuk R12 sampai R19).</p>}
                 {q2.status === 'OK' && (
                   <div className="space-y-2 text-sm">
                     {q2.isSample && <p className="inline-block rounded bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">{SAMPLE_LABEL}</p>}

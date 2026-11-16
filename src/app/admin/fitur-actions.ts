@@ -1,9 +1,9 @@
 'use server'
-// Aksi untuk tiga halaman internal: stok ban, ongkir, chatbot. Semua cek sesi di server.
+// Aksi untuk halaman internal: stok ban, ongkir, harga jasa, situs, chatbot. Semua cek sesi di server.
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { requireOwner } from '@/lib/auth'
+import { requireOwner, requireUser } from '@/lib/auth'
 import { parsePricelist, type ParseResult } from '@/lib/tire/pricelist'
 import { namaPendek, pisahPerCabang } from '@/lib/tire/cabang'
 import { tetapkanTanpaCabang } from '@/lib/stok/tetapkan'
@@ -156,6 +156,9 @@ export async function saveStockRow(fd: FormData) {
 
 /* ---------- Ongkir ---------- */
 
+const TARIF_PAGE = '/admin/ongkir/tarif'
+const SHIP_PAGE = '/admin/pengaturan/ongkir'
+
 function carrierOf(raw: string): Carrier | null {
   const s = raw.toLowerCase().replace(/[^a-z]/g, '')
   if ((CARRIERS as readonly string[]).includes(raw)) return raw as Carrier
@@ -181,26 +184,26 @@ export async function saveRate(fd: FormData) {
   const city = str(fd, 'city', 60)
   const perKg = int(fd, 'perKg')
   const minWeight = dec(fd, 'minWeight')
-  if (!carrier) go('/admin/ongkir/tarif', 'Ekspedisi tidak dikenali', 'err')
-  if (city.length < 2) go('/admin/ongkir/tarif', 'Kota tujuan wajib diisi', 'err')
-  if (perKg < 1 || perKg > 1_000_000) go('/admin/ongkir/tarif', 'Tarif per kg harus antara 1 dan 1.000.000', 'err')
-  if (Number.isNaN(minWeight) || minWeight > 1000) go('/admin/ongkir/tarif', 'Berat minimum tidak valid', 'err')
+  if (!carrier) go(TARIF_PAGE, 'Ekspedisi tidak dikenali', 'err')
+  if (city.length < 2) go(TARIF_PAGE, 'Kota tujuan wajib diisi', 'err')
+  if (perKg < 1 || perKg > 1_000_000) go(TARIF_PAGE, 'Tarif per kg harus antara 1 dan 1.000.000', 'err')
+  if (Number.isNaN(minWeight) || minWeight > 1000) go(TARIF_PAGE, 'Berat minimum tidak valid', 'err')
   const data = rateData(carrier!, city, perKg, minWeight, str(fd, 'etaDays', 30), str(fd, 'note', 200), fd.get('isSample') === 'on')
   try {
     if (id) await db.shippingRate.update({ where: { id }, data })
     else await db.shippingRate.create({ data })
   } catch {
-    go('/admin/ongkir/tarif', 'Tarif ekspedisi dan kota itu sudah ada. Ubah baris yang lama.', 'err')
+    go(TARIF_PAGE, 'Tarif ekspedisi dan kota itu sudah ada. Ubah baris yang lama.', 'err')
   }
   await catat(s, id ? 'ubah' : 'tambah', 'tarif_ongkir', { id: id || null, carrier, city })
-  go('/admin/ongkir/tarif', 'Tarif tersimpan')
+  go(TARIF_PAGE, 'Tarif tersimpan')
 }
 
 export async function deleteRate(fd: FormData) {
   const s = await requireOwner()
   await db.shippingRate.deleteMany({ where: { id: int(fd, 'id') } })
   await catat(s, 'hapus', 'tarif_ongkir', { id: int(fd, 'id') })
-  go('/admin/ongkir/tarif', 'Tarif dihapus')
+  go(TARIF_PAGE, 'Tarif dihapus')
 }
 
 // Tempel banyak baris: ekspedisi, kota, tarif per kg, berat minimum, estimasi hari, catatan.
@@ -225,48 +228,63 @@ export async function importRates(fd: FormData) {
     await db.shippingRate.upsert({ where: { carrier_city: { carrier, city: c[1] } }, create: data, update: data })
     ok++
   }
-  if (!ok && bad.length) go('/admin/ongkir/tarif', `Tidak ada baris valid (${bad.slice(0, 5).join(', ')}). Format: ekspedisi, kota, tarif per kg, berat minimum, estimasi hari, catatan`, 'err')
+  if (!ok && bad.length) go(TARIF_PAGE, `Tidak ada baris valid (${bad.slice(0, 5).join(', ')}). Format: ekspedisi, kota, tarif per kg, berat minimum, estimasi hari, catatan`, 'err')
   await catat(s, 'impor', 'tarif_ongkir', { masuk: ok, dilewati: bad.length })
-  go('/admin/ongkir/tarif', `${ok} tarif masuk${bad.length ? `, ${bad.length} baris dilewati (${bad.slice(0, 5).join(', ')})` : ''}`)
+  go(TARIF_PAGE, `${ok} tarif masuk${bad.length ? `, ${bad.length} baris dilewati (${bad.slice(0, 5).join(', ')})` : ''}`)
 }
 
+// Form pengaturan ongkir dipecah per bagian (asal, hitung, velg, kemasan). Hanya bagian yang dikirim
+// yang diperbarui; bagian lain tetap memakai nilai tersimpan. Tanpa penanda bagian, semua diperbarui.
 export async function saveShipSettings(fd: FormData) {
   const s = await requireOwner()
   const old = await loadShippingSettings()
-  const ringPack: ShippingSettings['ringPack'] = {}
-  for (let r = 12; r <= 19; r++) {
-    const p = { weightKg: dec(fd, `w${r}`), lengthCm: dec(fd, `l${r}`), widthCm: dec(fd, `b${r}`), heightCm: dec(fd, `t${r}`) }
-    if (Object.values(p).some((v) => Number.isNaN(v) || v > 500)) go('/admin/ongkir/tarif', `Ukuran kemasan R${r} tidak valid`, 'err')
-    ringPack[String(r)] = p
+  const bagian = str(fd, 'bagian', 20)
+  const ubah = (b: string) => !bagian || bagian === b
+  let ringPack: ShippingSettings['ringPack'] = old.ringPack
+  if (ubah('kemasan')) {
+    ringPack = {}
+    for (let r = 12; r <= 19; r++) {
+      const p = { weightKg: dec(fd, `w${r}`), lengthCm: dec(fd, `l${r}`), widthCm: dec(fd, `b${r}`), heightCm: dec(fd, `t${r}`) }
+      if (Object.values(p).some((v) => Number.isNaN(v) || v > 500)) go(SHIP_PAGE, `Ukuran kemasan R${r} tidak valid`, 'err')
+      ringPack[String(r)] = p
+    }
   }
-  const velgPack = { weightKg: dec(fd, 'velgW'), lengthCm: dec(fd, 'velgL'), widthCm: dec(fd, 'velgB'), heightCm: dec(fd, 'velgT') }
-  if (Object.values(velgPack).some((v) => Number.isNaN(v) || v > 500)) go('/admin/ongkir/tarif', 'Berat atau ukuran velg tidak valid', 'err')
-  const origins: ShippingSettings['origins'] = {}
-  for (const b of await db.branch.findMany({ select: { slug: true } })) {
-    const lat = str(fd, `lat_${b.slug}`, 20).replace(',', '.')
-    const lon = str(fd, `lon_${b.slug}`, 20).replace(',', '.')
-    const la = lat === '' ? null : Number(lat)
-    const lo = lon === '' ? null : Number(lon)
-    if ((la !== null && !(la >= -90 && la <= 90)) || (lo !== null && !(lo >= -180 && lo <= 180))) go('/admin/ongkir/tarif', `Koordinat cabang ${b.slug} tidak valid`, 'err')
-    origins[b.slug] = { lat: la, lon: lo }
+  let velgPack = old.velg
+  if (ubah('velg')) {
+    velgPack = { weightKg: dec(fd, 'velgW'), lengthCm: dec(fd, 'velgL'), widthCm: dec(fd, 'velgB'), heightCm: dec(fd, 'velgT') }
+    if (Object.values(velgPack).some((v) => Number.isNaN(v) || v > 500)) go(SHIP_PAGE, 'Berat atau ukuran velg tidak valid', 'err')
   }
-  const jnt = int(fd, 'divJnt')
-  const bar = int(fd, 'divBaraka')
-  if (jnt < 1000 || bar < 1000) go('/admin/ongkir/tarif', 'Pembagi berat volume minimal 1000', 'err')
+  let origins: ShippingSettings['origins'] = old.origins
+  if (ubah('asal')) {
+    origins = {}
+    for (const b of await db.branch.findMany({ select: { slug: true } })) {
+      const lat = str(fd, `lat_${b.slug}`, 20).replace(',', '.')
+      const lon = str(fd, `lon_${b.slug}`, 20).replace(',', '.')
+      const la = lat === '' ? null : Number(lat)
+      const lo = lon === '' ? null : Number(lon)
+      if ((la !== null && !(la >= -90 && la <= 90)) || (lo !== null && !(lo >= -180 && lo <= 180))) go(SHIP_PAGE, `Koordinat cabang ${b.slug} tidak valid`, 'err')
+      origins[b.slug] = { lat: la, lon: lo }
+    }
+  }
+  let divisor = old.divisor
+  if (ubah('hitung')) {
+    divisor = { JNT_CARGO: int(fd, 'divJnt'), BARAKA: int(fd, 'divBaraka') }
+    if (divisor.JNT_CARGO < 1000 || divisor.BARAKA < 1000) go(SHIP_PAGE, 'Pembagi berat volume minimal 1000', 'err')
+  }
   const next: ShippingSettings = mergeSettings({
     ...old,
-    origin: str(fd, 'origin', 80),
-    divisor: { JNT_CARGO: jnt, BARAKA: bar },
-    packingPerTire: int(fd, 'packing'),
+    origin: ubah('asal') ? str(fd, 'origin', 80) : old.origin,
+    divisor,
+    packingPerTire: ubah('hitung') ? int(fd, 'packing') : old.packingPerTire,
     ringPack,
-    ringPackSample: fd.get('ringPackSample') === 'on',
+    ringPackSample: ubah('kemasan') ? fd.get('ringPackSample') === 'on' : old.ringPackSample,
     velg: velgPack,
-    velgNote: str(fd, 'velgNote', 120),
+    velgNote: ubah('velg') ? str(fd, 'velgNote', 120) : old.velgNote,
     origins,
   })
   await saveSetting('ongkir', next)
-  await catat(s, 'simpan', 'pengaturan_ongkir', { kunci: 'ongkir' })
-  go('/admin/ongkir/tarif', 'Pengaturan tersimpan')
+  await catat(s, 'simpan', 'pengaturan_ongkir', { kunci: 'ongkir', bagian: bagian || 'semua' })
+  go(SHIP_PAGE, 'Pengaturan ongkir tersimpan')
 }
 
 /* ---------- Harga jasa ---------- */
@@ -313,20 +331,26 @@ export async function deleteService(fd: FormData) {
 
 /* ---------- Pengaturan situs publik ---------- */
 
+// Halaman Tautan WhatsApp punya tiga form (nomor, pembuka, harga). Hanya bagian yang dikirim yang
+// diperbarui; bagian lain tetap memakai nilai tersimpan. Tanpa penanda bagian, semua diperbarui.
 export async function saveSitus(fd: FormData) {
   const s = await requireOwner()
+  const bagian = str(fd, 'bagian', 20)
+  const ubah = (b: string) => !bagian || bagian === b
+  const row = await db.setting.findUnique({ where: { key: 'situs' } })
+  const cur = mergeSitus(row ? JSON.parse(row.value) : null)
   const main = str(fd, 'mainWhatsapp', 30)
-  if (main && !/^62\d{8,13}$/.test(normalizeNumber(main))) go('/admin/situs', 'Nomor WhatsApp utama tidak valid', 'err')
+  if (ubah('nomor') && main && !/^62\d{8,13}$/.test(normalizeNumber(main))) go('/admin/situs', 'Nomor WhatsApp utama tidak valid', 'err')
   const op = (k: string) => str(fd, k, 300)
   const next = mergeSitus({
-    mainWhatsapp: main ? normalizeNumber(main) : '',
-    showPrices: fd.get('showPrices') === 'on',
-    openers: { umum: op('opUmum'), produk: op('opProduk') },
+    mainWhatsapp: ubah('nomor') ? (main ? normalizeNumber(main) : '') : cur.mainWhatsapp,
+    showPrices: ubah('harga') ? fd.get('showPrices') === 'on' : cur.showPrices,
+    openers: ubah('pembuka') ? { umum: op('opUmum'), produk: op('opProduk') } : cur.openers,
   })
   for (const [k, v] of Object.entries(next.openers)) if (!v.trim()) go('/admin/situs', `Kalimat pembuka ${k} tidak boleh kosong`, 'err')
   await saveSetting('situs', next)
-  await catat(s, 'simpan', 'pengaturan_situs', { kunci: 'situs' })
-  go('/admin/situs', 'Pengaturan situs tersimpan')
+  await catat(s, 'simpan', 'pengaturan_situs', { kunci: 'situs', bagian: bagian || 'semua' })
+  go('/admin/situs', bagian === 'nomor' ? 'Nomor WhatsApp utama tersimpan' : bagian === 'pembuka' ? 'Kalimat pembuka tersimpan' : bagian === 'harga' ? 'Pengaturan harga di situs tersimpan' : 'Pengaturan situs tersimpan')
 }
 
 /* ---------- Chatbot ---------- */
@@ -334,7 +358,7 @@ export async function saveSitus(fd: FormData) {
 export async function testBot(fd: FormData) {
   await requireOwner()
   const input = str(fd, 'q', 500)
-  if (!input) go('/admin/chatbot', 'Ketik pesan uji dulu', 'err')
+  if (!input) go('/admin/chatbot/uji', 'Ketik pesan uji dulu', 'err')
   const known = str(fd, 'known', 40)
   const pending = str(fd, 'pending', 500)
   // Saklar stok per cabang untuk uji ini saja: kosong = ikut pengaturan.
@@ -354,11 +378,12 @@ export async function testBot(fd: FormData) {
       reason: `${o.kind}${known ? ` [cabang diingat ${known}]` : ''}${pending ? ' [menunggu jawaban cabang]' : ''}${per === 'on' ? ' [stok per cabang nyala]' : per === 'off' ? ' [stok per cabang mati]' : ''}${o.branchSlug ? ` (cabang ${o.branchSlug})` : ' (cabang tidak dikenali)'}: ${o.reason}`,
     },
   })
-  redirect(`/admin/chatbot?log=${log.id}#uji`)
+  redirect(`/admin/chatbot/uji?log=${log.id}`)
 }
 
 const time = (v: string, fallback: string) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : fallback)
-const BOT_PAGE = '/admin/chatbot/pengaturan'
+const BOT_PAGE = '/admin/pengaturan/whatsapp'
+const TEMPLAT_PAGE = '/admin/chatbot/templat'
 
 export async function saveBotHours(fd: FormData) {
   const s = await requireOwner()
@@ -411,19 +436,19 @@ export async function saveBotTemplates(fd: FormData) {
   const next = { ...cur } as Templates
   for (const k of TEMPLATE_KEYS) {
     const v = String(fd.get(`tpl_${k}`) ?? '').trim().slice(0, 1000)
-    if (!v) go(BOT_PAGE, `Templat "${k}" tidak boleh kosong`, 'err')
+    if (!v) go(TEMPLAT_PAGE, `Templat "${k}" tidak boleh kosong`, 'err')
     next[k] = v
   }
   await saveSetting('bot.templates', next)
   await catat(s, 'simpan', 'templat_bot', { jumlah: TEMPLATE_KEYS.length })
-  go(BOT_PAGE, 'Templat pesan tersimpan')
+  go(TEMPLAT_PAGE, 'Templat pesan tersimpan')
 }
 
 export async function resetBotTemplates() {
   const s = await requireOwner()
   await db.setting.deleteMany({ where: { key: 'bot.templates' } })
   await catat(s, 'reset', 'templat_bot')
-  go(BOT_PAGE, 'Templat dikembalikan ke bawaan')
+  go(TEMPLAT_PAGE, 'Templat dikembalikan ke bawaan')
 }
 
 export async function saveSosmed(fd: FormData) {
@@ -440,12 +465,17 @@ export async function saveSosmed(fd: FormData) {
 }
 
 // Admin menandai percakapan selesai. Tidak tersedia: bot mengirim kalimat penutup.
+// Owner boleh semua percakapan; admin cabang hanya percakapan cabangnya sendiri.
 export async function markConversation(fd: FormData) {
-  const s = await requireOwner()
+  const s = await requireUser()
   const id = int(fd, 'id')
   const ada = str(fd, 'to', 20) === 'ada'
   const c = await db.botConversation.findUnique({ where: { id } })
   if (!c) go('/admin/chatbot', 'Percakapan tidak ditemukan', 'err')
+  if (s.role !== 'OWNER') {
+    const milik = s.branchId ? await db.branch.findUnique({ where: { id: s.branchId }, select: { slug: true } }) : null
+    if (!milik || c!.branchSlug !== milik.slug) go('/admin/chatbot', 'Percakapan ini bukan milik cabang kamu', 'err')
+  }
   const status = nextStatus(c!.status as Status, ada ? 'tandai_ada' : 'tandai_tidak_ada')
   await db.botConversation.update({ where: { id }, data: { status, mutedUntil: null, closingPending: !ada && status === 'SELESAI_TIDAK_ADA' ? true : c!.closingPending } })
   await catat(s, 'tandai', 'percakapan_bot', { id, status })
@@ -456,5 +486,5 @@ export async function clearBotLogs() {
   const s = await requireOwner()
   await db.botLog.deleteMany({ where: { source: 'UJI' } })
   await catat(s, 'hapus', 'log_uji_bot')
-  go('/admin/chatbot', 'Log uji dihapus')
+  go('/admin/chatbot/uji', 'Riwayat uji dihapus')
 }

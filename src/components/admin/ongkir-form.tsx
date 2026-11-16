@@ -30,7 +30,7 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
       </label>
       <label className={`${labelCls} md:col-span-2`}>Ukuran ban
         <select key={cabang} name="size" defaultValue={pilihan.some((s) => s.sizeNorm === d.size) ? d.size : ''} disabled={!stok} className={inputCls}>
-          <option value="">{pilihan.length ? 'Pilih ukuran' : 'Stok cabang ini kosong, impor dulu'}</option>
+          <option value="">{pilihan.length ? 'Pilih ukuran' : 'Belum ada stok ban di cabang ini'}</option>
           {pilihan.map((s) => <option key={s.sizeNorm} value={s.sizeNorm}>{s.sizeRaw.trim()} (R{s.ring})</option>)}
         </select>
       </label>
@@ -59,7 +59,7 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
       </label>
       <label className={`${labelCls} md:col-span-3`}>Alamat atau lokasi tujuan
         <input name="q" defaultValue={d.q} className={inputCls} placeholder="Tempel alamat lengkap, atau tulis kecamatan dan kota" />
-        <span className="font-normal text-neutral-500">Alamat lengkap gaya Google Maps boleh ditempel utuh. Pencarian mencoba versi yang makin pendek sampai ketemu.</span>
+        <span className="font-normal text-neutral-500">Alamat lengkap dari Google Maps boleh ditempel utuh.</span>
       </label>
       <label className={labelCls}>Atau pilih kota di tabel tarif
         <input name="city" list="kota" defaultValue={d.city} className={inputCls} placeholder="mis. Surabaya" />
@@ -67,8 +67,7 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
       </label>
       <div className="flex flex-wrap items-center gap-3 md:col-span-4">
         <button className="adm-btn">Cari lokasi dan hitung</button>
-        <button name="fresh" value="1" className="adm-btn-line">Cari ulang (lewati cache)</button>
-        <span className="text-xs text-neutral-500">Pencarian hanya jalan saat tombol ditekan (aturan pakai OpenStreetMap).</span>
+        <button name="fresh" value="1" className="adm-btn-line">Cari ulang</button>
       </div>
     </form>
   )

@@ -97,7 +97,7 @@ export async function deleteProduct(fd: FormData) {
   const id = int(fd, 'id')
   await hapusProduk({ productId: id, pengguna: penggunaDari(s) })
   await catat(s, 'hapus', 'produk', { id })
-  done('/admin/produk', 'Produk dihapus')
+  done('/admin/harga', 'Produk dihapus')
 }
 
 /* ---------- Pricelist per cabang ---------- */
