@@ -29,7 +29,7 @@ Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata 
 - **Nomor WhatsApp utama**: satu nomor untuk dua cabang. Kalau kosong, situs memakai nomor tiap cabang.
 - **Tautan pendek**: semua tombol WhatsApp di situs mengarah ke `/wa/batu`, `/wa/karanglo`, atau `/wa` (umum). Tautan itu mengalihkan ke `wa.me/<nomor utama>?text=<kalimat pembuka cabang>`, jadi nomor dan kalimat cukup diubah di satu tempat. Ketiga tautan tampil di halaman ini dengan tombol salin, untuk dipasang di Google Maps, bio Instagram, dan QR di toko. Hitungan klik per cabang per hari ikut tampil (tanpa data pribadi).
 - **Kalimat pembuka** bisa diedit. Pertahankan nama cabang (`{cabang}`), karena bot mengenali cabang dari kata Batu atau Karanglo di pesan.
-- **Tampilkan harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, detail, keranjang, dan flash sale hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
+- **Tampilkan harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
 
 ### Stok ban
 

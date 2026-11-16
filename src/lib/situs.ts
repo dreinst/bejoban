@@ -5,7 +5,7 @@ import { waLink } from './format'
 export type Situs = {
   mainWhatsapp: string // satu nomor untuk semua cabang; kosong = pakai nomor tiap cabang
   showPrices: boolean // bawaan mati
-  openers: { umum: string; produk: string; keranjang: string }
+  openers: { umum: string; produk: string }
 }
 
 export const DEFAULT_SITUS: Situs = {
@@ -14,7 +14,6 @@ export const DEFAULT_SITUS: Situs = {
   openers: {
     umum: 'Halo kak {cabang}, saya mau tanya stok dan harga ban.',
     produk: 'Halo kak {cabang}, saya mau tanya {produk}.',
-    keranjang: 'Halo kak {cabang}, saya mau pesan:',
   },
 }
 

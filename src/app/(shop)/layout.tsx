@@ -1,8 +1,7 @@
 import Link from 'next/link'
-import { Search, ShoppingBag } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { getContent } from '@/lib/settings'
 import { currentBranch } from '@/lib/shop'
-import { CartProvider, CartCount } from '@/components/cart'
 import { BranchPicker } from '@/components/branch-picker'
 import { Icon } from '@/components/icons'
 import { Logo } from '@/components/logo'
@@ -20,7 +19,7 @@ export default async function ShopLayout({ children }: LayoutProps<'/'>) {
   const wa = `/wa/${branch.slug}`
 
   return (
-    <CartProvider>
+    <>
       <header className="sticky top-0 z-40 bg-ink text-white">
         <div className="mx-auto max-w-[1440px] px-5 lg:px-20">
           <div className="flex h-16 items-center gap-4 border-b border-line-dark lg:h-24 lg:gap-8">
@@ -33,10 +32,6 @@ export default async function ShopLayout({ children }: LayoutProps<'/'>) {
             <div className="ml-auto flex items-center gap-2.5 lg:ml-0 lg:gap-5">
               <Link href="/produk" aria-label="Cari produk" className="hidden text-soft-dark hover:text-white sm:block"><Search className="size-5" /></Link>
               <BranchPicker branches={branches} current={branch.slug} />
-              <Link href="/keranjang" aria-label="Keranjang" className="relative text-soft-dark hover:text-white">
-                <ShoppingBag className="size-5" />
-                <CartCount />
-              </Link>
               <a href={wa} target="_blank" rel="noopener" aria-label="Booking via WhatsApp" className="btn btn-w h-[38px] w-12 shrink-0 lg:h-[52px] lg:w-auto lg:px-6 lg:text-base">
                 <Icon name="wa" size={20} c="#0a0a0a" d="#ffffff" />
                 <span className="hidden lg:inline">Booking via WhatsApp</span>
@@ -69,6 +64,6 @@ export default async function ShopLayout({ children }: LayoutProps<'/'>) {
         <Icon name="wa" size={20} c="#0a0a0a" d="#ffffff" />
         Chat
       </a>
-    </CartProvider>
+    </>
   )
 }

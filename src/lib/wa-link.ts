@@ -6,7 +6,7 @@ import { waLink } from './format'
 const today = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10) // tanggal Jakarta
 
 type Kind = keyof Situs['openers']
-const KINDS: Kind[] = ['umum', 'produk', 'keranjang']
+const KINDS: Kind[] = ['umum', 'produk']
 
 // Tautan pendek /wa/<cabang>: alihkan ke wa.me dengan nomor utama dan kalimat pembuka cabang.
 // Hanya hitungan klik per cabang per hari yang disimpan, tanpa data pribadi.

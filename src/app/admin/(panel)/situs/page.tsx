@@ -54,7 +54,7 @@ export default async function Situs() {
           <label className={labelCls}>Satu nomor untuk semua cabang
             <input name="mainWhatsapp" defaultValue={s.mainWhatsapp} placeholder="0812... (kosong: pakai nomor tiap cabang)" className={inputCls} />
           </label>
-          <p className="mt-2 text-xs text-neutral-500">Kalau diisi, semua tombol WhatsApp dan checkout keranjang memakai nomor ini. Cabang dibedakan dari kalimat pembuka di bawah, dan bot mengenali cabang dari kata nama cabang di kalimat itu. Kalau kalimat diedit, pertahankan nama cabangnya (variabel {'{cabang}'}).</p>
+          <p className="mt-2 text-xs text-neutral-500">Kalau diisi, semua tombol WhatsApp di situs memakai nomor ini. Cabang dibedakan dari kalimat pembuka di bawah, dan bot mengenali cabang dari kata nama cabang di kalimat itu. Kalau kalimat diedit, pertahankan nama cabangnya (variabel {'{cabang}'}).</p>
         </Card>
         <Card title="Kalimat pembuka">
           <div className="grid gap-3">
@@ -66,10 +66,6 @@ export default async function Situs() {
               <input name="opProduk" defaultValue={s.openers.produk} className={inputCls} />
               <span className="font-normal text-neutral-500">Variabel: {'{cabang}'} {'{produk}'}</span>
             </label>
-            <label className={labelCls}>Checkout keranjang (diikuti daftar barang)
-              <input name="opKeranjang" defaultValue={s.openers.keranjang} className={inputCls} />
-              <span className="font-normal text-neutral-500">Variabel: {'{cabang}'}</span>
-            </label>
           </div>
           <div className="mt-3 text-xs text-neutral-600">
             <p className="font-semibold">Hasil saat ini</p>
@@ -78,7 +74,7 @@ export default async function Situs() {
         </Card>
         <Card title="Harga di situs">
           <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="showPrices" defaultChecked={s.showPrices} />Tampilkan harga di situs</label>
-          <p className="mt-2 text-xs text-neutral-500">Bawaan mati. Kalau mati, beranda, daftar produk, detail, keranjang, dan flash sale hanya menampilkan ajakan tanya harga lewat WhatsApp. Harga jasa tidak pernah tampil di situs.</p>
+          <p className="mt-2 text-xs text-neutral-500">Bawaan mati. Kalau mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Harga jasa tidak pernah tampil di situs.</p>
         </Card>
         <button className="adm-btn">Simpan</button>
       </form>

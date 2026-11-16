@@ -86,7 +86,7 @@ export const SECTIONS: Section[] = [
       title: 'Pilih Ban Terbaik',
       highlight: 'Pasang Langsung di Bejo Ban',
       text: 'Ban, velg dan oli original untuk mobil Anda. Sekalian spooring, balancing dan isi nitrogen di bengkel kami.',
-      cta1: 'Belanja Sekarang',
+      cta1: 'Lihat Produk',
       cta1Href: '/produk',
       cta2: 'Booking via WhatsApp',
       image: '',
@@ -125,15 +125,15 @@ export const SECTIONS: Section[] = [
   },
   {
     key: 'steps',
-    title: 'Alur belanja',
+    title: 'Alur pesan',
     fields: [txt('title', 'Judul'), txt('sub', 'Keterangan'), { key: 'items', label: 'Langkah', type: 'list', max: 5, fields: [txt('title', 'Judul'), txt('sub', 'Keterangan')] }],
     defaults: {
       title: 'Alur Belanja',
-      sub: 'Pesan lewat WhatsApp, datang, dan kendaraan siap jalan',
+      sub: 'Tanya lewat WhatsApp, datang, dan kendaraan siap jalan',
       items: [
-        { title: 'Pilih Produk', sub: 'di bejoban' },
+        { title: 'Pilih Produk', sub: 'di situs Bejo Ban' },
         { title: 'Pilih Cabang', sub: 'Batu atau Karanglo' },
-        { title: 'Kirim Pesanan', sub: 'lewat WhatsApp' },
+        { title: 'Chat WhatsApp', sub: 'tanya stok dan harga' },
         { title: 'Datang & Pasang', sub: 'dikerjakan mekanik kami' },
         { title: 'Selesai', sub: 'kendaraan siap jalan' },
       ],

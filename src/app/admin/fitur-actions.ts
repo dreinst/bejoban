@@ -321,7 +321,7 @@ export async function saveSitus(fd: FormData) {
   const next = mergeSitus({
     mainWhatsapp: main ? normalizeNumber(main) : '',
     showPrices: fd.get('showPrices') === 'on',
-    openers: { umum: op('opUmum'), produk: op('opProduk'), keranjang: op('opKeranjang') },
+    openers: { umum: op('opUmum'), produk: op('opProduk') },
   })
   for (const [k, v] of Object.entries(next.openers)) if (!v.trim()) go('/admin/situs', `Kalimat pembuka ${k} tidak boleh kosong`, 'err')
   await saveSetting('situs', next)

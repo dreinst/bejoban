@@ -4,8 +4,8 @@ import { db } from '@/lib/db'
 import { currentBranch } from '@/lib/shop'
 import { parseImages, rupiah } from '@/lib/format'
 import { getSitus } from '@/lib/situs-server'
-import { QtyAdd } from '@/components/qty-add'
 import { ProductGallery } from '@/components/product-gallery'
+import { Icon } from '@/components/icons'
 
 export async function generateMetadata({ params }: PageProps<'/produk/[slug]'>) {
   const p = await db.product.findUnique({ where: { slug: (await params).slug } })
@@ -53,13 +53,14 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
               <p className="mt-1 font-semibold text-ink">Belum tersedia di cabang ini.</p>
             )}
           </div>
-          {here && <QtyAdd item={{ id: p.id, slug: p.slug, name: p.name, image: images[0] ?? '', price: situs.showPrices ? here.price : 0, branch: branch.slug }} />}
           <a
             href={`/wa/${branch.slug}?p=${encodeURIComponent(p.name)}`}
             target="_blank"
-            className="mt-3 block rounded-full border border-ink py-3 text-center text-sm font-semibold"
+            rel="noopener"
+            className="btn btn-k mt-6 h-[52px] w-full text-base"
           >
-            {situs.showPrices ? 'Tanya via WhatsApp' : 'Tanya harga via WhatsApp'}
+            <Icon name="wa" size={20} c="#ffffff" d="#161616" />
+            Tanya harga via WhatsApp
           </a>
           {others.length > 0 && (
             <div className="mt-6 text-sm">
