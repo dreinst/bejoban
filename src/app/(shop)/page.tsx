@@ -1,275 +1,258 @@
 import Link from 'next/link'
-import { ArrowRight, ArrowUpRight, MapPin, Clock, Phone } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { getContent } from '@/lib/settings'
 import { currentBranch, listProducts } from '@/lib/shop'
 import { db } from '@/lib/db'
-import { rupiah, isFuture } from '@/lib/format'
-import { getSitus } from '@/lib/situs-server'
-import { waNumber } from '@/lib/situs'
+import { Icon, IconChip, ICON_NAMES, type IconName } from '@/components/icons'
 import { ProductCard } from '@/components/product-card'
-import { Countdown } from '@/components/countdown'
+import { branchLabel } from '@/lib/situs'
 
-const pad = (n: number) => String(n + 1).padStart(2, '0')
+/* eslint-disable @next/next/no-img-element */
 
-function Heading({ eyebrow, title, link }: { eyebrow?: string; title: string; link?: [string, string] }) {
+const asIcon = (v: unknown, fallback: IconName): IconName => (ICON_NAMES.includes(v as IconName) ? (v as IconName) : fallback)
+const TRUST_ICONS: IconName[] = ['shield', 'balancing', 'nitrogen', 'pin', 'clock']
+
+// Judul bagian: judul Rubik, keterangan, lalu garis pendek di bawahnya.
+function Head({ title, sub, dark, eyebrow, caps }: { title: string; sub?: string; dark?: boolean; eyebrow?: string; caps?: boolean }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        {eyebrow && <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-mute">{eyebrow}</p>}
-        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{title}</h2>
-      </div>
-      {link && (
-        <Link href={link[0]} className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4">
-          {link[1]} <ArrowRight className="size-4" />
-        </Link>
+    <div className="flex flex-col items-center gap-3 text-center lg:gap-3.5">
+      {eyebrow && (
+        <span className={`tag px-3 py-1.5 text-xs uppercase tracking-[0.12em] ${dark ? 'border border-[#3a3a3a] text-white' : 'border border-[#cfcfcf] text-ink'}`}>{eyebrow}</span>
       )}
+      <h2 className={`font-display text-[30px] font-extrabold leading-[36px] tracking-[-0.5px] lg:text-5xl lg:leading-[54px] ${caps ? 'uppercase' : ''} ${dark ? 'text-white' : 'text-ink'}`}>{title}</h2>
+      {sub && <p className={`max-w-[330px] text-[15px] leading-[22px] lg:max-w-[640px] lg:text-lg lg:leading-7 ${dark ? 'text-mute-dark' : 'text-mute'}`}>{sub}</p>}
+      <span className={`mt-0.5 h-[3px] w-12 rounded-sm ${dark ? 'bg-white' : 'bg-ink'}`} aria-hidden />
     </div>
   )
 }
 
-/* eslint-disable @next/next/no-img-element */
+function Section({ id, bg, children }: { id?: string; bg: string; children: ReactNode }) {
+  return (
+    <section id={id} className={bg}>
+      <div className="mx-auto max-w-[1440px] px-5 py-14 lg:px-20 lg:py-[104px]">{children}</div>
+    </section>
+  )
+}
+
 export default async function Home() {
-  const [c, { branches, branch }, situs] = await Promise.all([getContent(), currentBranch(), getSitus()])
-  const flashOn = isFuture(c.flash.endsAt)
-  const [categories, brands, flash, newest, look] = await Promise.all([
-    db.category.findMany({ orderBy: { sort: 'asc' }, include: { products: { where: { active: true, listings: { some: { branchId: branch.id } } }, select: { id: true } } } }),
-    db.brand.findMany({ orderBy: { sort: 'asc' } }),
-    flashOn ? listProducts(branch.id, { flash: true }, { take: 12 }) : Promise.resolve([]),
-    listProducts(branch.id, {}, { take: 8 }),
-    c.promo.products?.length ? listProducts(branch.id, { ids: c.promo.products }) : Promise.resolve([]),
-  ])
+  const [c, { branch }] = await Promise.all([getContent(), currentBranch()])
+  const [branches, brandRows] = await Promise.all([db.branch.findMany({ orderBy: { sort: 'asc' } }), db.brand.findMany()])
+  const ids: number[] = c.newest.products ?? []
+  const products = ids.length ? await listProducts(branch.id, { ids }, {}) : await listProducts(branch.id, {}, { take: 6 })
+  const ordered = ids.length ? ids.map((id) => products.find((p) => p.id === id)).filter((p): p is (typeof products)[number] => !!p) : products
   const wa = `/wa/${branch.slug}`
-  const side: string[] = c.hero.side ?? []
-  const wrap = 'mx-auto max-w-7xl px-4 lg:px-8'
+  const trust = c.trust.items as { title: string; sub: string; icon?: string }[]
+  const services = c.services.items as { title: string; icon?: string; sub: string }[]
+  const steps = c.steps.items as { title: string; sub: string }[]
+  const cars = (c.cars.items as { title: string; sub: string; query: string; tone?: string; image: string }[]) ?? []
+  const gallery: string[] = (c.gallery.images ?? []).slice(0, 4)
+  const brandNames = String(c.brands.names ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+  const cta2 = String(c.hero.cta2)
 
   return (
     <>
       {/* HERO */}
-      <section className="relative overflow-hidden bg-ink text-paper">
-        {c.hero.background && <img src={c.hero.background} alt="" className="absolute inset-0 size-full object-cover opacity-30 grayscale" />}
-        <div className={`${wrap} relative grid items-end gap-10 py-14 md:py-20 lg:grid-cols-[1.2fr_1fr]`}>
-          <div>
-            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-paper/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-paper/80">
-              <span className="size-1.5 rounded-full bg-paper" /> {c.hero.eyebrow}
-            </p>
-            <h1 className="text-5xl font-black uppercase leading-[0.9] tracking-tight md:text-7xl">
-              {c.hero.title}
-              <span className="mt-2 block text-paper/45">{c.hero.highlight}</span>
-            </h1>
-            <p className="mt-8 max-w-lg text-base text-paper/75 md:text-lg">{c.hero.text}</p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link href={c.hero.cta1Href || '/produk'} className="inline-flex items-center gap-2 rounded-full bg-paper px-6 py-3.5 text-sm font-semibold text-ink hover:bg-paper/85">
-                {c.hero.cta1} <ArrowRight className="size-4" />
+      <section className="overflow-hidden bg-ink text-white">
+        <div className="mx-auto grid max-w-[1440px] px-5 lg:min-h-[604px] lg:grid-cols-[1fr_660px] lg:px-20">
+          <div className="flex flex-col items-start pb-8 pt-6 lg:justify-start lg:pb-12 lg:pt-[54px]">
+            <span className="tag border border-[#3a3a3a] px-[11px] py-[7px] text-xs text-white lg:px-3.5 lg:py-[9px] lg:text-[13px]">
+              <Icon name="shield" size={16} c="#ffffff" d="#1a1a1a" />
+              {c.hero.eyebrow}
+            </span>
+            <h1 className="mt-5 font-display text-[38px] font-extrabold leading-[44px] tracking-[-1px] lg:mt-6 lg:text-[76px] lg:leading-[80px] lg:tracking-[-1.5px]">{c.hero.title}</h1>
+            <p className="mt-2 max-w-[250px] font-display text-2xl font-bold leading-7 text-mute-dark lg:mt-3 lg:max-w-[480px] lg:text-5xl lg:leading-[54px] lg:tracking-[-0.5px]">{c.hero.highlight}</p>
+            <p className="mt-5 max-w-[520px] text-[15px] leading-[22px] text-soft-dark lg:mt-7 lg:text-lg lg:leading-7">{c.hero.text}</p>
+            <div className="mt-7 grid w-full max-w-[360px] grid-cols-[1fr_1.06fr] gap-3 lg:mt-10 lg:flex lg:max-w-none lg:gap-4">
+              <Link href={c.hero.cta1Href || '/produk'} className="btn btn-w h-[50px] text-sm lg:h-[60px] lg:w-[220px] lg:text-[17px]">
+                {c.hero.cta1}
+                <span className="hidden lg:inline"><Icon name="arrow" size={20} c="#0a0a0a" d="#ffffff" /></span>
               </Link>
-              <a href={wa} target="_blank" className="inline-flex items-center gap-2 rounded-full border border-paper/40 px-6 py-3.5 text-sm font-semibold hover:bg-paper/10">
-                {c.hero.cta2}
+              <a href={wa} target="_blank" rel="noopener" className="btn btn-k h-[50px] text-sm lg:h-[60px] lg:w-[272px] lg:text-[17px]">
+                <Icon name="wa" size={18} c="#ffffff" d="#161616" />
+                <span className="lg:hidden">{cta2.replace(/via WhatsApp/i, 'WA')}</span>
+                <span className="hidden lg:inline">{cta2}</span>
               </a>
             </div>
           </div>
-          {side.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {side.map((src, i) => (
-                <img key={src} src={src} alt="" className={`aspect-[9/16] w-full rounded-2xl object-cover ${i === 1 ? 'md:-tranneutral-y-8' : ''}`} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* KATEGORI */}
-      <section className={`${wrap} pt-16`}>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {categories.map((k) => (
-            <Link key={k.id} href={`/produk?kategori=${k.slug}`} className="group flex items-center justify-between rounded-2xl border border-line p-5 transition hover:border-ink">
-              <div>
-                <p className="text-2xl font-bold">{k.name}</p>
-                <p className="mt-1 text-sm text-mute">{k.products.length} produk</p>
-              </div>
-              <div className="flex items-center gap-3">
-                {k.image && <img src={k.image} alt="" className="size-16 object-contain grayscale" />}
-                <ArrowUpRight className="size-5 transition group-hover:-tranneutral-y-0.5 group-hover:tranneutral-x-0.5" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* FLASH SALE */}
-      {flash.length > 0 && (
-        <section className="mt-16 bg-ink py-14 text-paper">
-          <div className={wrap}>
-            <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-              <div>
-                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-paper/60">Terbatas</p>
-                <h2 className="text-4xl font-black uppercase tracking-tight md:text-5xl">{c.flash.title}</h2>
-                <p className="mt-2 text-paper/70">{c.flash.sub}</p>
-              </div>
-              <Countdown endsAt={c.flash.endsAt} />
-            </div>
-            <div className="no-scrollbar -mx-4 flex snap-x gap-5 overflow-x-auto px-4">
-              {flash.map((p) => (
-                <div key={p.id} className="w-[240px] shrink-0 snap-start">
-                  <ProductCard p={p} branch={branch.slug} dark />
-                </div>
-              ))}
+          <div className="relative -mx-5 pb-[68px] pt-2 lg:mx-0 lg:-mr-20 lg:pb-[126px] lg:pt-4">
+            <div className="absolute inset-x-0 bottom-[90px] h-px bg-[#2f2f2f] lg:bottom-40" aria-hidden />
+            <div className="relative mx-auto w-[330px] lg:ml-[120px] lg:w-[580px]" style={{ aspectRatio: '1600 / 1274' }}>
+              <span className="absolute left-1/2 top-1/2 aspect-square w-[102%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#262626]" aria-hidden />
+              <span className="absolute left-1/2 top-1/2 aspect-square w-[74%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1d1d1d]" aria-hidden />
+              <span className="absolute inset-x-0 -bottom-1 h-[30px] rounded-[50%] bg-[radial-gradient(rgba(0,0,0,.8),rgba(0,0,0,0)_70%)] lg:h-11" aria-hidden />
+              {c.hero.image && <img src={c.hero.image} alt="Mobil di Bejo Ban" className="absolute inset-0 size-full object-contain" />}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* PRODUK TERBARU */}
-      <section className={`${wrap} pt-20`}>
-        <Heading eyebrow={`Tersedia di ${branch.name}`} title={c.newest.title} link={['/produk', 'Lihat semua produk']} />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4">
-          {newest.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
+      </section>
+
+      {/* BAR KEUNGGULAN */}
+      <section className="border-t border-line-dark bg-white">
+        <ul className="mx-auto grid max-w-[1440px] px-5 py-2.5 lg:grid-cols-5 lg:items-center lg:px-20 lg:py-0">
+          {trust.map((t, i) => (
+            <li key={i} className={`flex items-center gap-3.5 py-3.5 lg:h-[120px] lg:px-3.5 lg:py-0 ${i ? 'border-t border-line lg:border-l lg:border-t-0' : ''}`}>
+              <IconChip name={asIcon(t.icon, TRUST_ICONS[i] ?? 'shield')} size={28} box={46} className="lg:!size-[54px] [&_svg]:lg:size-[34px]" />
+              <div>
+                <p className="font-display text-base font-extrabold leading-5 text-ink lg:text-[17px] lg:leading-[22px]">{t.title}</p>
+                <p className="text-[13px] leading-[18px] text-mute">{t.sub}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
 
       {/* LAYANAN */}
-      <section className={`${wrap} pt-24`}>
-        <div className="grid gap-10 lg:grid-cols-2">
-          {c.panel.storeImage && <img src={c.panel.storeImage} alt={c.panel.storeTitle} className="aspect-[4/5] w-full rounded-3xl object-cover lg:aspect-auto lg:h-full" />}
-          <div className="flex flex-col justify-center">
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-mute">{c.panel.listTitle}</p>
-            <h2 className="text-4xl font-bold tracking-tight md:text-5xl">{c.panel.cardTitle}</h2>
-            <p className="mt-4 text-lg text-mute">{c.panel.cardSub}</p>
-            <ol className="mt-10 divide-y divide-line border-y border-line">
-              {(c.panel.points as { text: string }[]).map((p, i) => (
-                <li key={i} className="flex items-baseline gap-6 py-5">
-                  <span className="font-mono text-sm text-mute">{pad(i)}</span>
-                  <span className="text-lg font-medium">{p.text}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-6 text-sm font-semibold">{c.panel.guarantee}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href={wa} target="_blank" className="rounded-full bg-ink px-6 py-3.5 text-sm font-semibold text-paper">Booking servis</a>
-              <a href={`https://www.instagram.com/${branch.instagram}/`} target="_blank" className="inline-flex items-center gap-1 rounded-full border border-ink px-6 py-3.5 text-sm font-semibold">
-                Lihat hasil kerja <ArrowUpRight className="size-4" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CARA PESAN */}
-      <section className={`${wrap} pt-24`}>
-        <Heading eyebrow="Cara pesan" title={c.payment.title} />
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-5">
-          {(c.steps.items as { title: string; sub: string }[]).map((s, i) => (
-            <div key={i} className="bg-paper p-6">
-              <p className="font-mono text-4xl font-semibold text-line">{pad(i)}</p>
-              <p className="mt-6 font-semibold">{s.title}</p>
-              <p className="text-sm text-mute">{s.sub}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-6 text-sm text-mute">
-          <p>{c.payment.sub}</p>
-          {(c.payment.logos as string[]).map((l) => <img key={l} src={l} alt="" className="h-6 w-auto grayscale" />)}
-        </div>
-      </section>
-
-      {/* PROMO */}
-      <section className={`${wrap} pt-24`}>
-        <div className="grid overflow-hidden rounded-3xl bg-soft lg:grid-cols-2">
-          {c.promo.image ? (
-            <img src={c.promo.image} alt={c.promo.title} className="h-full min-h-64 w-full object-cover" />
-          ) : (
-            <div className="grid grid-cols-3 gap-2 p-4">
-              {(c.promo.thumbs as string[]).map((t) => <img key={t} src={t} alt="" className="aspect-[9/16] w-full rounded-xl object-cover" />)}
-            </div>
-          )}
-          <div className="flex flex-col justify-center p-6 md:p-10">
-            <h2 className="text-3xl font-black uppercase leading-none tracking-tight md:text-4xl">{c.promo.title}</h2>
-            <p className="mt-3 text-mute">{c.promo.sub}</p>
-            {look.length > 0 && (
-              <div className="mt-8">
-                <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-mute">{c.promo.lookTitle}</p>
-                <ul className="divide-y divide-line border-y border-line">
-                  {look.map((p) => (
-                    <li key={p.id}>
-                      <Link href={`/produk/${p.slug}`} className="flex items-center gap-4 py-3 hover:bg-paper/60">
-                        <img src={p.image} alt="" className="size-14 rounded-lg object-cover" />
-                        <span className="flex-1 text-sm font-medium">{p.name}</span>
-                        <span className="text-sm font-semibold">{situs.showPrices ? rupiah(p.price) : 'Tanya harga'}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+      <Section id="layanan" bg="bg-soft">
+        <Head title={c.services.title} sub={c.services.sub} />
+        <ol className="mt-8 grid gap-3 lg:mt-14 lg:grid-cols-3 lg:gap-7">
+          {services.map((s, i) => (
+            <li key={i} className="card-l relative flex gap-4 p-5 lg:min-h-[164px] lg:gap-5 lg:p-7">
+              <IconChip name={asIcon(s.icon, 'tire')} size={36} box={58} className="lg:!size-[72px] [&_svg]:lg:size-[46px]" />
+              <div className="min-w-0 pr-9 lg:pr-10">
+                <h3 className="font-display text-[21px] font-extrabold leading-[27px] text-ink lg:text-2xl lg:leading-[30px]">{s.title}</h3>
+                <p className="mt-1.5 text-sm leading-5 text-mute lg:text-[15px] lg:leading-[22px]">{s.sub}</p>
               </div>
-            )}
-            {c.promo.link && (
-              <a href={c.promo.link} target="_blank" className="mt-8 inline-flex w-fit items-center gap-1 text-sm font-semibold underline underline-offset-4">
-                {c.promo.button} <ArrowUpRight className="size-4" />
-              </a>
-            )}
-          </div>
+              <span className="absolute right-[18px] top-4 font-display text-[13px] font-extrabold tracking-[1px] text-[#c4c4c4] lg:right-6 lg:top-[22px] lg:text-sm">{String(i + 1).padStart(2, '0')}</span>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      {/* PRODUK */}
+      <Section id="produk" bg="bg-ink">
+        <Head title={c.newest.title} sub={c.newest.sub} dark />
+        <div className="mt-8 grid grid-cols-2 gap-3.5 lg:mt-14 lg:grid-cols-3 lg:gap-7">
+          {ordered.map((p) => <ProductCard key={p.id} p={p} button={c.newest.button} />)}
         </div>
-      </section>
+        {!ordered.length && <p className="mt-10 text-center text-mute-dark">Produk belum ditambahkan.</p>}
+      </Section>
+
+      {/* ALUR */}
+      <Section id="cara-pesan" bg="bg-white">
+        <Head title={c.steps.title} sub={c.steps.sub} />
+        <ol className="mx-auto mt-10 max-w-[360px] lg:mt-[72px] lg:grid lg:max-w-none lg:grid-cols-5">
+          {steps.map((s, i) => (
+            <li key={i} className="relative flex items-start gap-5 pb-5 last:pb-0 lg:flex-col lg:items-center lg:gap-6 lg:pb-0">
+              <span className="chip-k size-[72px] shrink-0 !rounded-full font-display text-[26px] font-black text-white lg:text-[28px]">{i + 1}</span>
+              {i < steps.length - 1 && (
+                <>
+                  <span className="absolute left-[35px] top-[72px] h-5 w-0.5 bg-[#d4d4d4] lg:hidden" aria-hidden />
+                  <span className="absolute left-[calc(50%+48px)] top-9 hidden h-0.5 w-[calc(100%-96px)] bg-[#d4d4d4] lg:block" aria-hidden />
+                </>
+              )}
+              <div className="pt-3 lg:pt-0 lg:text-center">
+                <p className="font-display text-xl font-extrabold leading-6 text-ink lg:text-[21px] lg:leading-[26px]">{s.title}</p>
+                <p className="mt-0.5 text-sm leading-5 text-mute lg:mt-1 lg:text-[15px] lg:leading-[22px]">{s.sub}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </Section>
 
       {/* REKOMENDASI MOBIL */}
-      {c.cars.items.length > 0 && (
-        <section className={`${wrap} pt-24`}>
-          <Heading eyebrow={c.cars.title} title={c.cars.sub} />
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {(c.cars.items as { title: string; sub: string; query: string; image: string }[]).map((car, i) => (
-              <Link key={i} href={`/produk?mobil=${encodeURIComponent(car.query)}`} className="group">
-                {car.image && (
-                  <div className="overflow-hidden rounded-2xl">
-                    <img src={car.image} alt={car.title} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105" />
+      {cars.length > 0 && (
+        <Section bg="bg-soft">
+          <Head title={c.cars.title} sub={c.cars.sub} caps />
+          <ul className="mt-8 grid grid-cols-2 gap-3.5 lg:mt-14 lg:grid-cols-5 lg:gap-5">
+            {cars.map((car, i) => (
+              <li key={i} className={i === cars.length - 1 && cars.length % 2 ? 'col-span-2 lg:col-span-1' : ''}>
+                <Link href={`/produk?mobil=${encodeURIComponent(car.query || '')}`} className="card-l flex h-full flex-col p-2 lg:min-h-[372px] lg:p-3">
+                  <div className={`slot h-[130px] lg:h-[190px] ${car.tone === 'gelap' ? 'slot-dk' : ''} ${i === cars.length - 1 && cars.length % 2 ? 'h-[230px] lg:h-[190px]' : ''}`}>
+                    {car.image && <img src={car.image} alt={car.title} loading="lazy" className="absolute inset-x-0 bottom-1.5 mx-auto h-[96%] w-full object-contain object-bottom lg:bottom-2" />}
                   </div>
-                )}
-                <p className="mt-3 flex items-center justify-between font-semibold">
-                  {car.title} <ArrowRight className="size-4 transition group-hover:tranneutral-x-1" />
-                </p>
-                <p className="text-sm text-mute">{car.sub}</p>
-              </Link>
+                  <div className="flex flex-1 flex-col p-1.5 pt-4 lg:p-1.5 lg:pt-6">
+                    <h3 className="font-display text-[15px] font-extrabold leading-5 text-ink lg:text-[19px] lg:leading-6">{car.title}</h3>
+                    <p className="mt-1 text-xs leading-4 text-mute lg:text-sm lg:leading-5">{car.sub}</p>
+                    <span className="btn btn-k mt-auto h-[34px] w-9 self-end lg:h-10 lg:w-[42px]" aria-hidden>
+                      <Icon name="arrow" size={18} c="#ffffff" d="#161616" />
+                    </span>
+                  </div>
+                </Link>
+              </li>
             ))}
-          </div>
-        </section>
+          </ul>
+        </Section>
+      )}
+
+      {/* MEREK */}
+      <section className="bg-graphite">
+        <div className="mx-auto max-w-[1440px] px-5 py-14 lg:px-20 lg:py-24">
+          <Head title={c.brands.title} sub={c.brands.sub} dark />
+          <ul className="mt-7 flex flex-col justify-center gap-3.5 lg:mt-12 lg:flex-row lg:gap-7">
+            {brandNames.map((n) => {
+              const logo = brandRows.find((b) => b.name.toLowerCase() === n.toLowerCase())?.logo
+              return (
+                <li key={n} className="card-d flex h-24 items-center justify-center lg:h-[130px] lg:w-[420px]">
+                  {logo ? <img src={logo} alt={n} className="max-h-[60%] max-w-[70%] object-contain" /> : <span className="font-display text-[32px] font-extrabold uppercase leading-none tracking-[4px] text-white lg:text-[44px] lg:tracking-[6px]">{n}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </section>
+
+      {/* GALERI */}
+      {gallery.length > 0 && (
+        <Section id="galeri" bg="bg-white">
+          <Head title={c.gallery.title} sub={c.gallery.sub} />
+          <ul className="mt-8 grid grid-cols-2 gap-3.5 lg:mt-14 lg:grid-cols-4 lg:gap-5">
+            {gallery.map((g, i) => (
+              <li key={i} className="card-l p-2 lg:p-2.5">
+                <div className="slot slot-dk aspect-[4/5]">
+                  <img src={g} alt={`Pekerjaan bengkel ${i + 1}`} loading="lazy" className="size-full object-cover" />
+                  <span className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_4px_10px_rgba(0,0,0,.4)]" aria-hidden />
+                </div>
+              </li>
+            ))}
+          </ul>
+          {(c.gallery.images ?? []).length > 4 && (
+            <div className="mt-8 text-center"><Link href="/galeri" className="btn btn-k h-12 px-6 text-sm">Lihat semua foto</Link></div>
+          )}
+        </Section>
       )}
 
       {/* LOKASI */}
-      <section className={`${wrap} pt-24`}>
-        <Heading eyebrow={c.locations.eyebrow} title={c.locations.title} />
-        <div className="grid gap-6 md:grid-cols-2">
-          {branches.map((b) => (
-            <article key={b.id} className="overflow-hidden rounded-3xl border border-line">
-              {b.photo && <img src={b.photo} alt={b.name} className="aspect-[12/7] w-full object-cover" />}
-              <div className="p-6">
-                <h3 className="text-xl font-bold">{b.name}</h3>
-                <dl className="mt-4 space-y-2 text-sm">
-                  <div className="flex gap-3"><dt><MapPin className="size-4" /></dt><dd>{b.address || 'Alamat lengkap bisa ditanyakan lewat WhatsApp.'}</dd></div>
-                  <div className="flex gap-3"><dt><Clock className="size-4" /></dt><dd>Buka {b.hours}</dd></div>
-                  <div className="flex gap-3"><dt><Phone className="size-4" /></dt><dd>WA {waNumber(situs, b)}</dd></div>
-                </dl>
-                <p className="mt-4 text-xs uppercase tracking-widest text-mute">{b.services}</p>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <a href={`/wa/${b.slug}`} target="_blank" className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper">Chat WhatsApp</a>
-                  {b.mapsUrl && <a href={b.mapsUrl} target="_blank" className="rounded-full border border-ink px-5 py-2.5 text-sm font-semibold">Petunjuk arah</a>}
+      <Section id="cabang" bg="bg-ink">
+        <Head title={c.locations.title} dark eyebrow={c.locations.eyebrow} />
+        <div className="mt-8 grid gap-4 lg:mt-14 lg:grid-cols-2 lg:gap-7">
+          {branches.map((b) => {
+            const sub = /\((.*)\)/.exec(b.name)?.[1]
+            const label = branchLabel(b.name)
+            const rows: [IconName, string][] = [
+              ['pin', b.address || 'Alamat lengkap bisa ditanyakan lewat WhatsApp.'],
+              ['clock', /^\d/.test(b.hours) ? `Pukul ${b.hours}` : b.hours],
+              ...(b.instagram ? ([['ig', `@${b.instagram}`]] as [IconName, string][]) : []),
+            ]
+            return (
+              <article key={b.id} className="card-d flex flex-col p-2.5 lg:p-3.5">
+                <div className="slot slot-dk aspect-[598/210] max-h-[210px] w-full">
+                  {b.photo && <img src={b.photo} alt={`Tampak ${label}`} loading="lazy" className="size-full object-cover" />}
+                  <span className="pointer-events-none absolute inset-0 rounded-lg shadow-[inset_0_5px_12px_rgba(0,0,0,.5)]" aria-hidden />
                 </div>
-              </div>
-            </article>
-          ))}
+                <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-5 lg:px-[18px] lg:pb-4 lg:pt-6">
+                  <h3 className="font-display text-[22px] font-extrabold leading-8 text-white lg:text-[28px]">{label}</h3>
+                  {sub && <span className="tag mt-2.5 self-start border border-[#3a3a3a] px-[9px] py-1 text-xs text-white">{sub}</span>}
+                  <ul className="mt-3 space-y-2.5 text-sm font-medium leading-5 text-soft-dark lg:space-y-3 lg:text-base lg:leading-[22px]">
+                    {rows.map(([ico, text], i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <span className="mt-px flex-none"><Icon name={ico} size={20} c="#ffffff" d="#1a1a1a" /></span>
+                        <span>{text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {b.mapsUrl && <a href={b.mapsUrl} target="_blank" rel="noopener" className="mt-3 self-start text-sm text-soft-dark underline underline-offset-4 hover:text-white">Petunjuk arah</a>}
+                  <div className="mt-auto pt-6 lg:pt-8">
+                    <a href={`/wa/${b.slug}`} target="_blank" rel="noopener" className="btn btn-w h-[52px] w-full text-base lg:h-14">
+                      <Icon name="wa" size={20} c="#0a0a0a" d="#ffffff" />
+                      Chat {label}
+                    </a>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
-      </section>
-
-      {/* MEREK */}
-      {brands.length > 0 && (
-        <section className={`${wrap} pt-24`}>
-          <p className="mb-6 text-center text-xs font-medium uppercase tracking-[0.2em] text-mute">
-            {c.brands.sub} {c.brands.highlight}
-          </p>
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-4">
-            {brands.map((b) => (
-              <Link key={b.id} href={`/produk?merek=${encodeURIComponent(b.name)}`} className="grid h-24 place-items-center bg-paper p-4 hover:bg-soft">
-                {b.logo ? <img src={b.logo} alt={b.name} className="max-h-10 grayscale" /> : <span className="text-lg font-bold tracking-tight">{b.name}</span>}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      </Section>
     </>
   )
 }

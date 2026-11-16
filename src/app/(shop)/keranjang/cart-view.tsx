@@ -39,7 +39,7 @@ export function CartView({ branches, showPrices }: { branches: B[]; showPrices: 
 
   const input = 'w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-ink'
   return (
-    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 lg:grid-cols-[1fr_380px] lg:px-8">
+    <div className="mx-auto grid max-w-[1440px] gap-8 px-5 py-12 lg:grid-cols-[1fr_380px] lg:px-20">
       <div className="space-y-5">
         {groups.map(({ b, list }) => (
           <section key={b.slug} className="rounded-3xl border border-line p-6">

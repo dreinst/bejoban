@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { DM_Sans, Rubik } from 'next/font/google'
 import { getContent } from '@/lib/settings'
 import './globals.css'
 
-const inter = Inter({ variable: '--font-inter', subsets: ['latin'] })
+// Judul memakai Rubik, isi memakai DM Sans.
+const rubik = Rubik({ variable: '--font-rubik', subsets: ['latin'], weight: ['500', '700', '800', '900'] })
+const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin'] })
 
 export async function generateMetadata(): Promise<Metadata> {
   const { site } = await getContent()
@@ -16,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="id" className={`${inter.variable} antialiased`}>
+    <html lang="id" className={`${rubik.variable} ${dmSans.variable} antialiased`}>
       <body className="min-h-screen">{children}</body>
     </html>
   )

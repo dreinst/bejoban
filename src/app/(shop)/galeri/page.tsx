@@ -7,8 +7,8 @@ export const metadata = { title: 'Galeri | Bejo Ban' }
 export default async function Galeri() {
   const [{ gallery }, branches] = await Promise.all([getContent(), getBranches()])
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
-      <h1 className="text-4xl font-black uppercase tracking-tight md:text-6xl">{gallery.title}</h1>
+    <div className="mx-auto max-w-[1440px] px-5 py-12 lg:px-20">
+      <h1 className="font-display text-4xl font-extrabold uppercase tracking-tight md:text-6xl">{gallery.title}</h1>
       <p className="mt-2 text-mute">{gallery.sub}</p>
       <div className="mt-6 flex gap-2">
         {branches.map((b) => (

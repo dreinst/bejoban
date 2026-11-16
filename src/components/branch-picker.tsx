@@ -5,7 +5,7 @@ import { MapPin } from 'lucide-react'
 export function BranchPicker({ branches, current }: { branches: { slug: string; name: string }[]; current: string }) {
   const router = useRouter()
   return (
-    <label className="flex items-center gap-1.5 text-sm">
+    <label className="flex items-center gap-1.5 text-sm text-soft-dark hover:text-white">
       <MapPin className="size-4 shrink-0" />
       <select
         value={current}
@@ -14,7 +14,7 @@ export function BranchPicker({ branches, current }: { branches: { slug: string; 
           document.cookie = `bejo_branch=${e.target.value}; path=/; max-age=31536000; samesite=lax`
           router.refresh()
         }}
-        className="cursor-pointer bg-transparent font-medium outline-none"
+        className="cursor-pointer bg-transparent font-medium outline-none [&>option]:bg-ink [&>option]:text-white"
       >
         {branches.map((b) => (
           <option key={b.slug} value={b.slug}>

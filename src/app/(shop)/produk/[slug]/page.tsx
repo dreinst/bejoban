@@ -22,7 +22,7 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
   const others = p.listings.filter((l) => l.branchId !== branch.id && l.available)
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
+    <div className="mx-auto max-w-[1440px] px-5 py-10 lg:px-20">
       <nav className="mb-6 text-xs uppercase tracking-widest text-mute">
         <Link href="/">Beranda</Link> / <Link href="/produk">Produk</Link>
         {p.category && <> / <Link href={`/produk?kategori=${p.category.slug}`}>{p.category.name}</Link></>}
@@ -32,7 +32,7 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
         <div>
           {p.isSample && <span className="mb-4 inline-block rounded-full bg-ink px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-paper">Produk contoh</span>}
           {p.brand && <p className="text-sm font-semibold uppercase text-mute">{p.brand.name}</p>}
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-ink md:text-5xl">{p.name}</h1>
+          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">{p.name}</h1>
           {p.spec && <p className="mt-2 text-sm">Ukuran: <b className="text-ink">{p.spec}</b></p>}
           {p.fitment && <p className="mt-1 text-sm">Cocok untuk: <b className="text-ink">{p.fitment}</b></p>}
           <div className="my-8 border-y border-line py-6">

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { currentBranch, listProducts } from '@/lib/shop'
 import { ProductCard } from '@/components/product-card'
+import { getSitus } from '@/lib/situs-server'
 
 export const metadata = { title: 'Produk | Bejo Ban' }
 
@@ -10,7 +11,7 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const one = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : undefined)
   const f = { q: one('q'), category: one('kategori'), brand: one('merek'), fitment: one('mobil') }
   const sort = one('urut')
-  const { branch } = await currentBranch()
+  const [{ branch }, { showPrices }] = await Promise.all([currentBranch(), getSitus()])
   const [products, categories, brands] = await Promise.all([
     listProducts(branch.id, f, { sort }),
     db.category.findMany({ orderBy: { sort: 'asc' } }),
@@ -24,9 +25,9 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const title = [f.q && `"${f.q}"`, f.fitment && `untuk ${f.fitment}`].filter(Boolean).join(' ')
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+    <div className="mx-auto max-w-[1440px] px-5 py-12 lg:px-20 lg:py-16">
       <p className="text-xs font-medium uppercase tracking-[0.2em] text-mute">{products.length} produk · {branch.name}</p>
-      <h1 className="mt-2 text-4xl font-black uppercase tracking-tight md:text-6xl">Produk {title}</h1>
+      <h1 className="mt-2 font-display text-4xl font-extrabold uppercase tracking-tight md:text-6xl">Produk {title}</h1>
       <div className="mt-8 space-y-3 border-y border-line py-4">
         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
           <span className="w-16 shrink-0 text-xs uppercase tracking-widest text-mute">Jenis</span>
@@ -38,15 +39,17 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
           <Link href={href({ merek: undefined })} className={chip(!f.brand)}>Semua</Link>
           {brands.map((b) => <Link key={b.id} href={href({ merek: b.name })} className={chip(f.brand === b.name)}>{b.name}</Link>)}
         </div>
-        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
-          <span className="w-16 shrink-0 text-xs uppercase tracking-widest text-mute">Urutkan</span>
-          {[['', 'Terbaru'], ['murah', 'Termurah'], ['mahal', 'Termahal']].map(([v, l]) => (
-            <Link key={v} href={href({ urut: v || undefined })} className={chip((sort ?? '') === v)}>{l}</Link>
-          ))}
-        </div>
+        {showPrices && (
+          <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
+            <span className="w-16 shrink-0 text-xs uppercase tracking-widest text-mute">Urutkan</span>
+            {[['', 'Terbaru'], ['murah', 'Termurah'], ['mahal', 'Termahal']].map(([v, l]) => (
+              <Link key={v} href={href({ urut: v || undefined })} className={chip((sort ?? '') === v)}>{l}</Link>
+            ))}
+          </div>
+        )}
       </div>
       {products.length ? (
-        <div className="mt-10 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-3.5 lg:grid-cols-3 lg:gap-7">
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
       ) : (

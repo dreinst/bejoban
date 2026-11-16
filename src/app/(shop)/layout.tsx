@@ -1,110 +1,72 @@
 import Link from 'next/link'
-import { Search, ShoppingBag, ArrowUpRight } from 'lucide-react'
+import { Search, ShoppingBag } from 'lucide-react'
 import { getContent } from '@/lib/settings'
 import { currentBranch } from '@/lib/shop'
-import { db } from '@/lib/db'
-import { getSitus } from '@/lib/situs-server'
-import { waNumber } from '@/lib/situs'
 import { CartProvider, CartCount } from '@/components/cart'
 import { BranchPicker } from '@/components/branch-picker'
+import { Icon } from '@/components/icons'
+import { Logo } from '@/components/logo'
 
-/* eslint-disable @next/next/no-img-element */
+export const MENU: [string, string][] = [
+  ['Layanan', '/#layanan'],
+  ['Produk', '/#produk'],
+  ['Cara Pesan', '/#cara-pesan'],
+  ['Cabang', '/#cabang'],
+  ['Galeri', '/#galeri'],
+]
+
 export default async function ShopLayout({ children }: LayoutProps<'/'>) {
-  const [c, { branches, branch }, categories, situs] = await Promise.all([getContent(), currentBranch(), db.category.findMany({ orderBy: { sort: 'asc' } }), getSitus()])
-  const trust = c.trust.items as { title: string; sub: string }[]
+  const [c, { branches, branch }] = await Promise.all([getContent(), currentBranch()])
+  const wa = `/wa/${branch.slug}`
 
   return (
     <CartProvider>
-      <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 lg:px-8">
-          <Link href="/" className="shrink-0">
-            {c.site.logo ? <img src={c.site.logo} alt={c.site.name} className="h-8 w-auto" /> : <span className="text-xl font-black tracking-tight">{c.site.name}</span>}
-          </Link>
-          <nav className="hidden flex-1 items-center gap-6 text-sm font-medium lg:flex">
-            {categories.map((k) => (
-              <Link key={k.id} href={`/produk?kategori=${k.slug}`} className="hover:underline hover:underline-offset-4">{k.name}</Link>
-            ))}
-            <Link href="/produk" className="hover:underline hover:underline-offset-4">Semua Produk</Link>
-            <Link href="/galeri" className="hover:underline hover:underline-offset-4">Galeri</Link>
-            <Link href="/kalkulator-ban" className="hover:underline hover:underline-offset-4">Kalkulator Ban</Link>
-          </nav>
-          <div className="ml-auto flex items-center gap-4">
-            <form action="/produk" className="hidden items-center rounded-full border border-line px-3 md:flex">
-              <Search className="size-4 text-mute" />
-              <input name="q" placeholder="Cari ukuran atau merek" aria-label="Cari produk" className="h-9 w-44 bg-transparent px-2 text-sm outline-none placeholder:text-mute" />
-            </form>
-            <Link href="/produk" aria-label="Cari" className="md:hidden"><Search className="size-5" /></Link>
-            <div className="hidden sm:block"><BranchPicker branches={branches} current={branch.slug} /></div>
-            <Link href="/keranjang" aria-label="Keranjang" className="relative">
-              <ShoppingBag className="size-5" />
-              <CartCount />
+      <header className="sticky top-0 z-40 bg-ink text-white">
+        <div className="mx-auto max-w-[1440px] px-5 lg:px-20">
+          <div className="flex h-16 items-center gap-4 border-b border-line-dark lg:h-24 lg:gap-8">
+            <Link href="/" aria-label={`${c.site.name}, ke beranda`} className="shrink-0">
+              <Logo src={c.site.logo} className="h-[30px] w-auto lg:h-11" />
             </Link>
+            <nav aria-label="Menu utama" className="hidden flex-1 items-center justify-center gap-9 text-base font-medium text-soft-dark lg:flex">
+              {MENU.map(([label, href]) => <Link key={href} href={href} className="whitespace-nowrap hover:text-white">{label}</Link>)}
+            </nav>
+            <div className="ml-auto flex items-center gap-2.5 lg:ml-0 lg:gap-5">
+              <Link href="/produk" aria-label="Cari produk" className="hidden text-soft-dark hover:text-white sm:block"><Search className="size-5" /></Link>
+              <BranchPicker branches={branches} current={branch.slug} />
+              <Link href="/keranjang" aria-label="Keranjang" className="relative text-soft-dark hover:text-white">
+                <ShoppingBag className="size-5" />
+                <CartCount />
+              </Link>
+              <a href={wa} target="_blank" rel="noopener" aria-label="Booking via WhatsApp" className="btn btn-w h-[38px] w-12 shrink-0 lg:h-[52px] lg:w-auto lg:px-6 lg:text-base">
+                <Icon name="wa" size={20} c="#0a0a0a" d="#ffffff" />
+                <span className="hidden lg:inline">Booking via WhatsApp</span>
+              </a>
+            </div>
           </div>
-        </div>
-        <div className="no-scrollbar flex items-center gap-5 overflow-x-auto border-t border-line px-4 py-2 text-sm lg:hidden">
-          <div className="sm:hidden"><BranchPicker branches={branches} current={branch.slug} /></div>
-          {categories.map((k) => <Link key={k.id} href={`/produk?kategori=${k.slug}`} className="shrink-0">{k.name}</Link>)}
-          <Link href="/produk" className="shrink-0">Semua</Link>
-          <Link href="/galeri" className="shrink-0">Galeri</Link>
-          <Link href="/kalkulator-ban" className="shrink-0">Kalkulator</Link>
         </div>
       </header>
 
-      <div className="overflow-hidden bg-ink py-2.5 text-xs font-medium uppercase tracking-[0.15em] text-paper">
-        <div className="ticker flex w-max">
-          {[0, 1].map((n) => (
-            <div key={n} className="flex shrink-0" aria-hidden={n === 1}>
-              {[...trust, ...trust].map((t, i) => (
-                <span key={i} className="px-6">{t.title} <span className="text-paper/60">({t.sub})</span> <span className="pl-6">●</span></span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
       <main>{children}</main>
 
-      <footer className="mt-24 bg-ink text-paper">
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 pb-10 pt-16 md:grid-cols-4 lg:px-8">
-          <div className="md:col-span-2">
-            <p className="max-w-sm text-sm leading-relaxed text-paper/70">{c.footer.about}</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {branches.map((b) => (
-                <a key={b.id} href={`https://www.instagram.com/${b.instagram}/`} target="_blank" className="inline-flex items-center gap-1 rounded-full border border-paper/30 px-3 py-1.5 text-xs hover:bg-paper hover:text-ink">
-                  @{b.instagram} <ArrowUpRight className="size-3" />
-                </a>
-              ))}
+      <footer className="border-t border-line-dark bg-ink text-white">
+        <div className="mx-auto max-w-[1440px] px-5 pb-8 pt-9 lg:px-20 lg:pb-9 lg:pt-14">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-[460px]">
+              <Logo src={c.site.logo} className="h-[34px] w-auto lg:h-11" />
+              <p className="mt-4 text-sm leading-[1.5] text-mute-dark lg:mt-6 lg:text-[15px] lg:leading-6">{c.footer.about}</p>
             </div>
+            <nav aria-label="Menu footer" className="flex flex-wrap gap-x-5 gap-y-2.5 text-sm font-medium text-soft-dark lg:gap-x-9 lg:pt-2 lg:text-base">
+              {MENU.map(([label, href]) => <Link key={href} href={href} className="hover:text-white">{label}</Link>)}
+              <Link href="/kalkulator-ban" className="hover:text-white">Kalkulator Ban</Link>
+            </nav>
           </div>
-          <div>
-            <p className="mb-4 text-xs uppercase tracking-[0.2em] text-paper/50">Belanja</p>
-            <ul className="space-y-2 text-sm">
-              {categories.map((k) => <li key={k.id}><Link href={`/produk?kategori=${k.slug}`} className="hover:underline">{k.name}</Link></li>)}
-              <li><Link href="/galeri" className="hover:underline">Galeri</Link></li>
-              <li><Link href="/kalkulator-ban" className="hover:underline">Kalkulator Ban</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-4 text-xs uppercase tracking-[0.2em] text-paper/50">Cabang</p>
-            <ul className="space-y-4 text-sm">
-              {branches.map((b) => (
-                <li key={b.id}>
-                  <p className="font-semibold">{b.name}</p>
-                  <p className="text-paper/70">Buka {b.hours}</p>
-                  <a href={`/wa/${b.slug}`} target="_blank" className="underline underline-offset-4">WA {waNumber(situs, b)}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="mt-6 h-px bg-line-dark lg:mt-10" />
+          <p className="mt-4 text-[13px] text-mute-dark lg:text-sm">© {new Date().getFullYear()} {c.footer.copyright}</p>
         </div>
-        <div className="mx-auto max-w-7xl overflow-hidden px-4 lg:px-8">
-          <p className="select-none whitespace-nowrap text-[18vw] font-black leading-[0.8] tracking-tighter text-paper/10 lg:text-[15rem]">{c.site.name.toUpperCase()}</p>
-        </div>
-        <p className="border-t border-paper/10 px-4 py-6 text-center text-xs text-paper/50">© {new Date().getFullYear()} {c.footer.copyright}</p>
       </footer>
 
-      <a href={`/wa/${branch.slug}`} target="_blank" aria-label="Chat WhatsApp" className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink py-3 pl-4 pr-5 text-sm font-semibold text-paper shadow-lg ring-1 ring-paper/20">
-        <svg viewBox="0 0 24 24" className="size-5 fill-current" aria-hidden><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-.9 1.2-.3.2-.6.1a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.6-2c-.2-.3 0-.5.1-.6l.4-.5.3-.5v-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 0 0-.8.4 3.4 3.4 0 0 0-1 2.5 5.9 5.9 0 0 0 1.2 3.1 13.5 13.5 0 0 0 5.2 4.6c1.9.8 2.7.9 3.6.7a3.1 3.1 0 0 0 2-1.4 2.5 2.5 0 0 0 .2-1.4c-.1-.2-.3-.3-.6-.4zM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4a9.8 9.8 0 1 1 8.3 4.6zm8.4-18.2A11.8 11.8 0 0 0 1.8 17.8L.1 24l6.4-1.7a11.8 11.8 0 0 0 5.6 1.4A11.8 11.8 0 0 0 20.4 3.6z" /></svg>
+      <a href={wa} target="_blank" rel="noopener" aria-label="Chat WhatsApp" className="btn btn-w fixed bottom-5 right-5 z-40 h-12 gap-2 px-4 text-sm">
+        <Icon name="wa" size={20} c="#0a0a0a" d="#ffffff" />
         Chat
       </a>
     </CartProvider>
