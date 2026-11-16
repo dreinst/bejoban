@@ -14,6 +14,7 @@ Menu sidebar dikelompokkan di satu berkas, `src/lib/admin-menu.ts` (urutan, judu
 - **Analitik**: *Ringkasan* menampilkan jumlah produk, stok ban (jumlah baris, stok kosong, harga bermasalah), percakapan chatbot yang menunggu admin, klik WhatsApp per cabang 7 hari terakhir, dan waktu sinkron pricelist terakhir.
 - **Inventaris**: *Produk*, *Kategori*, *Merek*, *Pricelist & Stok* (tabel harga dan stok per cabang, ubah banyak sekaligus lalu *Simpan semua harga*), *Stok ban*, *Harga jasa*.
 - **Kasir dan Harga**: belum ada halaman, menyusul dari BejoStock.
+- **Peringatan** (owner): *Peringatan* (stok ban kosong dan baris pricelist bermasalah) dan *Kalender libur dan promo*.
 - **Kanal**: *Chatbot*, *Ongkir*, *Situs dan WhatsApp*, *Tampilan Web* (semua teks dan foto beranda), *Panduan Ukuran Foto*.
 - **Akses**: *Pengguna* (akun, peran, cabang), *Cabang* (alamat, WhatsApp, jam buka, Instagram, Maps, foto), *Akun Saya*.
 
@@ -37,6 +38,10 @@ Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata 
 - Hasil impor menampilkan jumlah baris masuk dan daftar baris bermasalah apa adanya. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal (misalnya `1.825.0000`) tidak ditebak: isi manual di tabel stok.
 - Keterangan `disc 50.000` dibaca sebagai potongan. Harga asli dan potongan disimpan terpisah, bot menyebut harga setelah potongan beserta harga asalnya.
 - **Edit langsung di tabel**: ubah harga, potongan, stok, atau keterangan per baris lalu Simpan. Baris itu diberi penanda *manual*. Centang *Kunci* supaya sinkron berikutnya tidak menimpanya. Baris manual yang tidak dikunci ditimpa data baru. Baris manual yang dikunci tapi hilang dari spreadsheet tetap disimpan. Filter *Harga bermasalah* dan *Diubah manual* membantu menemukan barisnya.
+
+### Peringatan, kalender, dan akun nonaktif
+
+Halaman *Peringatan* mendaftar baris stok ban aktif yang stoknya 0 dan baris yang harganya kosong atau janggal, dengan tautan ke filter *Harga bermasalah* di stok ban. Kartu *Stok kosong* dan *Harga bermasalah* di Ringkasan membuka halaman ini. Di *Kalender libur dan promo*, owner mencatat tanggal libur toko dan promo beserta keterangannya, dan bisa menghapusnya lagi. Di halaman *Pengguna*, hilangkan centang *Akun aktif* untuk menonaktifkan akun: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
 
 ### Harga jasa
 
