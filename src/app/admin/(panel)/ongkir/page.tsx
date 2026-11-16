@@ -10,6 +10,7 @@ import { PRECISION_LABEL } from '@/lib/geo/address'
 import { matchCity } from '@/lib/geo/match'
 import { distanceKm } from '@/lib/geo/distance'
 import type { Place } from '@/lib/geo/types'
+import { pilihanUnik } from '@/lib/geo/pilihan'
 import { CopyButton } from '@/components/admin/copy-button'
 import { PageBody, PageHeader, Section } from '@/components/admin/ui'
 import { OngkirForm } from '@/components/admin/ongkir-form'
@@ -138,7 +139,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
               <p className={geo.error ? 'font-semibold text-red-700' : 'text-neutral-700'}>
                 {geo.error ? 'Pencarian lokasi sedang gagal. Coba lagi sebentar lagi, atau pilih kota dari tabel tarif.' : 'Tidak ada lokasi yang cocok.'}
               </p>
-              <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari lagi tanpa simpanan&quot;, atau pilih kota langsung dari tabel tarif:</p>
+              <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari ulang lokasi&quot;, atau pilih kota langsung dari tabel tarif:</p>
               <div className="flex flex-wrap gap-2">
                 {cities.map((c) => <Link key={c} href={href({ q: '', city: c })} className="inline-flex min-h-9 items-center rounded-full border border-ink px-3 py-1 text-xs font-semibold text-ink max-md:min-h-11">{c}</Link>)}
                 {!cities.length && <span className="text-xs text-neutral-500">Tabel tarif masih kosong.</span>}
@@ -152,12 +153,12 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                 </p>
               )}
               <ul className="divide-y divide-neutral-100">
-                {geo.places.map((p, i) => (
+                {pilihanUnik(geo.places).map(({ p, i, pembeda }) => (
                   <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                     <span className="min-w-0">
                       <b>{p.name}</b>
                       <span className="ml-2 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-bold text-white">{PRECISION_LABEL[p.precision ?? 'kota']}</span>
-                      <span className="block text-xs text-neutral-500">{[p.kecamatan && `Kec. ${p.kecamatan}`, p.city, p.province].filter(Boolean).join(', ')}</span>
+                      <span className="block text-xs text-neutral-500">{pembeda}</span>
                     </span>
                     <Link href={href({ pick: String(i) })} className="adm-btn-line adm-btn-sm">Pakai lokasi ini</Link>
                   </li>
@@ -205,7 +206,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                       <p className="mb-2 text-xs text-neutral-600">Sumber berat: {q2.source}</p>
                     </details>
                     {q2.notes.map((n) => <p key={n} className="text-xs text-neutral-500">{n}</p>)}
-                    {q2.note && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
+                    {q2.note && !(q2.isSample && /^contoh$/i.test(q2.note.trim())) && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
                   </div>
                 )}
               </Section>
@@ -220,7 +221,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
           <dl className="grid gap-y-1 text-sm sm:grid-cols-[190px_1fr]">
             <dt className="text-neutral-500">Tempat</dt><dd>{place.name}</dd>
             {wilayah && (<><dt className="text-neutral-500">Wilayah</dt><dd>{wilayah}</dd></>)}
-            <dt className="text-neutral-500">Ketepatan</dt>
+            <dt className="text-neutral-500">Ketepatan lokasi</dt>
             <dd><b>{PRECISION_LABEL[place.precision ?? 'kota']}</b>{place.precision === 'kota' || place.precision === 'provinsi' ? ' (jarak ke titik pusat wilayah, cukup untuk tarif)' : place.precision === 'kecamatan' ? ' (jarak ke titik pusat kecamatan)' : ''}</dd>
             <dt className="text-neutral-500">Jarak dari {originLabel}</dt>
             <dd>{km !== null ? <>sekitar <b>{Math.round(km)} km</b> garis lurus (bukan jarak tempuh)</> : <>titik cabang belum diisi.{' '}{user.role === 'OWNER' ? <Link className="underline" href="/admin/ongkir/pengaturan#asal">Isi di tab Pengaturan</Link> : 'Minta owner mengisinya.'}</>}</dd>

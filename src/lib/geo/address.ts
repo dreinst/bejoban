@@ -16,10 +16,10 @@ export type Level = { key: 'utuh' | 'bersih' | 'jalan' | 'kecamatan' | 'kota'; l
 export type Precision = 'alamat' | 'kecamatan' | 'kota' | 'provinsi'
 
 export const PRECISION_LABEL: Record<Precision, string> = {
-  alamat: 'titik alamat',
-  kecamatan: 'kecamatan',
-  kota: 'kota atau kabupaten',
-  provinsi: 'provinsi',
+  alamat: 'sampai alamat',
+  kecamatan: 'sampai kecamatan',
+  kota: 'sampai kota atau kabupaten',
+  provinsi: 'sampai provinsi',
 }
 
 export const PROVINCES = [

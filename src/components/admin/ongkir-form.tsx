@@ -70,7 +70,7 @@ export function OngkirForm({ d, sizes, cities, branches, packingFee }: { d: Defa
       </FormGrid>
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <button className="adm-btn">Cari lokasi dan hitung</button>
-        <button name="fresh" value="1" className="adm-btn-line" title="Cari lokasi lagi tanpa memakai hasil pencarian yang tersimpan">Cari lagi tanpa simpanan</button>
+        <button name="fresh" value="1" className="adm-btn-line" title="Cari lokasi dari awal, tanpa memakai hasil pencarian sebelumnya">Cari ulang lokasi</button>
       </div>
     </form>
   )

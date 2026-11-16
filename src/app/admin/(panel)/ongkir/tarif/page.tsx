@@ -132,7 +132,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
           { key: 'perkg', header: 'Tarif per kg', align: 'right', className: 'whitespace-nowrap', cell: (r) => rp(r.perKg) },
           { key: 'min', header: 'Min. berat', align: 'right', className: 'whitespace-nowrap', cell: (r) => `${r.minWeight.toLocaleString('id-ID')} kg` },
           { key: 'eta', header: 'Estimasi', cell: (r) => (r.etaDays ? `${r.etaDays} hari` : '-') },
-          { key: 'note', header: 'Catatan', cell: (r) => r.note || '-' },
+          { key: 'note', header: 'Catatan', cell: (r) => (r.isSample && /^contoh$/i.test(r.note.trim()) ? '-' : r.note || '-') },
           { key: 'upd', header: 'Diperbarui', mobile: 'hide', className: 'whitespace-nowrap', cell: (r) => waktuWib(r.updatedAt) },
         ]}
         actions={(r) => {
