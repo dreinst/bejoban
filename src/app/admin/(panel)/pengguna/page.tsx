@@ -40,14 +40,14 @@ function FormPengguna({ u, cabang, sendiri }: { u?: Pengguna; cabang: Cabang[]; 
 
 function FormReset({ u }: { u: Pengguna }) {
   return (
-    <form action={resetUserPassword}>
+    <form action={resetUserPassword} className="mt-6 border-t border-line pt-5">
+      <h3 className="mb-3 font-display text-base font-extrabold text-ink">Ganti kata sandi</h3>
       <input type="hidden" name="id" value={u.id} />
       <FormGrid cols={1}>
         <TextField label="Kata sandi baru" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint={`Minimal 8 karakter. ${u.username} memakai kata sandi ini untuk masuk berikutnya.`} />
       </FormGrid>
       <FormActions>
-        <CloseButton />
-        <SubmitButton>Ganti kata sandi</SubmitButton>
+        <SubmitButton className="adm-btn-line">Ganti kata sandi</SubmitButton>
       </FormActions>
     </form>
   )
@@ -62,8 +62,8 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
   ])
   const ql = q.toLowerCase()
   const list = q ? semua.filter((u) => u.username.toLowerCase().includes(ql) || u.name.toLowerCase().includes(ql)) : semua
-  const tambah = (
-    <Drawer trigger="+ Tambah pengguna" triggerClassName="adm-btn" title="Tambah pengguna" description="Owner bisa mengatur semuanya. Admin cabang hanya melihat data cabangnya.">
+  const tambah = (kosong = false) => (
+    <Drawer trigger="+ Tambah pengguna" triggerClassName="adm-btn" title="Tambah pengguna" kunci={kosong ? 'tambah-pengguna-kosong' : undefined} description="Owner bisa mengatur semuanya. Admin cabang hanya melihat data cabangnya.">
       <FormPengguna cabang={cabang} />
     </Drawer>
   )
@@ -73,7 +73,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
       <PageHeader
         title="Pengguna"
         note="Owner mengatur semuanya. Admin cabang melihat Ringkasan, Produk situs, Perlu dicek, Percakapan chatbot, dan Hitung ongkir untuk cabangnya, serta bisa mengubah data cabangnya sendiri."
-        actions={tambah}
+        actions={tambah()}
       />
       <ListToolbar
         count={list.length}
@@ -97,8 +97,6 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
           <>
             <Drawer trigger="Ubah" triggerLabel={`Ubah ${u.username}`} title={`Ubah pengguna ${u.username}`}>
               <FormPengguna u={u} cabang={cabang} sendiri={u.id === s.uid} />
-            </Drawer>
-            <Drawer trigger="Reset kata sandi" triggerLabel={`Reset kata sandi ${u.username}`} title={`Reset kata sandi ${u.username}`}>
               <FormReset u={u} />
             </Drawer>
             {u.id !== s.uid && (
@@ -120,7 +118,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
           q ? (
             <Empty title="Pengguna tidak ditemukan">Tidak ada pengguna dengan kata &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada pengguna">Tambah pengguna pertama lewat tombol di kanan atas.</Empty>
+            <Empty title="Belum ada pengguna" action={tambah(true)}>Tambah pengguna pertama supaya ada yang bisa masuk ke admin.</Empty>
           )
         }
       />

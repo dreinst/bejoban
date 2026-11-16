@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
 import { X } from 'lucide-react'
-import { catatKirim, hapusCatatan, lanjutkanPanel, pulihkan, type Isian } from './panel-simpan'
+import { catatKirim, hapusCatatan, lanjutkanPanel, pulihkan } from './panel-simpan'
 
 // Panel samping (Drawer) dan dialog konfirmasi (ConfirmDialog) di atas elemen <dialog> modal:
 // fokus terkunci di dalamnya, Escape atau klik di luar menutup, lalu fokus kembali ke tombol pemicu.
@@ -27,19 +27,21 @@ type Base = {
   children: ReactNode
   /** Terbuka saat halaman dimuat, mis. tautan dari halaman lain yang langsung menuju form tambah. */
   defaultOpen?: boolean
+  /** Pembeda kalau satu halaman punya dua panel berjudul sama (mis. tombol Tambah di header dan di keadaan kosong). */
+  kunci?: string
 }
 
-function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, description, children, defaultOpen = false }: Base & { variant: 'drawer' | 'modal' }) {
+function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, description, children, defaultOpen = false, kunci }: Base & { variant: 'drawer' | 'modal' }) {
   const drawer = variant === 'drawer'
   const sp = useSearchParams()
   const path = usePathname()
   const ok = sp.get('ok')
   const err = sp.get('err')
   // Panel yang tadi gagal disimpan dibuka lagi bersama isian dan galatnya.
-  const [lanjut] = useState(() => (drawer ? lanjutkanPanel(path, title, ok, err) : null))
+  const [lanjut] = useState(() => (drawer ? lanjutkanPanel(path, kunci ?? title, ok, err) : null))
   const [open, setOpen] = useState(defaultOpen || !!lanjut)
   const [galat, setGalat] = useState<string | null>(lanjut?.err ?? null)
-  const sisaIsian = useRef<Isian | null>(lanjut?.isian ?? null)
+  const sisaIsian = useRef(lanjut ? { isian: lanjut.isian, form: lanjut.form } : null)
   const diKlien = useDiKlien()
   const btn = useRef<HTMLButtonElement>(null)
   const dlg = useRef<HTMLDialogElement>(null)
@@ -59,7 +61,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
     if (open && diKlien && d) {
       if (!d.open) d.showModal()
       if (sisaIsian.current) {
-        pulihkan(d, sisaIsian.current)
+        pulihkan(d, sisaIsian.current.isian, sisaIsian.current.form)
         sisaIsian.current = null
       }
       const pertama = d.querySelector<HTMLElement>('[autofocus], [data-autofocus], input:not([type=hidden]):not([disabled]), select, textarea, [data-body] button, [data-body] a')
@@ -98,7 +100,7 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
             }}
             onSubmit={(e) => {
               if (!drawer || !(e.target instanceof HTMLFormElement)) return
-              catatKirim(path, title, e.target)
+              catatKirim(path, kunci ?? title, e.target)
               setGalat(null)
             }}
           >

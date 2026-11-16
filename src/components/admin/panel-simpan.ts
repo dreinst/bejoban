@@ -7,16 +7,20 @@
 // bersama oleh overlay.tsx dan toast.tsx. Isinya hanya hidup di memori tab, tidak disimpan ke mana pun.
 
 export type Isian = [string, string][]
-type Catatan = { path: string; judul: string; isian: Isian; err: string | null; waktu: number }
+type Catatan = { path: string; judul: string; isian: Isian; form: number; err: string | null; waktu: number; diklaim: number }
 
-const BATAS_MS = 5 * 60 * 1000
+// Catatan hanya berlaku sebentar: sampai respons server tiba, lalu beberapa detik untuk pemasangan ulang halaman.
+const BATAS_MS = 60_000
+const JENDELA_MS = 5_000
 let catatan: Catatan | null = null
 const basi = (c: Catatan) => Date.now() - c.waktu >= BATAS_MS
 
 /** Dipanggil saat form di panel dikirim. */
-export function catatKirim(path: string, judul: string, form: HTMLFormElement) {
+export function catatKirim(path: string, judul: string, form: HTMLFormElement, akar?: Element | null) {
   const isian = [...new FormData(form)].filter((e): e is [string, string] => typeof e[1] === 'string')
-  catatan = { path, judul, isian, err: null, waktu: Date.now() }
+  // Panel boleh berisi lebih dari satu form (mis. ubah pengguna dan ganti kata sandi). Yang dicatat urutan form yang dikirim.
+  const form_ = [...((akar ?? form.closest('dialog'))?.querySelectorAll('form') ?? [])].indexOf(form)
+  catatan = { path, judul, isian, form: Math.max(form_, 0), err: null, waktu: Date.now(), diklaim: 0 }
 }
 
 export const hapusCatatan = () => {
@@ -35,8 +39,12 @@ export function lanjutkanPanel(path: string, judul: string, ok: string | null, e
     return null
   }
   if (catatan.judul !== judul) return null
-  if (err) catatan.err = err
-  return catatan.err ? catatan : null
+  if (err && !catatan.diklaim) {
+    catatan.err = err
+    catatan.diklaim = Date.now()
+  }
+  // Halaman dipasang ulang dua kali berturut-turut (alamat ?err= muncul, lalu dibersihkan Toast), jadi jendela pendek.
+  return catatan.diklaim && Date.now() - catatan.diklaim < JENDELA_MS ? catatan : null
 }
 
 /** Toast galat tidak perlu muncul bila panel sudah menampilkannya di dalam panel. */
@@ -49,8 +57,8 @@ function isi(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, nil
 }
 
 /** Mengisi ulang kolom form di dalam `akar` dari catatan. Kolom tersembunyi dan berkas dilewati. */
-export function pulihkan(akar: HTMLElement, isian: Isian) {
-  const form = akar.querySelector('form')
+export function pulihkan(akar: HTMLElement, isian: Isian, urutanForm = 0) {
+  const form = akar.querySelectorAll('form')[urutanForm]
   if (!form) return
   const per = new Map<string, string[]>()
   for (const [k, v] of isian) per.set(k, [...(per.get(k) ?? []), v])

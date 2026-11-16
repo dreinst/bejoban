@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { Field } from '@/lib/content'
 import { ImagesInput } from './image-input'
 import { inputCls } from './form-cls'
-import { FormActions, TextAreaField, TextField } from './field'
+import { FormActions, SelectField, TextAreaField, TextField } from './field'
 import { SubmitButton } from './overlay'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -21,6 +21,16 @@ function Fields({ fields, value, set, products, base, path }: { fields: Field[];
         const id = `${base}-${path}${f.key}`
         if (f.type === 'text') return <TextField key={f.key} id={id} label={f.label} hint={f.hint} value={v ?? ''} onChange={(e) => put(e.target.value)} />
         if (f.type === 'textarea') return <TextAreaField key={f.key} id={id} label={f.label} rows={3} value={v ?? ''} onChange={(e) => put(e.target.value)} />
+        if (f.type === 'select') {
+          const ada = f.options.some((o) => o.value === v)
+          const nilai = ada ? v : f.izinkanLain && v ? v : f.options[0].value
+          return (
+            <SelectField key={f.key} id={id} label={f.label} hint={f.hint} value={nilai} onChange={(e) => put(e.target.value)}>
+              {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {!ada && f.izinkanLain && v && <option value={v}>Alamat lain: {v}</option>}
+            </SelectField>
+          )
+        }
         if (f.type === 'datetime') return <TextField key={f.key} id={id} type="datetime-local" label={f.label} hint={f.hint} value={v ?? ''} onChange={(e) => put(e.target.value)} />
         return (
           <fieldset key={f.key} className="min-w-0">

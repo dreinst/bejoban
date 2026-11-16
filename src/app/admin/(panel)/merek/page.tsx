@@ -9,16 +9,23 @@ import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/a
 import { QuickToggle, ReorderButtons } from '@/components/admin/row-controls'
 import { ImageField } from '@/components/admin/image-input'
 
-type Merek = { id: number; name: string; logo: string; byOrder: boolean }
+type Merek = { id: number; name: string; logo: string; byOrder: boolean; aktif: boolean }
 
 // Satu form untuk tambah dan ubah, dipakai di panel samping.
 function FormMerek({ b }: { b?: Merek }) {
   return (
     <form action={saveBrand}>
       <input type="hidden" name="id" value={b?.id ?? 0} />
+      <input type="hidden" name="aktif_form" value="1" />
       <FormGrid cols={1}>
         <TextField label="Nama merek" name="name" defaultValue={b?.name} required maxLength={60} autoComplete="off" />
         <ImageField label="Logo" name="logo" value={b?.logo} preset="brand" />
+        <CheckField
+          label="Tampil di situs"
+          name="aktif"
+          defaultChecked={b?.aktif ?? true}
+          hint="Kalau dimatikan, merek ini tidak tampil di beranda, saringan produk, dan pilihan merek. Produknya tidak berubah."
+        />
         <CheckField
           label="By order"
           name="byOrder"
@@ -40,8 +47,9 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
   const semua = await db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], include: { _count: { select: { products: true } } } })
   const list = q ? semua.filter((b) => b.name.toLowerCase().includes(q.toLowerCase())) : semua
   const nonaktif = semua.filter((b) => !b.aktif).length
-  const tambah = (
-    <Drawer trigger="+ Tambah merek" triggerClassName="adm-btn" title="Tambah merek" description="Merek baru masuk di urutan terakhir. Geser dengan tombol naik turun di tabel.">
+  // Dipakai di header dan di keadaan kosong; `kunci` membedakan keduanya supaya panel yang gagal disimpan tidak terbuka dobel.
+  const tambah = (kosong = false) => (
+    <Drawer trigger="+ Tambah merek" triggerClassName="adm-btn" title="Tambah merek" kunci={kosong ? 'tambah-merek-kosong' : undefined} description="Merek baru masuk di urutan terakhir. Geser dengan tombol naik turun di tabel.">
       <FormMerek />
     </Drawer>
   )
@@ -50,8 +58,8 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
     <PageBody>
       <PageHeader
         title="Merek"
-        note="Urutan di tabel sama dengan urutan bagian Our Brand di beranda. Logo tampil satu warna (putih) di beranda, jadi pakai SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama."
-        actions={tambah}
+        note="Urutan di tabel sama dengan urutan merek di beranda. Merek tanpa logo tampil sebagai nama. Merek yang dinonaktifkan tidak tampil di situs."
+        actions={tambah()}
       />
       <ListToolbar
         count={list.length}
@@ -81,7 +89,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
             key: 'byorder',
             header: 'By order',
             className: 'w-36',
-            mobileLabel: false,
+            mobile: 'hide',
             cell: (b) => <QuickToggle action={setBrandByOrder} fields={{ id: b.id }} checked={b.byOrder} label={`By order ${b.name}`} onText="By order" offText="Distok" />,
           },
           ...(q
@@ -91,12 +99,26 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
                   key: 'urutan',
                   header: 'Urutan',
                   className: 'w-28',
+                  mobile: 'hide' as const,
                   cell: (b: (typeof list)[number]) => {
                     const i = list.indexOf(b)
                     return <ReorderButtons action={moveBrand} id={b.id} label={b.name} first={i === 0} last={i === list.length - 1} />
                   },
                 },
               ]),
+          // Di HP sakelar by order dan tombol urutan berbagi satu baris kartu.
+          {
+            key: 'atur',
+            header: 'Atur',
+            hanyaHp: true,
+            mobileLabel: false,
+            cell: (b) => (
+              <span className="flex w-full flex-wrap items-center justify-between gap-2">
+                <QuickToggle action={setBrandByOrder} fields={{ id: b.id }} checked={b.byOrder} label={`By order ${b.name}`} onText="By order" offText="Distok" />
+                {!q && <ReorderButtons action={moveBrand} id={b.id} label={b.name} first={list.indexOf(b) === 0} last={list.indexOf(b) === list.length - 1} />}
+              </span>
+            ),
+          },
         ]}
         actions={(b) => {
           const aturan = aturanHapus(b.name, [{ jumlah: b._count.products, satuan: 'produk' }])
@@ -150,7 +172,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
           q ? (
             <Empty title="Merek tidak ditemukan">Tidak ada merek dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada merek">Tambah merek pertama lewat tombol di kanan atas. Merek tampil di beranda dan jadi pilihan di form produk.</Empty>
+            <Empty title="Belum ada merek" action={tambah(true)}>Tambah merek pertama. Merek tampil di beranda dan jadi pilihan di form produk.</Empty>
           )
         }
       />

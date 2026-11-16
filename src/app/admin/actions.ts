@@ -170,7 +170,10 @@ function clean(fields: Field[], input: Record<string, unknown>): Record<string, 
     const v = input?.[f.key]
     if (f.type === 'image') out[f.key] = isMedia(v) ? v : ''
     else if (f.type === 'images') out[f.key] = Array.isArray(v) ? v.filter(isMedia).slice(0, f.max) : []
-    else if (f.type === 'products') out[f.key] = Array.isArray(v) ? v.map(Number).filter(Number.isInteger).slice(0, f.max) : []
+    else if (f.type === 'select') {
+      const t = typeof v === 'string' ? v.slice(0, 2000) : ''
+      out[f.key] = f.options.some((o) => o.value === t) || (f.izinkanLain && safeLink(t)) ? t : ''
+    } else if (f.type === 'products') out[f.key] = Array.isArray(v) ? v.map(Number).filter(Number.isInteger).slice(0, f.max) : []
     else if (f.type === 'list')
       out[f.key] = Array.isArray(v) ? v.slice(0, f.max).map((item) => clean(f.fields, item as Record<string, unknown>)) : []
     else {
@@ -203,7 +206,7 @@ export async function saveCategory(fd: FormData) {
   const name = str(fd, 'name', 60)
   if (!name) gagal('/admin/kategori', 'Nama kategori wajib diisi')
   const image = String(fd.get('image') ?? '')
-  const data = { name, slug: slugify(name) || 'kategori', image: isMedia(image) ? image : '' }
+  const data = { name, slug: slugify(name) || 'kategori', image: isMedia(image) ? image : '', ...(fd.has('aktif_form') && { aktif: fd.get('aktif') === 'on' }) }
   try {
     if (id) await db.category.update({ where: { id }, data })
     else await db.category.create({ data: { ...data, sort: urutanBerikut(await db.category.findMany({ select: { sort: true } })) } })
@@ -260,14 +263,15 @@ export async function saveBrand(fd: FormData) {
   const name = str(fd, 'name', 60)
   if (!name) gagal('/admin/merek', 'Nama merek wajib diisi')
   const logo = String(fd.get('logo') ?? '')
-  const data = { name, logo: isMedia(logo) ? logo : '', byOrder: fd.get('byOrder') === 'on' }
+  // Isian "Tampil di situs" hanya diubah kalau form mengirim penandanya, supaya pemanggil lain tidak ikut mengubahnya.
+  const data = { name, logo: isMedia(logo) ? logo : '', byOrder: fd.get('byOrder') === 'on', ...(fd.has('aktif_form') && { aktif: fd.get('aktif') === 'on' }) }
   try {
     if (id) await db.brand.update({ where: { id }, data })
     else await db.brand.create({ data: { ...data, sort: urutanBerikut(await db.brand.findMany({ select: { sort: true } })) } })
   } catch {
     gagal('/admin/merek', `Nama merek "${name}" sudah dipakai`)
   }
-  await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name, byOrder: data.byOrder })
+  await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name, byOrder: data.byOrder, aktif: data.aktif })
   done('/admin/merek', id ? `${name} tersimpan` : `${name} ditambahkan`)
 }
 

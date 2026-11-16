@@ -17,6 +17,8 @@ export type Column<T> = {
   align?: 'left' | 'right' | 'center'
   /** Kelas tambahan untuk sel, mis. lebar 'w-32' atau 'whitespace-nowrap'. */
   className?: string
+  /** Kolom ini hanya ada di tampilan kartu (HP). Dipakai untuk menggabungkan beberapa kontrol dalam satu baris kartu. */
+  hanyaHp?: boolean
 }
 
 export function DataTable<T>({
@@ -55,7 +57,7 @@ export function DataTable<T>({
           <tr>
             {thumb && <th scope="col" className="w-16"><span className="sr-only">Gambar</span></th>}
             {columns.map((c) => (
-              <th key={c.key} scope="col" data-align={c.align}>{c.header}</th>
+              <th key={c.key} scope="col" data-align={c.align} className={c.hanyaHp ? 'hidden' : undefined}>{c.header}</th>
             ))}
             {actions && <th scope="col" data-align="right"><span className="sr-only">Aksi</span></th>}
           </tr>
@@ -68,7 +70,7 @@ export function DataTable<T>({
                 const role = c.mobile ?? (i === 0 ? 'title' : 'meta')
                 const label = role === 'meta' && c.mobileLabel !== false ? c.header : undefined
                 return (
-                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} className={c.className}>
+                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} className={[c.className, c.hanyaHp && 'md:hidden'].filter(Boolean).join(' ') || undefined}>
                     {c.cell(r)}
                   </td>
                 )

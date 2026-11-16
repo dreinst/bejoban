@@ -4,21 +4,28 @@ import { aturanHapus } from '@/lib/admin/urutan'
 import { deleteCategory, moveCategory, saveCategory, setCategoryActive } from '../../actions'
 import { Badge, Empty, PageBody, PageHeader } from '@/components/admin/ui'
 import { DataTable, ListToolbar, Thumb } from '@/components/admin/data-table'
-import { FormActions, FormGrid, TextField } from '@/components/admin/field'
+import { CheckField, FormActions, FormGrid, TextField } from '@/components/admin/field'
 import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
 import { ReorderButtons } from '@/components/admin/row-controls'
 import { ImageField } from '@/components/admin/image-input'
 
-type Kategori = { id: number; name: string; image: string }
+type Kategori = { id: number; name: string; image: string; aktif: boolean }
 
 // Satu form untuk tambah dan ubah, dipakai di panel samping.
 function FormKategori({ c }: { c?: Kategori }) {
   return (
     <form action={saveCategory}>
       <input type="hidden" name="id" value={c?.id ?? 0} />
+      <input type="hidden" name="aktif_form" value="1" />
       <FormGrid cols={1}>
         <TextField label="Nama kategori" name="name" defaultValue={c?.name} required maxLength={60} autoComplete="off" />
         <ImageField label="Gambar" name="image" value={c?.image} preset="category" />
+        <CheckField
+          label="Tampil di situs"
+          name="aktif"
+          defaultChecked={c?.aktif ?? true}
+          hint="Kalau dimatikan, kategori ini tidak tampil di saringan produk dan pilihan kategori. Produk di dalamnya tetap tampil."
+        />
       </FormGrid>
       <FormActions>
         <CloseButton />
@@ -34,15 +41,15 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
   const semua = await db.category.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], include: { _count: { select: { products: true } } } })
   const list = q ? semua.filter((c) => c.name.toLowerCase().includes(q.toLowerCase())) : semua
   const nonaktif = semua.filter((c) => !c.aktif).length
-  const tambah = (
-    <Drawer trigger="+ Tambah kategori" triggerClassName="adm-btn" title="Tambah kategori" description="Kategori baru masuk di urutan terakhir. Geser dengan tombol naik turun di tabel.">
+  const tambah = (kosong = false) => (
+    <Drawer trigger="+ Tambah kategori" triggerClassName="adm-btn" title="Tambah kategori" kunci={kosong ? 'tambah-kategori-kosong' : undefined} description="Kategori baru masuk di urutan terakhir. Geser dengan tombol naik turun di tabel.">
       <FormKategori />
     </Drawer>
   )
 
   return (
     <PageBody>
-      <PageHeader title="Kategori" note="Urutan di tabel sama dengan urutan chip Jenis di halaman Produk. Kategori nonaktif tidak tampil di situs, tetapi produk di dalamnya tetap tampil." actions={tambah} />
+      <PageHeader title="Kategori" note="Urutan di tabel sama dengan urutan saringan Jenis di halaman Produk situs. Kategori nonaktif tidak tampil di situs, tetapi produk di dalamnya tetap tampil." actions={tambah()} />
       <ListToolbar
         count={list.length}
         total={q ? semua.length : undefined}
@@ -133,7 +140,7 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
           q ? (
             <Empty title="Kategori tidak ditemukan">Tidak ada kategori dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada kategori">Tambah kategori pertama lewat tombol di kanan atas. Kategori jadi saringan di halaman Produk dan pilihan di form produk.</Empty>
+            <Empty title="Belum ada kategori" action={tambah(true)}>Tambah kategori pertama. Kategori jadi saringan di halaman Produk dan pilihan di form produk.</Empty>
           )
         }
       />
