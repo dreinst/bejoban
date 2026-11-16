@@ -42,7 +42,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
     const p = new URLSearchParams(Object.entries({ cabang: owner ? String(branchId) : '', q, f, ...patch }).filter(([, v]) => v))
     return `/admin/harga${p.size ? `?${p}` : ''}`
   }
-  const tambah = <Link href="/admin/produk/baru" className="adm-btn">+ Tambah produk</Link>
+  const tambah = <Link href="/admin/produk/baru" className="adm-btn-line">+ Tambah produk</Link>
   // Kolom isian: dibungkus supaya lebarnya tetap kecil di tabel dan tidak melebar di kartu 390 px.
   const angka = (name: string, label: string, value: string | number, lebar = 'w-28') => (
     <span className={`inline-block ${lebar} align-middle`}>
@@ -122,7 +122,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
           </div>
         </form>
       ) : (
-        <Empty title={q || f ? 'Tidak ada produk yang cocok' : 'Belum ada produk'} action={q || f ? undefined : tambah}>
+        <Empty title={q || f ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}>
           {q || f ? 'Ubah kata pencarian atau pilih saringan Semua.' : 'Tambah produk pertama, lalu atur harga dan stoknya di sini.'}
         </Empty>
       )}

@@ -133,7 +133,7 @@ export default async function Kategori({ searchParams }: PageProps<'/admin/kateg
           q ? (
             <Empty title="Kategori tidak ditemukan">Tidak ada kategori dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada kategori" action={tambah}>Tambah kategori pertama. Kategori jadi saringan di halaman Produk dan pilihan di form produk.</Empty>
+            <Empty title="Belum ada kategori">Tambah kategori pertama lewat tombol di kanan atas. Kategori jadi saringan di halaman Produk dan pilihan di form produk.</Empty>
           )
         }
       />

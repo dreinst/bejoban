@@ -146,7 +146,7 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
           q ? (
             <Empty title="Jasa tidak ditemukan">Tidak ada jasa yang cocok dengan &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada harga jasa" action={tambah}>Tambah jasa pertama supaya chatbot bisa menjawab harganya.</Empty>
+            <Empty title="Belum ada harga jasa">Tambah jasa pertama lewat tombol di kanan atas supaya chatbot bisa menjawab harganya.</Empty>
           )
         }
       />

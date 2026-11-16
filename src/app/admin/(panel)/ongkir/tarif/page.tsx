@@ -159,7 +159,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
           q || e ? (
             <Empty title="Tarif tidak ditemukan">Tidak ada tarif yang cocok dengan saringan ini. Ubah kata cari atau pilih Semua.</Empty>
           ) : (
-            <Empty title="Belum ada tarif" action={tambah}>Tambah tarif pertama, atau tempel banyak baris sekaligus dari daftar harga agen.</Empty>
+            <Empty title="Belum ada tarif">Tambah tarif pertama lewat tombol di kanan atas, atau tempel banyak baris sekaligus dari daftar harga agen.</Empty>
           )
         }
       />

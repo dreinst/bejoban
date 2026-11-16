@@ -150,7 +150,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
           q ? (
             <Empty title="Merek tidak ditemukan">Tidak ada merek dengan nama &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada merek" action={tambah}>Tambah merek pertama. Merek tampil di beranda dan jadi pilihan di form produk.</Empty>
+            <Empty title="Belum ada merek">Tambah merek pertama lewat tombol di kanan atas. Merek tampil di beranda dan jadi pilihan di form produk.</Empty>
           )
         }
       />

@@ -12,7 +12,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 4. Urutan diatur dengan tombol naik turun (`ReorderButtons`), tidak dengan mengetik angka.
 5. Halaman daftar punya: judul, satu kalimat penjelas kalau perlu, tombol utama "Tambah ..." di kanan atas, jumlah item, pencarian atau saringan kalau item bisa lebih dari sepuluh, keadaan kosong yang menjelaskan langkah pertama, dan toast setelah simpan.
 6. Lebar konten terpakai. Tabel melebar sampai 1200 px (`PageBody`). Satu form dibatasi 640 px. Halaman pengaturan dengan beberapa bagian memakai `SettingsGrid` (dua kolom di layar lebar) supaya tidak separuh kosong.
-7. Hierarki tombol. Satu tombol utama hitam (`adm-btn`) per tampilan. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
+7. Hierarki tombol. Satu tombol utama hitam (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan hitam. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
 8. Unggah gambar ringkas (`ImageField`, `ImagesInput`): pratinjau 56 px, tombol Ganti dan Hapus, satu baris keterangan ukuran dengan tautan "Panduan ukuran".
 9. Kepadatan seragam lewat komponen bersama. Jangan menulis kelas tabel, chip, atau kartu sendiri di halaman.
 10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu. Aksi utama tidak boleh butuh gulir mendatar.
@@ -108,26 +108,28 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 
 | Menu, tab | Alamat | Status | Catatan |
 | --- | --- | --- | --- |
-| Ringkasan | `/admin` | belum | |
-| Stok dan Harga, Stok ban | `/admin/stok-ban` | belum | |
-| Stok dan Harga, Harga jasa | `/admin/harga-jasa` | belum | |
-| Stok dan Harga, Produk situs | `/admin/harga` | belum | |
-| Form produk | `/admin/produk/[id]` | belum | |
-| Stok dan Harga, Perlu dicek | `/admin/peringatan` | belum | |
-| Chatbot, Percakapan | `/admin/chatbot` | belum | |
-| Chatbot, Kotak uji | `/admin/chatbot/uji` | belum | |
-| Chatbot, Templat pesan | `/admin/chatbot/templat` | belum | |
-| Ongkir, Hitung | `/admin/ongkir` | belum | |
-| Ongkir, Tarif | `/admin/ongkir/tarif` | belum | |
-| Situs, Tampilan beranda | `/admin/konten`, `/admin/konten/[key]` | belum | |
-| Situs, Merek | `/admin/merek` | ya | Halaman acuan. Merek nonaktif tetap tampil di tabel dengan lencana Nonaktif dan tombol Aktifkan. |
-| Situs, Kategori | `/admin/kategori` | belum | |
-| Situs, Tautan WhatsApp | `/admin/situs` | belum | |
-| Pengaturan, Cabang | `/admin/cabang` | belum | |
-| Pengaturan, Pengguna | `/admin/pengguna` | belum | |
-| Pengaturan, WhatsApp dan chatbot | `/admin/pengaturan/whatsapp` | belum | |
-| Pengaturan, Ongkir | `/admin/pengaturan/ongkir` | belum | |
-| Pengaturan, Kalender | `/admin/kalender` | belum | |
-| Akun saya | `/admin/akun` | belum | |
-| Panduan ukuran foto | `/admin/panduan-foto` | belum | |
-| Login | `/admin/login` | belum | |
+| Ringkasan | `/admin` | ya | Kartu angka hanya untuk yang perlu ditindaklanjuti. Owner dan admin cabang. |
+| Stok dan Harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah. |
+| Stok dan Harga, Harga jasa | `/admin/harga-jasa` | ya | Urutan naik turun, form lengkap di panel. |
+| Stok dan Harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris lalu satu tombol Simpan. Tambah produk bergaris karena tombol utamanya Simpan. |
+| Form produk | `/admin/produk/[id]` | ya | Halaman sendiri karena panjang. Hapus lewat dialog. |
+| Stok dan Harga, Perlu dicek | `/admin/peringatan` | ya | Owner dan admin cabang. |
+| Chatbot, Percakapan | `/admin/chatbot` | ya | "Selesai, tidak tersedia" lewat dialog karena bot mengirim kalimat penutup. |
+| Chatbot, Kotak uji | `/admin/chatbot/uji` | ya | Hapus riwayat lewat dialog. |
+| Chatbot, Templat pesan | `/admin/chatbot/templat` | ya | Kembalikan ke bawaan lewat dialog. |
+| Ongkir, Hitung | `/admin/ongkir` | ya | Form kiri, hasil kanan. |
+| Ongkir, Tarif | `/admin/ongkir/tarif` | ya | Tempel banyak tarif di panel kedua. `?kota=` membuka panel tambah. |
+| Situs, Tampilan beranda | `/admin/konten`, `/admin/konten/[key]` | ya | Urutan bagian ditentukan kode beranda, jadi tanpa tombol urutan. Editor punya halaman sendiri. |
+| Situs, Merek | `/admin/merek` | ya | Halaman acuan. |
+| Situs, Kategori | `/admin/kategori` | ya | Kategori nonaktif tidak tampil di situs. |
+| Situs, Tautan WhatsApp | `/admin/situs` | ya | |
+| Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang hanya melihat cabangnya. |
+| Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset password di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
+| Pengaturan, WhatsApp dan chatbot | `/admin/pengaturan/whatsapp` | ya | |
+| Pengaturan, Ongkir | `/admin/pengaturan/ongkir` | ya | |
+| Pengaturan, Kalender | `/admin/kalender` | ya | Saringan Akan datang, Sudah lewat, Semua. |
+| Akun saya | `/admin/akun` | ya | |
+| Panduan ukuran foto | `/admin/panduan-foto` | ya | |
+| Login | `/admin/login` | ya | Label terlihat. |
+
+Pemeriksaan terakhir (16 November 2026, Playwright, lebar 1440 dan 390, owner dan admin cabang): tidak ada gulir mendatar di 390, tidak ada centang "Yakin", tidak ada isian urutan, tidak ada tombol merah di luar dialog, semua kolom berlabel, panel pertama tiap halaman tertutup dengan Escape dan fokus kembali ke pemicunya, tidak ada tautan internal yang mati. Tangkapan layar ada di `~/ndru/bejoban-aset/fitur-internal/v4/std-*.png`.

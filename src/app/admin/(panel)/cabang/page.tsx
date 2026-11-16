@@ -77,7 +77,7 @@ export default async function Cabang() {
             <FormCabang b={b} />
           </Drawer>
         )}
-        empty={<Empty title="Belum ada cabang" action={tambah}>Tambah cabang pertama. Datanya tampil di situs dan jadi pilihan di harga dan stok.</Empty>}
+        empty={<Empty title="Belum ada cabang">Tambah cabang pertama lewat tombol di kanan atas. Datanya tampil di situs dan jadi pilihan di harga dan stok.</Empty>}
       />
     </PageBody>
   )

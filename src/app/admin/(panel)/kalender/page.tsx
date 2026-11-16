@@ -107,7 +107,7 @@ export default async function Kalender({ searchParams }: PageProps<'/admin/kalen
           semua.length ? (
             <Empty title={saringan === 'akan' ? 'Tidak ada tanggal yang akan datang' : 'Tidak ada tanggal yang sudah lewat'}>Pilih Semua untuk melihat seluruh tanggal.</Empty>
           ) : (
-            <Empty title="Belum ada tanggal" action={tambah}>Tambah hari libur toko atau tanggal promo pertama.</Empty>
+            <Empty title="Belum ada tanggal">Tambah hari libur toko atau tanggal promo pertama lewat tombol di kanan atas.</Empty>
           )
         }
       />

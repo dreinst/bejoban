@@ -46,6 +46,16 @@ Menu dan tab yang bukan hak pengguna tidak ditampilkan sama sekali. Penyaringan 
 
 Pengalihan dipasang di `next.config.ts` dari daftar `LEGACY_REDIRECTS` di `src/lib/admin-menu.ts`, sebagai pengalihan sementara (307). Alamat lain tidak berubah.
 
+### Cara kerja halaman daftar
+
+Semua halaman daftar (merek, kategori, cabang, pengguna, tarif, harga jasa, kalender, stok) memakai pola yang sama. Aturan lengkap untuk pengembang ada di `docs/STANDAR-UI-ADMIN.md`.
+
+- Tiap item satu baris di tabel. Di HP baris berubah jadi kartu kecil dengan tombol di kanan.
+- *+ Tambah ...* di kanan atas dan *Ubah* di ujung baris membuka panel di sisi kanan. Panel tertutup sendiri setelah tersimpan, atau dengan Escape, tombol silang, atau klik di luar panel. Pesan singkat muncul di pojok kanan bawah. Pesan galat tetap tampil sampai ditutup.
+- Urutan diatur dengan tombol panah naik dan turun di kolom *Urutan*. Urutannya langsung tersimpan dan sama dengan urutan di situs. Saat pencarian aktif, tombol urutan disembunyikan.
+- *Hapus* selalu membuka dialog yang menyebut nama item dan akibatnya. Item yang masih dipakai (mis. merek yang dipakai produk) tidak bisa dihapus. Dialognya menawarkan *Nonaktifkan*.
+- Item nonaktif tetap ada di tabel dengan lencana *Nonaktif* dan tombol *Aktifkan*.
+
 ### Ringkasan
 
 Ringkasan hanya menampilkan angka yang perlu ditindaklanjuti, dan tiap kartu membuka halamannya: percakapan menunggu admin, stok ban habis, harga ban perlu diisi, produk situs yang dijual tapi stoknya 0, dan produk tanpa foto. Kartu bernilai 0 disembunyikan. Kalau semuanya 0, tampil kalimat "Semua beres". Owner juga melihat klik WhatsApp per cabang 7 hari terakhir (membuka Tautan WhatsApp) dan sinkron pricelist terakhir (membuka Stok ban). Admin cabang hanya melihat angka cabangnya.
@@ -80,22 +90,24 @@ Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder 
 - **Stok per cabang**: stok Batu dan Karanglo terpisah. Tiap baris punya cabang, atau belum punya (baris *tanpa cabang*, misalnya 325 baris pricelist lama yang belum diketahui milik cabang mana). Baris tanpa cabang dipakai sebagai stok bersama.
 - **Sinkron dari Google Sheets**: ada satu kolom URL untuk *Tanpa cabang*, satu untuk tiap cabang, dan satu untuk *Sheet gabungan*. Isi URL lalu tekan *Sinkron sekarang* di barisnya. URL disimpan di database per cabang, bukan di kode. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
 - **Impor per cabang**: impor atau sinkron ke satu cabang hanya memperbarui dan menonaktifkan baris cabang itu. Cabang lain dan baris tanpa cabang tidak tersentuh. *Sheet gabungan* dipakai kalau satu sheet berisi dua cabang: baris judulnya harus punya kolom `Cabang` berisi Batu atau Karanglo. Baris dengan cabang kosong atau tulisan lain tidak ditebak, barisnya dilewati dan tampil di daftar bermasalah. Ringkasan impor menyebut cabang tujuannya.
-- **Tetapkan baris tanpa cabang**: kalau owner sudah tahu pricelist lama milik cabang mana, pilih cabangnya di kartu *Ban tanpa cabang*, centang *Yakin*, lalu *Tetapkan*. Baris yang kodenya (ukuran dan merek) sudah ada di cabang tujuan dilewati dan tetap tanpa cabang, jumlahnya disebut di pesan hasil. Aksi ini tercatat di log aktivitas dan buku stok.
+- **Tetapkan baris tanpa cabang**: kalau owner sudah tahu pricelist lama milik cabang mana, tekan *Tetapkan ke Batu* atau *Tetapkan ke Karanglo* di kartu *Ban tanpa cabang*, lalu konfirmasi di dialog yang menyebut jumlah barisnya. Baris yang kodenya (ukuran dan merek) sudah ada di cabang tujuan dilewati dan tetap tanpa cabang, jumlahnya disebut di pesan hasil. Aksi ini tercatat di log aktivitas dan buku stok.
 - **Filter dan banding cabang**: di tabel stok ada pilihan *Semua*, *Tanpa cabang*, *Batu*, *Karanglo*, dan *Banding cabang*. Mode banding menampilkan satu baris per ukuran dan merek dengan stok dan harga (setelah potongan) tiap cabang berdampingan.
 - **Impor CSV** dengan berkas atau tempel isi tetap tersedia. Keduanya memakai pengurai yang sama.
 - Hasil impor menampilkan jumlah baris masuk dan daftar baris bermasalah apa adanya. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal (misalnya `1.825.0000`) tidak ditebak: isi manual di tabel stok.
 - Keterangan `disc 50.000` dibaca sebagai potongan. Harga asli dan potongan disimpan terpisah, bot menyebut harga setelah potongan beserta harga asalnya.
-- **Edit langsung di tabel**: ubah harga, potongan, stok, atau keterangan per baris lalu Simpan. Baris itu diberi penanda *manual*. Centang *Kunci* supaya sinkron berikutnya tidak menimpanya. Baris manual yang tidak dikunci ditimpa data baru. Baris manual yang dikunci tapi hilang dari spreadsheet tetap disimpan. Filter *Harga bermasalah* dan *Diubah manual* membantu menemukan barisnya.
+- **Ubah satu baris**: tekan *Ubah* di ujung baris, ubah harga, potongan, stok, atau keterangan di panel, lalu *Simpan baris*. Baris itu diberi penanda *manual*. Centang *Kunci* supaya sinkron berikutnya tidak menimpanya. Baris manual yang tidak dikunci ditimpa data baru. Baris manual yang dikunci tapi hilang dari spreadsheet tetap disimpan. Filter *Harga bermasalah* dan *Diubah manual* membantu menemukan barisnya.
 
 ### Merek dan status by order
 
-Tab *Merek* di menu Situs (owner) mengatur nama, urutan, logo, dan centang *By order* (merek tidak distok, dipesan dulu). Merek resmi: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Accelera, Falken, Delium, dan Maxxis berstatus by order. Ban truk (Aeolus, Swallow, Sailun, dan lainnya) menyusul dan belum dijual.
+Tab *Merek* di menu Situs (owner) menampilkan semua merek dalam satu tabel: logo kecil, nama, jumlah produk, sakelar *By order*, dan tombol urutan. Sakelar *By order* langsung tersimpan (merek tidak distok, dipesan dulu). Nama dan logo diubah lewat *Ubah*. Merek resmi: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Accelera, Falken, Delium, dan Maxxis berstatus by order. Ban truk (Aeolus, Swallow, Sailun, dan lainnya) menyusul dan belum dijual.
+
+Merek yang masih dipakai produk tidak bisa dihapus. Pilih *Nonaktifkan*: merek itu hilang dari bagian merek di beranda, saringan merek di halaman produk, pilihan merek di form produk baru, dan daftar merek by order yang dikenali chatbot. Produk yang memakainya tidak berubah dan tetap tampil. Form produk yang sudah memakai merek nonaktif tetap menampilkannya dengan tanda "(nonaktif)". Merek yang tidak dipakai produk boleh dihapus. Skrip `seed:lokal` tidak mengaktifkan kembali merek yang dinonaktifkan admin.
 
 Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih satu warna dengan tinggi yang sama, jadi unggah SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama. Merek by order diberi keterangan kecil "by order". Kolom lama "Merek yang ditampilkan" di *Tampilan beranda* sudah tidak dipakai. Daftar merek juga bisa diisi dari `seed.json` bagian `brands` (lihat bagian data lokal).
 
 ### Kalender dan akun nonaktif
 
-Di *Kalender libur dan promo* (menu Pengaturan), owner mencatat tanggal libur toko dan promo beserta keterangannya, dan bisa menghapusnya lagi. Di tab *Pengguna*, hilangkan centang *Akun aktif* untuk menonaktifkan akun: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
+Di *Kalender libur dan promo* (menu Pengaturan), owner mencatat tanggal libur toko dan promo beserta keterangannya, lalu bisa mengubah atau menghapusnya. Tabelnya bisa disaring *Akan datang*, *Sudah lewat*, atau *Semua*. Di tab *Pengguna*, buka *Ubah* lalu hilangkan centang *Akun aktif* untuk menonaktifkan akun. Password diganti lewat *Reset password*. Akun yang dinonaktifkan: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
 
 ### Harga jasa
 

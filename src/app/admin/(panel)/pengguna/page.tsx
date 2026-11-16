@@ -120,7 +120,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
           q ? (
             <Empty title="Pengguna tidak ditemukan">Tidak ada pengguna dengan kata &quot;{q}&quot;. Periksa ejaannya atau hapus pencarian.</Empty>
           ) : (
-            <Empty title="Belum ada pengguna" action={tambah}>Tambah pengguna pertama.</Empty>
+            <Empty title="Belum ada pengguna">Tambah pengguna pertama lewat tombol di kanan atas.</Empty>
           )
         }
       />
