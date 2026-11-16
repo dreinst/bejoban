@@ -56,7 +56,7 @@ export function QuickToggle({ action, fields, checked, label, onText = 'Ya', off
       <span aria-hidden className={`relative inline-block h-6 w-11 shrink-0 rounded-full transition-colors ${nyala ? 'bg-ink' : 'bg-[#cfcfcf]'}`}>
         <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] ${nyala ? 'left-[22px]' : 'left-0.5'}`} />
       </span>
-      <span className={nyala ? 'font-semibold text-ink' : 'text-mute'}>{nyala ? onText : offText}</span>
+      <span className={`whitespace-nowrap ${nyala ? 'font-semibold text-ink' : 'text-mute'}`}>{nyala ? onText : offText}</span>
     </button>
   )
 }
