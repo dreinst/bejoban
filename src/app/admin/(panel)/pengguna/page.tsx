@@ -80,7 +80,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
         count={list.length}
         total={q ? semua.length : undefined}
         noun="pengguna"
-        search={semua.length > 10 || q ? { placeholder: 'Cari username atau nama', value: q } : undefined}
+        search={semua.length > 10 || q ? { placeholder: 'Cari nama pengguna atau nama', value: q } : undefined}
       />
       <DataTable
         caption="Daftar pengguna"

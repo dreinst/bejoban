@@ -373,7 +373,7 @@ export async function saveUser(fd: FormData) {
   const role = fd.get('role') === 'OWNER' ? 'OWNER' : 'BRANCH_ADMIN'
   const branchId = role === 'OWNER' ? null : int(fd, 'branchId') || null
   const P = '/admin/pengguna'
-  if (!username) gagal(P, 'Username wajib diisi')
+  if (!username) gagal(P, 'Nama pengguna wajib diisi')
   if (role === 'BRANCH_ADMIN' && !branchId) gagal(P, 'Admin cabang wajib punya cabang')
   if (branchId && !(await db.branch.findUnique({ where: { id: branchId }, select: { id: true } }))) gagal(P, 'Cabang tidak ditemukan')
   if (!id && password.length < 8) gagal(P, 'Kata sandi minimal 8 karakter')
@@ -386,7 +386,7 @@ export async function saveUser(fd: FormData) {
     if (id) await db.user.update({ where: { id }, data })
     else await db.user.create({ data: { ...data, passwordHash: await bcrypt.hash(password, 10) } })
   } catch {
-    gagal(P, `Username "${username}" sudah dipakai`)
+    gagal(P, `Nama pengguna "${username}" sudah dipakai`)
   }
   await catat(s, id ? 'ubah' : 'tambah', 'pengguna', { id: id || null, username, peran: role, ...(aktif !== undefined && { aktif }) })
   done(P, id ? `${username} tersimpan` : `${username} ditambahkan`)

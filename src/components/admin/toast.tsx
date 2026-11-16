@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Check, CircleAlert, X } from 'lucide-react'
 import { galatSudahDiPanel } from './panel-simpan'
@@ -24,7 +24,11 @@ export function Toast() {
   if (kunci !== lalu) {
     setLalu(kunci)
     // Galat dari panel samping tampil di dalam panel, bukan sebagai toast.
-    if ((ok || err) && !diPanel) setItems((l) => [...l.slice(-2), { id: ++seq, msg: (err || ok)!, kind: err ? 'err' : 'ok' }])
+    if ((ok || err) && !diPanel) {
+      const msg = (err || ok)!
+      const jenis: ToastKind = err ? 'err' : 'ok'
+      setItems((l) => [...l.filter((x) => (jenis === 'ok' ? x.kind !== 'ok' : x.msg !== msg)).slice(-2), { id: ++seq, msg, kind: jenis }])
+    }
   }
 
   useEffect(() => {
@@ -37,13 +41,15 @@ export function Toast() {
   useEffect(() => {
     const on = (e: Event) => {
       const d = (e as CustomEvent<{ msg: string; kind: ToastKind }>).detail
-      setItems((l) => [...l.slice(-2), { id: ++seq, msg: d.msg, kind: d.kind }])
+      // Pesan sukses lama diganti yang terbaru, dan galat dengan kalimat sama tidak ditumpuk.
+      setItems((l) => [...l.filter((x) => (d.kind === 'ok' ? x.kind !== 'ok' : x.msg !== d.msg)).slice(-2), { id: ++seq, msg: d.msg, kind: d.kind }])
     }
     window.addEventListener(TOAST_EVENT, on)
     return () => window.removeEventListener(TOAST_EVENT, on)
   }, [])
 
-  const tutup = (id: number) => setItems((l) => l.filter((x) => x.id !== id))
+  // Harus stabil: kalau dibuat ulang tiap render, pengatur waktu 4 detik di Pesan terus diulang.
+  const tutup = useCallback((id: number) => setItems((l) => l.filter((x) => x.id !== id)), [setItems])
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:items-end">
       <div role="status" aria-live="polite" className="flex w-full flex-col items-center gap-2 md:items-end">

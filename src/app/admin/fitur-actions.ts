@@ -12,7 +12,7 @@ import { mergeSettings } from '@/lib/ongkir/calc'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { mergeBot, normalizeNumber, type BotSettings } from '@/lib/bot/policy'
 import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/respond'
-import { CHANNELS, CHANNEL_LABEL, DEFAULT_SOSMED, DEFAULT_TEMPLATES, TEMPLATE_INFO, TEMPLATE_KEYS, type Channel, type TemplateKey } from '@/lib/bot/templates'
+import { CHANNELS, CHANNEL_LABEL, DEFAULT_SOSMED, DEFAULT_TEMPLATES, TEMPLATE_INFO, galatIsian, isianTakDikenal, TEMPLATE_KEYS, type Channel, type TemplateKey } from '@/lib/bot/templates'
 import { applyImport, gabungRingkasan, simpanRingkasan, type ImportSource, type RingkasanImpor } from '@/lib/tire/import'
 import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
 import { branchLabel, mergeSitus } from '@/lib/situs'
@@ -490,6 +490,8 @@ export async function saveBotTemplate(fd: FormData) {
   const k = key as TemplateKey
   const v = String(fd.get('value') ?? '').trim().slice(0, 1000)
   if (!v) return go(TEMPLAT_PAGE, `Templat "${TEMPLATE_INFO[k].label}" tidak boleh kosong`, 'err')
+  const asing = isianTakDikenal(v, TEMPLATE_INFO[k].vars)
+  if (asing.length) return go(TEMPLAT_PAGE, galatIsian(asing, TEMPLATE_INFO[k].vars), 'err')
   const cur = await loadTemplates()
   await saveSetting('bot.templates', { ...cur, [k]: v })
   await catat(s, 'simpan', 'templat_bot', { kunci: k })
@@ -523,6 +525,8 @@ export async function saveSosmed(fd: FormData) {
   const c = key as Channel
   const v = String(fd.get('value') ?? '').trim().slice(0, 1000)
   if (!v) return go(TEMPLAT_PAGE, `Balasan ${CHANNEL_LABEL[c]} tidak boleh kosong`, 'err')
+  const asing = isianTakDikenal(v, ['tautanWa'])
+  if (asing.length) return go(TEMPLAT_PAGE, galatIsian(asing, ['tautanWa']), 'err')
   const cur = await loadSosmed()
   await saveSetting('bot.sosmed', { ...cur, [c]: v })
   await catat(s, 'simpan', 'templat_sosmed', { saluran: c })

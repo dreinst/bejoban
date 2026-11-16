@@ -62,7 +62,7 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
                 </>
               )}
               <details className="text-xs text-mute">
-                <summary className="adm-sum flex min-h-8 cursor-pointer items-center font-semibold max-md:min-h-11">Alasan pencocokan (untuk pengembang)</summary>
+                <summary className="adm-sum flex min-h-8 cursor-pointer items-center font-semibold max-md:min-h-11">Kenapa bot menjawab begitu</summary>
                 <p className="mt-1 break-words">{current.reason || '-'}</p>
               </details>
             </div>

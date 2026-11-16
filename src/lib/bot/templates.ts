@@ -44,6 +44,19 @@ export const TEMPLATE_INFO: Record<TemplateKey, { label: string; when: string; v
 // Nama variabel untuk tampilan: "nomorAdmin" menjadi "nomor admin". Isi templat tetap memakai {nomorAdmin}.
 export const namaVariabel = (v: string) => v.replace(/([A-Z])/g, ' $1').toLowerCase()
 
+// Isian "{nama}" di teks yang bukan isian otomatis milik templat itu. Isian seperti ini tidak diisi bot dan hilang dari pesan.
+export function isianTakDikenal(teks: string, dikenal: readonly string[]): string[] {
+  const dipakai = Array.from(teks.matchAll(/\{([^{}\s]+)\}/g), (m) => m[1])
+  return [...new Set(dipakai.filter((v) => !dikenal.includes(v)))]
+}
+
+// Kalimat galat untuk isian yang tidak dikenal, menyebut isian mana yang boleh dipakai.
+export function galatIsian(takDikenal: string[], dikenal: readonly string[]): string {
+  const sebut = takDikenal.map((v) => `{${v}}`).join(', ')
+  const boleh = dikenal.length ? dikenal.map((v) => `{${v}}`).join(', ') : 'tidak ada'
+  return `Isian ${sebut} tidak dikenal. Isian yang bisa dipakai di sini: ${boleh}.`
+}
+
 // Templat yang dikirim ke admin atau owner; sisanya dikirim ke pelanggan.
 export const TEMPLATE_KE_ADMIN: readonly TemplateKey[] = ['ringkasanAdmin']
 
