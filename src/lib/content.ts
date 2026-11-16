@@ -7,7 +7,8 @@ export type Field =
   | { key: string; label: string; type: 'products'; max: number }
   | { key: string; label: string; type: 'list'; max: number; fields: Field[] }
 
-export type Section = { key: string; title: string; note?: string; fields: Field[]; defaults: Record<string, unknown> }
+// hidden: bagian yang tidak tampil di beranda saat ini; isinya tetap disimpan dan diberi tanda di admin.
+export type Section = { key: string; title: string; note?: string; hidden?: boolean; fields: Field[]; defaults: Record<string, unknown> }
 
 const ICON_HINT = 'spooring, balancing, nitrogen, tire, velg, oli, shield, pin, clock'
 const txt = (key: string, label: string, hint?: string): Field => ({ key, label, type: 'text', hint })
@@ -94,7 +95,8 @@ export const SECTIONS: Section[] = [
   },
   {
     key: 'panel',
-    note: 'Tidak tampil di desain beranda terbaru. Isinya tetap tersimpan.',
+    hidden: true,
+    note: 'Bagian ini tidak tampil di beranda sekarang. Isinya tetap disimpan.',
     title: 'Panel layanan (kolom kanan)',
     fields: [
       txt('eyebrow', 'Label kecil'),
@@ -141,7 +143,8 @@ export const SECTIONS: Section[] = [
   },
   {
     key: 'payment',
-    note: 'Tidak tampil di desain beranda terbaru. Isinya tetap tersimpan.',
+    hidden: true,
+    note: 'Bagian ini tidak tampil di beranda sekarang. Isinya tetap disimpan.',
     title: 'Pembayaran',
     fields: [
       txt('title', 'Judul'),
@@ -153,21 +156,23 @@ export const SECTIONS: Section[] = [
   {
     key: 'flash',
     title: 'Flash sale',
-    note: 'Tidak tampil di desain beranda terbaru. Isinya tetap tersimpan.',
+    hidden: true,
+    note: 'Bagian ini tidak tampil di beranda sekarang. Isinya tetap disimpan.',
     fields: [txt('title', 'Judul'), txt('sub', 'Keterangan'), { key: 'endsAt', label: 'Berakhir pada', type: 'datetime' }],
     defaults: { title: 'FLASH SALE', sub: 'Harga spesial, stok terbatas! Buruan sebelum kehabisan.', endsAt: '' },
   },
   {
     key: 'newest',
     title: 'Produk terbaru',
-    note: 'Maksimal enam produk. Kosong = enam produk terbaru. Harga tidak tampil, tombolnya mengajak tanya harga lewat WhatsApp.',
+    note: 'Maksimal enam produk. Kalau kosong, yang tampil enam produk terbaru.',
     fields: [txt('title', 'Judul'), txt('sub', 'Keterangan'), txt('button', 'Teks tombol'), { key: 'products', label: 'Produk yang ditampilkan', type: 'products', max: 6 }],
     defaults: { title: 'Produk Terbaru', sub: 'Harga dan stok kami kirim lewat WhatsApp.', button: 'Tanya harga via WhatsApp', products: [] },
   },
   {
     key: 'promo',
     title: 'Banner promo + Shop the look',
-    note: 'Tidak tampil di desain beranda terbaru. Isinya tetap tersimpan.',
+    hidden: true,
+    note: 'Bagian ini tidak tampil di beranda sekarang. Isinya tetap disimpan.',
     fields: [
       { key: 'image', label: 'Banner', type: 'image', preset: 'promo' },
       txt('title', 'Judul (kalau tanpa banner)'),
@@ -214,14 +219,14 @@ export const SECTIONS: Section[] = [
   {
     key: 'locations',
     title: 'Judul bagian lokasi',
-    note: 'Alamat, foto dan WhatsApp tiap cabang diatur di menu Cabang.',
+    note: 'Alamat, foto, dan WhatsApp tiap cabang diatur di Pengaturan, tab Cabang.',
     fields: [txt('eyebrow', 'Label kecil'), txt('title', 'Judul')],
     defaults: { eyebrow: 'KUNJUNGI BENGKEL KAMI', title: 'Lokasi Bejo Ban' },
   },
   {
     key: 'brands',
     title: 'Judul bagian merek',
-    note: 'Daftar merek, urutan, dan status by order diatur di menu Merek.',
+    note: 'Daftar merek, urutan, dan status by order diatur di tab Merek.',
     fields: [txt('title', 'Judul'), txt('sub', 'Sub judul')],
     defaults: { title: 'Our Brand', sub: 'Brand Terpercaya untuk Performa Maksimal' },
   },

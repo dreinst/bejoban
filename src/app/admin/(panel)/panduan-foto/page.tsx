@@ -3,7 +3,7 @@ import { PRESETS } from '@/lib/images-presets'
 export default function Panduan() {
   return (
     <div className="max-w-4xl space-y-5">
-      <h1 className="text-2xl font-bold text-ink">Panduan Ukuran Foto</h1>
+      <h1 className="text-2xl font-bold text-ink">Panduan ukuran foto</h1>
       <div className="rounded-xl bg-white p-5 text-sm leading-relaxed shadow-sm">
         <p className="font-semibold text-ink">Aturan umum</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">

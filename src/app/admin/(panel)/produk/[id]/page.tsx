@@ -20,7 +20,7 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
   const label = 'mb-1 block text-sm font-semibold text-neutral-800'
   return (
     <div className="max-w-4xl">
-      <h1 className="mb-6 text-2xl font-bold text-ink">{isNew ? 'Tambah Produk' : 'Edit Produk'}</h1>
+      <h1 className="mb-6 text-2xl font-bold text-ink">{isNew ? 'Tambah produk' : 'Ubah produk'}</h1>
       <form action={saveProduct} className="space-y-6">
         <input type="hidden" name="id" value={p?.id ?? 0} />
         <section className="grid gap-4 rounded-xl bg-white p-5 shadow-sm md:grid-cols-2">

@@ -15,7 +15,7 @@ export default async function EditSection({ params }: PageProps<'/admin/konten/[
   const [content, products] = await Promise.all([getContent(), db.product.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } })])
   return (
     <div className="max-w-3xl">
-      <Link href="/admin/konten" className="text-sm text-neutral-500">← Tampilan Web</Link>
+      <Link href="/admin/konten" className="text-sm text-neutral-500">← Tampilan beranda</Link>
       <h1 className="mb-2 mt-2 text-2xl font-bold text-ink">{section.title}</h1>
       {section.note && <p className="mb-4 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-800">{section.note}</p>}
       <div className="rounded-xl bg-white p-5 shadow-sm">

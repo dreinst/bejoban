@@ -3,7 +3,7 @@ import { requireOwner } from '@/lib/auth'
 import { importStock, saveStockRow, syncSheet, tetapkanCabang } from '../../fitur-actions'
 import { inputCls } from '@/components/admin/section-editor'
 import { Card, labelCls } from '@/components/admin/simple-list'
-import { Badge, Empty } from '@/components/admin/ui'
+import { Badge, Empty, PageHeader } from '@/components/admin/ui'
 import { bandingCabang, namaPendek } from '@/lib/tire/cabang'
 
 type LastImport = {
@@ -84,7 +84,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const cell = 'w-full rounded border border-neutral-300 px-2 py-1 text-sm'
   const pilihanTujuan = (
     <>
-      <option value="">Tanpa cabang (seperti sebelumnya)</option>
+      <option value="">Tanpa cabang</option>
       {branches.map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
       <option value={GABUNGAN}>Sheet gabungan (kolom Cabang)</option>
     </>
@@ -98,10 +98,10 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const kolomBanding: (number | null)[] = [...(tanpaCabang ? [null] : []), ...branches.map((b) => b.id)]
   return (
     <div className="max-w-6xl space-y-4">
-      <h1 className="text-2xl font-bold text-ink">Stok ban</h1>
-      <p className="text-sm text-neutral-500">
-        Data dari pricelist internal. Dipakai kalkulator ongkir dan chatbot stok, tidak tampil di toko. Stok Batu dan Karanglo terpisah: tiap impor atau sinkron masuk ke satu cabang (atau ke baris tanpa cabang seperti sebelumnya) dan hanya memperbarui baris cabang itu, dikenali dari ukuran dan merek, kecuali baris yang diubah manual dan dikunci. Baris yang hilang dari sumber dinonaktifkan dan aktif lagi kalau muncul kembali. Tiap perubahan stok tercatat di buku stok.
-      </p>
+      <PageHeader
+        title="Stok ban"
+        note="Stok dan harga ban dari pricelist toko. Dipakai chatbot dan kalkulator ongkir, tidak tampil di situs. Stok Batu dan Karanglo terpisah: tiap sinkron atau impor hanya mengganti stok cabang yang dipilih. Ban yang diubah manual dan dikunci tidak ditimpa."
+      />
 
       <Card title="Sinkron dari Google Sheets">
         <div className="grid gap-2">
@@ -109,13 +109,13 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             <form key={t.value || 'tanpa'} action={syncSheet} className="grid items-center gap-2 md:grid-cols-[150px_1fr_auto]">
               <input type="hidden" name="cabang" value={t.value} />
               <span className="text-sm font-semibold text-ink">{t.label}</span>
-              <input name="url" defaultValue={t.url} aria-label={`URL spreadsheet ${t.label}`} placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" className={inputCls} />
+              <input name="url" defaultValue={t.url} aria-label={`Tautan spreadsheet ${t.label}`} placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" className={inputCls} />
               <button className="adm-btn-line adm-btn-sm">Sinkron sekarang</button>
             </form>
           ))}
         </div>
         <p className="mt-3 text-xs text-neutral-500">
-          Satu URL per cabang. Spreadsheet harus dibagikan sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. URL disimpan di pengaturan database, bukan di kode. Sinkron mengambil ekspor CSV tab yang dibuka (gid di URL). Sheet gabungan dipakai kalau satu sheet berisi dua cabang dengan kolom &quot;Cabang&quot; di baris judul (isi Batu atau Karanglo). Baris dengan cabang kosong atau tidak dikenal dilewati dan dilaporkan.
+          Satu tautan per cabang. Bagikan spreadsheet sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. Yang diambil adalah tab yang terbuka di tautan itu. Sheet gabungan untuk satu sheet berisi dua cabang dengan kolom &quot;Cabang&quot; (isi Batu atau Karanglo); baris yang cabangnya kosong dilewati dan dilaporkan.
         </p>
         {li && <p className="mt-2 text-xs text-neutral-600">Terakhir: {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, {li.gabungan ? 'sheet gabungan' : namaCabang(li.cabangId)}), {li.total} baris, {li.problemCount} bermasalah</p>}
       </Card>
@@ -139,13 +139,13 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
       </Card>
 
       {tanpaCabang > 0 && branches.length > 0 && (
-        <Card title={`Baris tanpa cabang (${tanpaCabang} aktif)`}>
+        <Card title={`Ban tanpa cabang (${tanpaCabang})`}>
           <p className="mb-3 text-sm text-neutral-600">
-            Baris ini belum punya cabang, jadi dipakai sebagai stok bersama (bot menjawabnya tanpa menanyakan cabang). Kalau owner sudah tahu pricelist ini milik cabang mana, tetapkan sekaligus di sini. Baris yang kodenya sudah ada di cabang tujuan dilewati dan tetap tanpa cabang.
+            Ban ini belum punya cabang, jadi dianggap stok bersama dan bot menjawabnya tanpa menanyakan cabang. Kalau sudah tahu milik cabang mana, tetapkan sekaligus di sini. Ban yang sudah ada di cabang tujuan dilewati dan tetap tanpa cabang.
           </p>
           <form action={tetapkanCabang} className="flex flex-wrap items-center gap-3">
             <label className="text-sm">
-              Tetapkan semua baris tanpa cabang ke
+              Tetapkan semua ban tanpa cabang ke
               <select name="cabang" required defaultValue="" className={`${inputCls} ml-2 inline-block w-auto`}>
                 <option value="" disabled>Pilih cabang</option>
                 {branches.map((b) => <option key={b.slug} value={b.slug}>{namaPendek(b.name)}</option>)}
@@ -168,13 +168,13 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               <> Baris manual: {li.manualKept ?? 0} dipertahankan, {li.manualOrphans ?? 0} tidak ada lagi di sumber tapi disimpan, {li.manualOverwritten ?? 0} ditimpa.</>
             )}
             {li.deactivated !== undefined && (
-              <> Baris baru {li.created ?? 0}, dinonaktifkan {li.deactivated}, diaktifkan kembali {li.reactivated ?? 0}, stok berubah {li.stockChanges ?? 0}.</>
+              <> Baru {li.created ?? 0}, hilang dari sumber {li.deactivated}, muncul lagi {li.reactivated ?? 0}, stok berubah {li.stockChanges ?? 0}.</>
             )}
           </p>
           {li.problems.length > 0 && (
             <div className="mt-3 overflow-x-auto">
               <p className="mb-2 text-xs text-neutral-500">
-                Ditampilkan apa adanya dari berkas. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal tidak ditebak: isi manual di tabel di bawah.
+                Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga yang tidak terbaca diisi manual di tabel di bawah.
               </p>
               <table className="w-full min-w-[640px] text-sm">
                 <thead className="bg-neutral-50">

@@ -4,6 +4,7 @@ import { saveBranch } from '../../actions'
 import { ImagesInput } from '@/components/admin/image-input'
 import { inputCls } from '@/components/admin/section-editor'
 import { Card, labelCls } from '@/components/admin/simple-list'
+import { PageHeader } from '@/components/admin/ui'
 
 export default async function Cabang() {
   const s = await requireUser()
@@ -25,7 +26,7 @@ export default async function Cabang() {
   )
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-bold text-ink">Cabang</h1>
+      <PageHeader title={s.role === 'OWNER' ? 'Cabang' : 'Data cabang saya'} note="Alamat, jam buka, WhatsApp, dan foto yang tampil di situs." />
       {list.map((b) => <Card key={`${b.id}-${b.photo}`} title={b.name}>{form(b)}</Card>)}
       {s.role === 'OWNER' && <Card title="+ Cabang baru">{form()}</Card>}
     </div>

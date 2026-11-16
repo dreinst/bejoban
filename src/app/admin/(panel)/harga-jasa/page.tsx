@@ -3,6 +3,7 @@ import { requireOwner } from '@/lib/auth'
 import { deleteService, saveService } from '../../fitur-actions'
 import { inputCls } from '@/components/admin/section-editor'
 import { Card, labelCls } from '@/components/admin/simple-list'
+import { PageHeader } from '@/components/admin/ui'
 
 export default async function HargaJasa() {
   await requireOwner()
@@ -28,12 +29,11 @@ export default async function HargaJasa() {
   )
   return (
     <div className="max-w-5xl space-y-4">
-      <h1 className="text-2xl font-bold text-ink">Harga jasa</h1>
-      <p className="text-sm text-neutral-500">
-        Dipakai chatbot untuk menjawab harga jasa lewat WhatsApp. Kalau jasanya ada di tabel ini, bot menjawab. Kalau tidak ada atau harganya kosong, bot menyerahkan ke admin. Harga jasa tidak tampil di situs publik.
-        Harga kedua dipakai untuk label seperti &quot;paket&quot;. Isi paket tidak dijelaskan di sini, jadi hanya ditulis apa adanya.
-      </p>
-      <Card title={`Tabel harga jasa (${rows.length} baris)`}>
+      <PageHeader
+        title="Harga jasa"
+        note={<>Dipakai chatbot untuk menjawab harga jasa lewat WhatsApp. Jasa yang tidak ada di sini atau harganya kosong diserahkan ke admin. Harga jasa tidak tampil di situs. Harga kedua untuk label seperti &quot;paket&quot;.</>}
+      />
+      <Card title={`Daftar harga jasa (${rows.length})`}>
         <div className="space-y-5">
           {rows.map((r) => (
             <div key={r.id} className="border-b border-neutral-100 pb-4">
@@ -44,7 +44,7 @@ export default async function HargaJasa() {
               </form>
             </div>
           ))}
-          {!rows.length && <p className="text-sm text-neutral-500">Belum ada baris. Isi manual, atau jalankan <code>npm run seed:lokal</code> kalau berkas <code>data/seed-lokal.json</code> tersedia.</p>}
+          {!rows.length && <p className="text-sm text-neutral-500">Belum ada jasa. Tambahkan di bawah.</p>}
         </div>
       </Card>
       <Card title="+ Jasa baru">{form()}</Card>

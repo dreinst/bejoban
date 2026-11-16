@@ -21,8 +21,8 @@ export type Templates = Record<TemplateKey, string>
 export const TEMPLATE_INFO: Record<TemplateKey, { label: string; when: string; vars: string[] }> = {
   sapaan: { label: 'Sapaan', when: 'Pesan pembuka dari tombol situs, belum menyebut ukuran.', vars: ['cabang'] },
   tanyaUkuran: { label: 'Minta ukuran', when: 'Pelanggan bertanya stok atau harga tanpa ukuran yang jelas.', vars: ['cabang'] },
-  stokAda: { label: 'Jawaban stok ada', when: 'Ukuran ada di data dan stoknya lebih dari 0. Harga dan stok dari database.', vars: ['cabang', 'ukuran', 'daftar'] },
-  jasaAda: { label: 'Jawaban harga jasa', when: 'Jasa (spooring, balance, nitrogen, dan lain-lain) ada di tabel harga jasa.', vars: ['cabang', 'jasa', 'daftar'] },
+  stokAda: { label: 'Jawaban stok ada', when: 'Ukuran ada di stok dan jumlahnya lebih dari 0. Harga dan stok diambil dari Stok ban.', vars: ['cabang', 'ukuran', 'daftar'] },
+  jasaAda: { label: 'Jawaban harga jasa', when: 'Jasa (spooring, balance, nitrogen, dan lain-lain) ada di daftar Harga jasa.', vars: ['cabang', 'jasa', 'daftar'] },
   tanyaCabang: { label: 'Tanya cabang', when: 'Dikirim kalau cabang belum diketahui, sebelum menyebut stok yang tercatat per cabang atau sebelum serah terima. Jawaban berupa angka.', vars: ['pilihan'] },
   cabangDiganti: { label: 'Cabang diganti', when: 'Pelanggan memilih atau mengganti cabang.', vars: ['cabang'] },
   serahAdmin: { label: 'Serah ke admin', when: 'Tidak ada, stok 0, harga kosong, atau pesan tidak dikenali. Dikirim ke pelanggan.', vars: ['cabang', 'ukuran', 'nomorAdmin', 'kontakAdmin'] },
@@ -33,7 +33,7 @@ export const TEMPLATE_INFO: Record<TemplateKey, { label: string; when: string; v
   },
   merekByOrder: {
     label: 'Merek by order',
-    when: 'Pelanggan menanyakan merek berstatus by order (diatur di menu Merek) dan stoknya kosong. Lalu diserahkan ke admin cabang.',
+    when: 'Pelanggan menanyakan merek berstatus by order (diatur di Situs, tab Merek) dan stoknya kosong. Lalu diserahkan ke admin cabang.',
     vars: ['merek', 'cabang', 'ukuran', 'nomorAdmin', 'kontakAdmin'],
   },
   ringkasanAdmin: { label: 'Ringkasan untuk admin', when: 'Dikirim ke nomor admin atau owner saat percakapan diserahkan.', vars: ['cabang', 'pelanggan', 'pertanyaan', 'hasil'] },

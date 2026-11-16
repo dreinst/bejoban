@@ -124,7 +124,7 @@ export async function tetapkanCabang(fd: FormData) {
   if (!b) return go(STOK_PAGE, 'Pilih cabang tujuan', 'err')
   const h = await tetapkanTanpaCabang(b.id, penggunaDari(s))
   await catat(s, 'tetapkan_cabang', 'stok_ban', { cabangId: b.id, dipindah: h.dipindah, dilewati: h.dilewati })
-  go(STOK_PAGE, `${h.dipindah} baris ditetapkan ke ${namaPendek(b.name)}${h.dilewati ? `, ${h.dilewati} baris dilewati karena kodenya sudah ada di cabang itu` : ''}`)
+  go(STOK_PAGE, `${h.dipindah} baris ditetapkan ke ${namaPendek(b.name)}${h.dilewati ? `, ${h.dilewati} baris dilewati karena sudah ada di cabang itu` : ''}`)
 }
 
 // Ubah satu baris stok langsung di tabel. Baris diberi penanda manual.

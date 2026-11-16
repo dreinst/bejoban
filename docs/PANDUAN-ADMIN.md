@@ -1,42 +1,86 @@
 # Panduan Admin Bejo Ban
 
-Halaman admin ada di `/admin`. Ada dua peran:
+Halaman admin ada di `/admin`. Ada dua peran, owner dan admin cabang.
 
-| Peran | Bisa mengatur |
+## Menu dan tab
+
+Sidebar berisi paling banyak enam menu, tanpa judul kelompok. Tiap menu punya tab di bagian atas halaman, dan tiap tab punya alamat sendiri. Susunan menu, tab, dan hak owner diatur di satu berkas, `src/lib/admin-menu.ts`, beserta tesnya di `tests/menu.test.ts`. Di layar kecil menu dibuka dengan tombol di bilah atas, dan tab bisa digeser ke samping.
+
+Nama pengguna, *Lihat situs*, *Akun saya*, dan *Keluar* ada di satu menu profil di bawah sidebar. Admin cabang juga mendapat *Data cabang saya* di sana.
+
+| Menu | Tab (alamat) | Owner | Admin cabang |
+| --- | --- | --- | --- |
+| Ringkasan | tanpa tab (`/admin`) | ya | ya, cabangnya |
+| Stok dan Harga | Stok ban (`/admin/stok-ban`) | ya | tidak |
+| | Harga jasa (`/admin/harga-jasa`) | ya | tidak |
+| | Produk situs (`/admin/harga`, juga `/admin/produk/baru` dan `/admin/produk/[id]`) | ya | ya, harga dan stok cabangnya |
+| | Perlu dicek (`/admin/peringatan`) | ya | ya, cabangnya |
+| Chatbot | Percakapan (`/admin/chatbot`) | ya | ya, percakapan cabangnya |
+| | Kotak uji (`/admin/chatbot/uji`) | ya | tidak |
+| | Templat pesan (`/admin/chatbot/templat`) | ya | tidak |
+| Ongkir | Hitung (`/admin/ongkir`) | ya | ya |
+| | Tarif (`/admin/ongkir/tarif`) | ya | tidak |
+| Situs | Tampilan beranda (`/admin/konten`) | ya | tidak |
+| | Merek (`/admin/merek`) | ya | tidak |
+| | Kategori (`/admin/kategori`) | ya | tidak |
+| | Tautan WhatsApp (`/admin/situs`) | ya | tidak |
+| Pengaturan | Cabang (`/admin/cabang`) | ya | lewat menu profil, data cabangnya saja |
+| | Pengguna (`/admin/pengguna`) | ya | tidak |
+| | WhatsApp dan chatbot (`/admin/pengaturan/whatsapp`) | ya | tidak |
+| | Ongkir (`/admin/pengaturan/ongkir`) | ya | tidak |
+| | Kalender libur dan promo (`/admin/kalender`) | ya | tidak |
+
+Menu dan tab yang bukan hak pengguna tidak ditampilkan sama sekali. Penyaringan ini hanya tampilan: setiap halaman dan aksi tetap memeriksa sesi dan peran di server, jadi alamat owner yang diketik admin cabang dialihkan ke Ringkasan dengan pesan tidak punya akses. Kalau menu hanya punya satu tab untuk peran itu (misalnya Chatbot dan Ongkir bagi admin cabang), bilah tab tidak ditampilkan.
+
+*Akun saya* (`/admin/akun`) dan *Panduan ukuran foto* (`/admin/panduan-foto`) tidak masuk menu. Panduan foto dibuka dari tautan kecil *Panduan ukuran* di bawah setiap kolom unggah foto (terbuka di tab baru supaya isian form tidak hilang).
+
+### Alamat lama
+
+| Alamat lama | Sekarang |
 | --- | --- |
-| Owner | Semua: produk, harga semua cabang, tampilan web, kategori, merek, cabang, pengguna |
-| Admin cabang | Produk (data dan foto), harga dan stok cabangnya sendiri, data cabangnya sendiri |
+| `/admin/produk` (daftar produk) | dialihkan ke `/admin/harga` (Produk situs) |
+| `/admin/chatbot/pengaturan` | dialihkan ke `/admin/pengaturan/whatsapp`; templat pesan pindah ke `/admin/chatbot/templat` |
+| Kotak uji di `/admin/chatbot` | pindah ke `/admin/chatbot/uji` |
+| Bagian pengaturan di `/admin/ongkir/tarif#pengaturan` | pindah ke `/admin/pengaturan/ongkir` |
+| Menu *Panduan Ukuran Foto* | dihapus dari sidebar, halamannya tetap ada |
 
-## Menu
+Pengalihan dipasang di `next.config.ts` dari daftar `LEGACY_REDIRECTS` di `src/lib/admin-menu.ts`, sebagai pengalihan sementara (307). Alamat lain tidak berubah.
 
-Menu sidebar dikelompokkan di satu berkas, `src/lib/admin-menu.ts` (urutan, judul kelompok, dan isi bisa diubah di sana, alamat halaman tidak ikut berubah). Di layar kecil menu dibuka dengan tombol di bilah atas.
+### Ringkasan
 
-- **Analitik**: *Ringkasan* menampilkan jumlah produk, stok ban (jumlah baris, stok kosong, harga bermasalah), percakapan chatbot yang menunggu admin, klik WhatsApp per cabang 7 hari terakhir, dan waktu sinkron pricelist terakhir.
-- **Inventaris**: *Produk*, *Kategori*, *Merek*, *Pricelist & Stok* (tabel harga dan stok per cabang, ubah banyak sekaligus lalu *Simpan semua harga*), *Stok ban*, *Harga jasa*.
-- **Kasir dan Harga**: belum ada halaman, menyusul dari BejoStock.
-- **Peringatan** (owner): *Peringatan* (stok ban kosong dan baris pricelist bermasalah) dan *Kalender libur dan promo*.
-- **Kanal**: *Chatbot*, *Ongkir*, *Situs dan WhatsApp*, *Tampilan Web* (semua teks dan foto beranda), *Panduan Ukuran Foto*.
-- **Akses**: *Pengguna* (akun, peran, cabang), *Cabang* (alamat, WhatsApp, jam buka, Instagram, Maps, foto), *Akun Saya*.
+Ringkasan hanya menampilkan angka yang perlu ditindaklanjuti, dan tiap kartu membuka halamannya: percakapan menunggu admin, stok ban habis, harga ban perlu diisi, produk situs yang dijual tapi stoknya 0, dan produk tanpa foto. Kartu bernilai 0 disembunyikan. Kalau semuanya 0, tampil kalimat "Semua beres". Owner juga melihat klik WhatsApp per cabang 7 hari terakhir (membuka Tautan WhatsApp) dan sinkron pricelist terakhir (membuka Stok ban). Admin cabang hanya melihat angka cabangnya.
 
-Produk dengan label **CONTOH** adalah data isian awal. Ganti nama, harga, dan fotonya, lalu hilangkan centang *Tandai sebagai produk contoh*, atau hapus produknya.
+### Perlu dicek
 
-## Fitur internal (khusus owner, kecuali Ongkir)
+Tab *Perlu dicek* mendaftar produk situs yang dicentang Dijual tapi stoknya 0, stok ban yang habis, dan ban yang harganya kosong atau tidak terbaca. Angka kecil di tab menunjukkan jumlahnya. Admin cabang hanya melihat cabangnya; stok dan harga ban tetap diperbaiki owner di *Stok ban*.
 
-Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder `data/`, tidak boleh masuk git.
+### Produk situs
 
-### Situs dan WhatsApp
+Gabungan halaman Produk dan Pricelist & Stok lama. Pilih cabang (owner), ubah harga jual, harga coret, stok, Dijual, dan Flash untuk banyak produk sekaligus, lalu *Simpan harga dan stok*. Ada pencarian nama dan filter *Stok 0* serta *Tanpa foto*. *+ Tambah produk* dan *Ubah detail* membuka halaman detail produk (nama, kategori, merek, foto, deskripsi).
+
+Produk dengan label **contoh** adalah data isian awal. Ganti nama, harga, dan fotonya, lalu hilangkan centang *Tandai sebagai produk contoh*, atau hapus produknya.
+
+### Form panjang
+
+Halaman *Tautan WhatsApp*, *WhatsApp dan chatbot*, dan *Pengaturan ongkir* dipecah per bagian. Tiap bagian punya tombol simpan sendiri dan hanya menyimpan bagian itu.
+
+## Fitur internal
+
+Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder `data/`, tidak boleh masuk git.
+
+### Tautan WhatsApp (menu Situs)
 
 - **Nomor WhatsApp utama**: satu nomor untuk dua cabang. Kalau kosong, situs memakai nomor tiap cabang.
-- **Tautan pendek**: semua tombol WhatsApp di situs mengarah ke `/wa/batu`, `/wa/karanglo`, atau `/wa` (umum). Tautan itu mengalihkan ke `wa.me/<nomor utama>?text=<kalimat pembuka cabang>`, jadi nomor dan kalimat cukup diubah di satu tempat. Ketiga tautan tampil di halaman ini dengan tombol salin, untuk dipasang di Google Maps, bio Instagram, dan QR di toko. Hitungan klik per cabang per hari ikut tampil (tanpa data pribadi).
+- **Tautan pendek**: semua tombol WhatsApp di situs mengarah ke `/wa/batu`, `/wa/karanglo`, atau `/wa` (umum). Tautan itu mengalihkan ke `wa.me/<nomor utama>?text=<kalimat pembuka cabang>`, jadi nomor dan kalimat cukup diubah di satu tempat. Ketiga tautan tampil di halaman ini dengan tombol salin, untuk dipasang di Google Maps, bio Instagram, dan QR di toko. Hitungan klik per cabang per hari ikut tampil. Yang disimpan hanya jumlah per cabang per hari, tanpa data pribadi.
 - **Kalimat pembuka** bisa diedit. Pertahankan nama cabang (`{cabang}`), karena bot mengenali cabang dari kata Batu atau Karanglo di pesan.
-- **Tampilkan harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
+- **Harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
 
-### Stok ban
+### Stok ban (menu Stok dan Harga)
 
 - **Stok per cabang**: stok Batu dan Karanglo terpisah. Tiap baris punya cabang, atau belum punya (baris *tanpa cabang*, misalnya 325 baris pricelist lama yang belum diketahui milik cabang mana). Baris tanpa cabang dipakai sebagai stok bersama.
 - **Sinkron dari Google Sheets**: ada satu kolom URL untuk *Tanpa cabang*, satu untuk tiap cabang, dan satu untuk *Sheet gabungan*. Isi URL lalu tekan *Sinkron sekarang* di barisnya. URL disimpan di database per cabang, bukan di kode. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
 - **Impor per cabang**: impor atau sinkron ke satu cabang hanya memperbarui dan menonaktifkan baris cabang itu. Cabang lain dan baris tanpa cabang tidak tersentuh. *Sheet gabungan* dipakai kalau satu sheet berisi dua cabang: baris judulnya harus punya kolom `Cabang` berisi Batu atau Karanglo. Baris dengan cabang kosong atau tulisan lain tidak ditebak, barisnya dilewati dan tampil di daftar bermasalah. Ringkasan impor menyebut cabang tujuannya.
-- **Tetapkan baris tanpa cabang**: kalau owner sudah tahu pricelist lama milik cabang mana, pilih cabangnya di kartu *Baris tanpa cabang*, centang *Yakin*, lalu *Tetapkan*. Baris yang kodenya (ukuran dan merek) sudah ada di cabang tujuan dilewati dan tetap tanpa cabang, jumlahnya disebut di pesan hasil. Aksi ini tercatat di log aktivitas dan buku stok.
+- **Tetapkan baris tanpa cabang**: kalau owner sudah tahu pricelist lama milik cabang mana, pilih cabangnya di kartu *Ban tanpa cabang*, centang *Yakin*, lalu *Tetapkan*. Baris yang kodenya (ukuran dan merek) sudah ada di cabang tujuan dilewati dan tetap tanpa cabang, jumlahnya disebut di pesan hasil. Aksi ini tercatat di log aktivitas dan buku stok.
 - **Filter dan banding cabang**: di tabel stok ada pilihan *Semua*, *Tanpa cabang*, *Batu*, *Karanglo*, dan *Banding cabang*. Mode banding menampilkan satu baris per ukuran dan merek dengan stok dan harga (setelah potongan) tiap cabang berdampingan.
 - **Impor CSV** dengan berkas atau tempel isi tetap tersedia. Keduanya memakai pengurai yang sama.
 - Hasil impor menampilkan jumlah baris masuk dan daftar baris bermasalah apa adanya. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal (misalnya `1.825.0000`) tidak ditebak: isi manual di tabel stok.
@@ -45,22 +89,23 @@ Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata 
 
 ### Merek dan status by order
 
-Menu *Merek* (owner) mengatur nama, urutan, logo, dan centang *By order* (merek tidak distok, dipesan dulu). Merek resmi: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Accelera, Falken, Delium, dan Maxxis berstatus by order. Ban truk (Aeolus, Swallow, Sailun, dan lainnya) menyusul dan belum dijual.
+Tab *Merek* di menu Situs (owner) mengatur nama, urutan, logo, dan centang *By order* (merek tidak distok, dipesan dulu). Merek resmi: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Accelera, Falken, Delium, dan Maxxis berstatus by order. Ban truk (Aeolus, Swallow, Sailun, dan lainnya) menyusul dan belum dijual.
 
-Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih satu warna dengan tinggi yang sama, jadi unggah SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama. Merek by order diberi keterangan kecil "by order". Kolom lama "Merek yang ditampilkan" di *Tampilan Web* sudah tidak dipakai. Daftar merek juga bisa diisi dari `seed.json` bagian `brands` (lihat bagian data lokal).
+Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih satu warna dengan tinggi yang sama, jadi unggah SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama. Merek by order diberi keterangan kecil "by order". Kolom lama "Merek yang ditampilkan" di *Tampilan beranda* sudah tidak dipakai. Daftar merek juga bisa diisi dari `seed.json` bagian `brands` (lihat bagian data lokal).
 
-### Peringatan, kalender, dan akun nonaktif
+### Kalender dan akun nonaktif
 
-Halaman *Peringatan* mendaftar baris stok ban aktif yang stoknya 0 dan baris yang harganya kosong atau janggal, dengan tautan ke filter *Harga bermasalah* di stok ban. Kartu *Stok kosong* dan *Harga bermasalah* di Ringkasan membuka halaman ini. Di *Kalender libur dan promo*, owner mencatat tanggal libur toko dan promo beserta keterangannya, dan bisa menghapusnya lagi. Di halaman *Pengguna*, hilangkan centang *Akun aktif* untuk menonaktifkan akun: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
+Di *Kalender libur dan promo* (menu Pengaturan), owner mencatat tanggal libur toko dan promo beserta keterangannya, dan bisa menghapusnya lagi. Di tab *Pengguna*, hilangkan centang *Akun aktif* untuk menonaktifkan akun: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
 
 ### Harga jasa
 
-Tabel harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti oli) yang bisa diedit. Chatbot menjawab dari tabel ini. Kalau jasanya tidak ada atau harganya kosong, bot menyerahkan ke admin. "Paket" spooring ditulis apa adanya, isinya tidak dijelaskan di tabel. Untuk mengisi data awal dari berkas lokal `data/seed-lokal.json`, jalankan `npm run seed:lokal`.
+Daftar harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti oli) yang bisa diedit. Chatbot menjawab dari tabel ini. Kalau jasanya tidak ada atau harganya kosong, bot menyerahkan ke admin. "Paket" spooring ditulis apa adanya, isinya tidak dijelaskan di tabel. Untuk mengisi data awal dari berkas lokal `data/seed-lokal.json`, jalankan `npm run seed:lokal`.
 
 ### Ongkir
 
 - **Kalkulator** (`/admin/ongkir`, semua admin): pilih ban dari stok, velg, atau berat manual. Kolom yang tidak dipakai oleh pilihan itu dinonaktifkan, dan hasil menyebut dari mana berat diambil. Tujuan dicari lewat kotak alamat atau lokasi (OpenStreetMap lewat server). Alamat lengkap gaya Google Maps boleh ditempel utuh: pencarian mencoba teks utuh, lalu versi tanpa kode pos dan nomor rumah, lalu jalan plus kecamatan dan kabupaten, lalu kecamatan plus kabupaten dan provinsi, lalu kabupaten plus provinsi, dan berhenti di yang pertama ketemu (Photon sebagai cadangan). Hasil menyebut tingkat ketepatannya (titik alamat, kecamatan, atau kota atau kabupaten). Hasil kosong hanya diingat beberapa menit, dan tombol *Cari ulang* melewati cache. Pencarian hanya jalan saat tombol ditekan. Hasilnya nama tempat, kecamatan, kota atau kabupaten, provinsi, koordinat, dan jarak garis lurus dari cabang asal. Kota hasil pencarian dicocokkan dengan tabel tarif J&T Cargo dan Baraka Express. Kalau belum ada tarifnya, tampil "tarif belum diisi" dengan tautan untuk menambah tarif kota itu.
-- **Tarif dan pengaturan** (owner): tarif per kota diisi dari daftar harga agen. Atur juga koordinat cabang asal, pembagi berat volume, packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh.
+- **Tarif** (owner, `/admin/ongkir/tarif`): tarif per kota diisi dari daftar harga agen, satu per satu atau tempel banyak sekaligus.
+- **Pengaturan ongkir** (owner, menu Pengaturan, tab Ongkir): koordinat cabang asal, pembagi berat volume, packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh.
 - Baris tarif dan berat ban bertanda CONTOH tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
 - Penyedia lokasi bawaan OpenStreetMap tanpa kunci. Untuk memakai Google Maps nanti, isi `GOOGLE_MAPS_API_KEY` di `.env`.
 
@@ -69,7 +114,7 @@ Tabel harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti ol
 Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di data stok dan harga jasa. Ada dan stok lebih dari 0 (atau jasa ada di tabel): kirim harga dan stok asli. Tidak ada, stok 0, harga kosong, atau pesan tidak dikenali: bot tidak menjawab harga, mengirim satu kalimat bahwa admin akan membalas, mengirim ringkasan ke nomor admin cabang, lalu diam di chat itu selama jangka waktu yang diatur. Admin menandai percakapan *Selesai, tersedia* atau *Selesai, tidak tersedia* (bot lalu mengirim kalimat penutup).
 
 - **Cabang**: dikenali dari kata Batu, Karanglo, atau Singosari di mana pun dalam pesan. Untuk stok tanpa cabang, cabang tidak ditanyakan sebelum menjawab. Bot menanyakannya (balas 1 atau 2) sebelum menyebut stok yang sudah ditetapkan ke cabang, sebelum serah terima ke admin, atau saat pelanggan mau datang, pasang, atau booking. Pilihan diingat per nomor pelanggan (bawaan 30 hari), dan pelanggan bisa mengganti dengan mengetik "ganti cabang" atau nama cabang lain. Kalau cabang belum diketahui dan pertanyaan cabang tidak dijawab, percakapan diserahkan ke nomor owner.
-- **Stok per cabang** (saklar di Pengaturan, bagian Jam dan batas kirim, bawaan menyala):
+- **Stok per cabang** (saklar di Pengaturan, tab WhatsApp dan chatbot, bagian Jam aktif dan batas kirim, bawaan menyala):
 
   | Keadaan | Sebelum revisi ini | Sesudah, saklar menyala |
   | --- | --- | --- |
@@ -81,8 +126,10 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
 
   Saklar mati: cabang baris diabaikan dan semua baris dianggap satu stok seperti sebelumnya. Merek by order tetap dikenali.
 - **Templat baru**: *Tersedia di cabang lain* (`{cabang}`, `{cabangLain}`, `{ukuran}`) dan *Merek by order* (`{merek}`, `{cabang}`, `{ukuran}`). Keduanya bisa diedit di Templat pesan seperti templat lain.
-- **Tab Percakapan dan kotak uji**: daftar percakapan dengan filter status dan cabang, tombol penanda selesai, dan kotak uji (tidak membuat percakapan, tidak mengirim apa pun). Kotak uji punya pilihan cabang yang diingat, pesan asal untuk mengetes jawaban 1 atau 2, dan saklar *Stok per cabang* khusus untuk uji itu (ikut pengaturan, nyala, atau mati).
-- **Tab Pengaturan**: Sambungan WhatsApp (satu WAHA GOWS, satu nomor), Jam dan batas kirim, Templat pesan (dengan pratinjau), Nomor admin per cabang, dan Sosial media (templat balasan otomatis Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
+- **Tab Percakapan**: daftar percakapan dengan filter status dan cabang (owner), dan tombol penanda selesai. Admin cabang hanya melihat dan menandai percakapan cabangnya; pemeriksaan ini juga dilakukan di server.
+- **Tab Kotak uji** (owner): tidak membuat percakapan dan tidak mengirim apa pun. Punya pilihan cabang yang diingat, pesan asal untuk mengetes jawaban 1 atau 2, dan saklar *Stok per cabang* khusus untuk uji itu (ikut pengaturan, nyala, atau mati).
+- **Tab Templat pesan** (owner): semua kalimat bot dengan pratinjau.
+- **Pengaturan, tab WhatsApp dan chatbot** (owner): Sambungan WhatsApp (status tersambung dan mode kirim), Jam aktif dan batas kirim, Nomor admin per cabang, dan Balasan otomatis sosial media (Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
 - **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA.
 - **Label WhatsApp per cabang**: saat cabang percakapan diketahui atau berubah, worker memasang label "Batu" atau "Karanglo" (nama cabang tanpa "Bejo Ban" dan tanpa kurung) ke chat di akun WhatsApp Business. Label dicari menurut nama, dibuat kalau belum ada, dan id-nya disimpan di memori worker. Label lain yang dipasang admin tetap ada, hanya label cabang lain yang dilepas. Di uji kering worker hanya mencetak permintaan yang akan dikirim. Kalau label gagal (404, 501, engine tidak mendukung, jaringan), kegagalan dicatat sekali dan balasan bot tetap jalan. Pembentuk permintaannya ada di `src/lib/bot/label.ts`.
 
@@ -100,7 +147,7 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
 
 ## Tampilan situs terbaru dan data lokal
 
-Beranda memakai desain hitam putih terbaru (hero, bar keunggulan, layanan, produk, alur, rekomendasi mobil, merek, galeri, lokasi). Semua teks dan foto tetap diatur dari *Tampilan Web*, bagian baru *Layanan bengkel* ikut di sana. Bagian flash sale, pembayaran, panel, dan promo tidak tampil di desain ini tapi isinya tetap tersimpan.
+Beranda memakai desain hitam putih terbaru (hero, bar keunggulan, layanan, produk, alur, rekomendasi mobil, merek, galeri, lokasi). Semua teks dan foto tetap diatur dari *Tampilan beranda* (menu Situs), bagian baru *Layanan bengkel* ikut di sana. Bagian flash sale, pembayaran, panel, dan promo tidak tampil di desain ini tapi isinya tetap tersimpan; di admin diberi tanda *tidak tampil*.
 
 Foto mobil, galeri, cabang, dan gambar ban pabrikan tidak masuk git. Letakkan di folder `data/seed-lokal/` bersama satu berkas `seed.json`, lalu jalankan `npm run seed:lokal` (di server: di dalam container dengan data di `/app/data/seed-lokal/`). Skrip ini aman dijalankan berulang: gambar yang sama tidak diunggah ulang, enam produk beranda dibuat lewat upsert (harga dan stok yang sudah diisi tidak ditimpa), produk bertanda CONTOH disembunyikan, dan konten beranda dipasang. Bagian `brands` (`[{ "name": "Dunlop", "byOrder": false, "sort": 5, "logo": "dunlop.svg" }]`, `logo` opsional) membuat merek yang belum ada dan memperbarui `byOrder` serta `sort` merek yang sudah ada, dicocokkan menurut nama tanpa membedakan huruf besar kecil. Merek lain tidak disembunyikan atau dihapus. Logo dari seed hanya dipasang kalau logo merek itu masih kosong atau masih logo dari seed sebelumnya, jadi logo yang diganti admin tidak tertimpa. Format `seed.json` ada di komentar awal `scripts/seed-lokal.ts`.
 
@@ -130,3 +177,14 @@ Aturan umum:
 - Ukuran file maksimal 15 MB.
 - Foto produk sebaiknya berlatar polos dengan produk di tengah. Nama, ukuran, dan harga sudah ditulis oleh web, jadi tidak perlu ditulis di foto.
 - Foto banner dan hero boleh berisi teks, tapi taruh di tengah supaya tidak terpotong di layar HP.
+
+## Untuk pengelola sistem
+
+Keterangan teknis yang dulu tampil di halaman admin dan sekarang hanya dicatat di sini:
+
+- **Sambungan WhatsApp**: halaman *WhatsApp dan chatbot* hanya menampilkan "Tersambung" kalau `WAHA_URL`, `WAHA_API_KEY`, dan `WAHA_SESSION` terisi di `.env` server, dan "Dikirim ke pelanggan" kalau `BOT_SEND=1`. Satu WAHA (engine GOWS) untuk satu nomor. Worker dijalankan dengan `npm run bot:wa` (`scripts/bot-wa.ts`), belum dijalankan dari aplikasi web.
+- **Data awal harga jasa**: kalau daftar harga jasa kosong, jalankan `npm run seed:lokal` dengan berkas `data/seed-lokal.json`.
+- **Sinkron Google Sheets**: URL disimpan di tabel pengaturan database per cabang (kunci `stok.sheet`, `stok.sheet.<slug>`, `stok.sheet.gabungan`), bukan di kode. Sinkron mengambil ekspor CSV dari tab yang dibuka (angka `gid` di URL).
+- **Impor stok ban**: baris dikenali dari ukuran dan merek. Baris yang hilang dari sumber dinonaktifkan dan aktif lagi kalau muncul kembali, dan setiap perubahan stok tercatat di buku stok (`docs/PENYELARASAN-BEJOSTOCK.md`).
+- **Pencarian lokasi ongkir**: OpenStreetMap (Nominatim) lewat server, Photon sebagai cadangan. Pencarian hanya jalan saat tombol ditekan, sesuai aturan pakai OpenStreetMap. Hasil disimpan sementara di database; *Cari ulang* melewati simpanan itu. Atribusi "Data peta © kontributor OpenStreetMap" wajib tampil di bawah hasil pencarian.
+- **Hitungan klik WhatsApp** berasal dari tautan pendek `/wa`, `/wa/batu`, dan `/wa/karanglo`, dan hanya menyimpan jumlah per cabang per hari.
