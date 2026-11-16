@@ -99,7 +99,7 @@ export function Thumb({ src, alt = '', size = 48, variant = 'photo' }: { src?: s
     )
   return (
     <span style={box} className="grid shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-soft p-1">
-      <img data-thumb-img src={src} alt={alt} loading="lazy" className={`max-h-full max-w-full object-contain ${variant === 'logo' ? '[filter:brightness(0)]' : ''}`} />
+      <img data-thumb-img src={src} alt={alt} className={`max-h-full max-w-full object-contain ${variant === 'logo' ? '[filter:brightness(0)]' : ''}`} />
     </span>
   )
 }

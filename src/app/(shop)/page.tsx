@@ -38,7 +38,7 @@ export default async function Home() {
   const [c, { branch }] = await Promise.all([getContent(), currentBranch()])
   const [branches, brandRows] = await Promise.all([
     db.branch.findMany({ orderBy: { sort: 'asc' } }),
-    db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, logo: true, byOrder: true } }),
+    db.brand.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, logo: true, byOrder: true } }),
   ])
   const ids: number[] = c.newest.products ?? []
   const products = ids.length ? await listProducts(branch.id, { ids }, {}) : await listProducts(branch.id, {}, { take: 6 })

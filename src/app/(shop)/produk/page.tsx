@@ -15,7 +15,7 @@ export default async function Produk({ searchParams }: PageProps<'/produk'>) {
   const [products, categories, brands] = await Promise.all([
     listProducts(branch.id, f, { sort }),
     db.category.findMany({ orderBy: { sort: 'asc' } }),
-    db.brand.findMany({ orderBy: { sort: 'asc' } }),
+    db.brand.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
   ])
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ q: f.q, kategori: f.category, merek: f.brand, mobil: f.fitment, urut: sort, ...patch }).filter(([, v]) => v) as [string, string][])

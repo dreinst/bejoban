@@ -120,7 +120,7 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Ongkir, Hitung | `/admin/ongkir` | belum | |
 | Ongkir, Tarif | `/admin/ongkir/tarif` | belum | |
 | Situs, Tampilan beranda | `/admin/konten`, `/admin/konten/[key]` | belum | |
-| Situs, Merek | `/admin/merek` | belum | |
+| Situs, Merek | `/admin/merek` | ya | Halaman acuan. Merek nonaktif tetap tampil di tabel dengan lencana Nonaktif dan tombol Aktifkan. |
 | Situs, Kategori | `/admin/kategori` | belum | |
 | Situs, Tautan WhatsApp | `/admin/situs` | belum | |
 | Pengaturan, Cabang | `/admin/cabang` | belum | |

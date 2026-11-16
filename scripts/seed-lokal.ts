@@ -79,6 +79,7 @@ async function main() {
   }
 
   // Merek: idempoten, cocokkan nama tanpa beda huruf besar kecil, jangan duplikasi atau hapus merek lain.
+  // Kolom aktif sengaja tidak diisi: merek yang dinonaktifkan admin tetap nonaktif, merek baru aktif (bawaan skema).
   let merekBaru = 0
   let merekDiperbarui = 0
   let logoDipasang = 0

@@ -14,7 +14,8 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
   if (!isNew && !p) notFound()
   const [categories, brands, branches] = await Promise.all([
     db.category.findMany({ orderBy: { sort: 'asc' } }),
-    db.brand.findMany({ orderBy: { sort: 'asc' } }),
+    // Merek nonaktif tidak ditawarkan, kecuali merek yang sedang dipakai produk ini.
+    db.brand.findMany({ where: { OR: [{ aktif: true }, { id: p?.brandId ?? -1 }] }, orderBy: [{ sort: 'asc' }, { name: 'asc' }] }),
     db.branch.findMany({ orderBy: { sort: 'asc' } }),
   ])
   const label = 'mb-1 block text-sm font-semibold text-neutral-800'
@@ -39,7 +40,7 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
             <label className={label}>Merek</label>
             <select name="brandId" defaultValue={p?.brandId ?? ''} className={inputCls}>
               <option value="">(tanpa merek)</option>
-              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}{b.aktif ? '' : ' (nonaktif)'}</option>)}
             </select>
           </div>
           <div>

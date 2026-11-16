@@ -9,6 +9,8 @@ import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
+import { arahDari, aturanHapus, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
+import type { HasilAksi } from '@/components/admin/row-controls'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
 const int = (fd: FormData, k: string) => Math.max(0, Math.round(Number(String(fd.get(k) ?? '0').replace(/\D/g, '')) || 0))
@@ -21,6 +23,7 @@ const done = (path: string, msg = 'Tersimpan') => {
   revalidatePath('/', 'layout')
   redirect(`${path}${path.includes('?') ? '&' : '?'}ok=${encodeURIComponent(msg)}`)
 }
+const gagal = (path: string, msg: string): never => redirect(`${path}${path.includes('?') ? '&' : '?'}err=${encodeURIComponent(msg)}`)
 
 /* ---------- Login ---------- */
 
@@ -180,26 +183,74 @@ export async function deleteCategory(fd: FormData) {
   done('/admin/kategori', 'Kategori dihapus')
 }
 
+// Merek: tambah dan ubah dari satu form di panel samping. Urutan tidak diketik; merek baru masuk di akhir.
 export async function saveBrand(fd: FormData) {
   const s = await requireOwner()
   const id = int(fd, 'id')
   const name = str(fd, 'name', 60)
-  if (!name) redirect('/admin/merek?err=Nama wajib diisi')
+  if (!name) gagal('/admin/merek', 'Nama merek wajib diisi')
   const logo = String(fd.get('logo') ?? '')
-  const data = { name, sort: int(fd, 'sort'), logo: isMedia(logo) ? logo : '', byOrder: fd.get('byOrder') === 'on' }
-  if (id) await db.brand.update({ where: { id }, data })
-  else await db.brand.create({ data })
+  const data = { name, logo: isMedia(logo) ? logo : '', byOrder: fd.get('byOrder') === 'on' }
+  try {
+    if (id) await db.brand.update({ where: { id }, data })
+    else await db.brand.create({ data: { ...data, sort: urutanBerikut(await db.brand.findMany({ select: { sort: true } })) } })
+  } catch {
+    gagal('/admin/merek', `Nama merek "${name}" sudah dipakai`)
+  }
   await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name, byOrder: data.byOrder })
-  done('/admin/merek')
+  done('/admin/merek', id ? `${name} tersimpan` : `${name} ditambahkan`)
 }
 
+// Hapus hanya untuk merek yang tidak dipakai produk. Yang masih dipakai ditolak di sini juga, tidak hanya di dialog.
 export async function deleteBrand(fd: FormData) {
   const s = await requireOwner()
   const id = int(fd, 'id')
-  await db.product.updateMany({ where: { brandId: id }, data: { brandId: null } })
+  const b = await db.brand.findUnique({ where: { id }, include: { _count: { select: { products: true } } } })
+  if (!b) return gagal('/admin/merek', 'Merek tidak ditemukan')
+  const aturan = aturanHapus(b.name, [{ jumlah: b._count.products, satuan: 'produk' }])
+  if (!aturan.boleh) gagal('/admin/merek', `${aturan.dipakai} Nonaktifkan saja supaya tidak tampil lagi.`)
   await db.brand.delete({ where: { id } })
-  await catat(s, 'hapus', 'merek', { id })
-  done('/admin/merek', 'Merek dihapus')
+  await catat(s, 'hapus', 'merek', { id, nama: b.name })
+  done('/admin/merek', `${b.name} dihapus`)
+}
+
+// Aktifkan atau nonaktifkan merek. Nonaktif: hilang dari situs dan pilihan merek, produknya tidak diubah.
+export async function setBrandActive(fd: FormData) {
+  const s = await requireOwner()
+  const id = int(fd, 'id')
+  const aktif = str(fd, 'aktif', 1) === '1'
+  const b = await db.brand.findUnique({ where: { id }, select: { name: true } })
+  if (!b) return gagal('/admin/merek', 'Merek tidak ditemukan')
+  await db.brand.update({ where: { id }, data: { aktif } })
+  await catat(s, aktif ? 'aktifkan' : 'nonaktifkan', 'merek', { id, nama: b.name })
+  done('/admin/merek', aktif ? `${b.name} diaktifkan` : `${b.name} dinonaktifkan`)
+}
+
+// Sakelar by order langsung di baris tabel.
+export async function setBrandByOrder(fd: FormData): Promise<HasilAksi> {
+  const s = await requireOwner()
+  const id = int(fd, 'id')
+  const byOrder = str(fd, 'value', 1) === '1'
+  const b = await db.brand.findUnique({ where: { id }, select: { name: true } })
+  if (!b) return { err: 'Merek tidak ditemukan' }
+  await db.brand.update({ where: { id }, data: { byOrder } })
+  await catat(s, 'ubah', 'merek', { id, nama: b.name, byOrder })
+  revalidatePath('/', 'layout')
+  return { ok: byOrder ? `${b.name} ditandai by order` : `${b.name} tidak lagi by order` }
+}
+
+// Urutan merek: tukar dengan tetangga. Urutan sama dengan beranda (sort, lalu nama).
+export async function moveBrand(fd: FormData): Promise<HasilAksi> {
+  const s = await requireOwner()
+  const id = int(fd, 'id')
+  const arah = arahDari(fd.get('arah'))
+  if (!arah) return { err: 'Arah urutan tidak dikenal' }
+  const list = await db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, sort: true } })
+  const ubah = geserUrutan(list, id, arah)
+  if (!ubah.length) return
+  await db.$transaction(ubah.map((u) => db.brand.update({ where: { id: u.id }, data: { sort: u.sort } })))
+  await catat(s, 'urutkan', 'merek', { id, arah })
+  revalidatePath('/', 'layout')
 }
 
 /* ---------- Cabang ---------- */

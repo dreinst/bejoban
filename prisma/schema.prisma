@@ -52,6 +52,7 @@ model Brand {
   logo     String    @default("")
   sort     Int       @default(0)
   byOrder  Boolean   @default(false) @map("by_order") // true: tidak distok, dipesan dulu ke distributor
+  aktif    Boolean   @default(true) @map("aktif") // false: tidak tampil di situs, pilihan merek produk, dan kosakata by order bot
   products Product[]
 }
 
