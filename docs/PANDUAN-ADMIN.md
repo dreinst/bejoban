@@ -52,10 +52,11 @@ Pengalihan dipasang di `next.config.ts` dari daftar `LEGACY_REDIRECTS` di `src/l
 Semua halaman daftar (merek, kategori, cabang, pengguna, tarif, harga jasa, kalender, stok) memakai pola yang sama. Aturan lengkap untuk pengembang ada di `docs/STANDAR-UI-ADMIN.md`.
 
 - Tiap item satu baris di tabel. Di HP baris berubah jadi kartu kecil dengan tombol di kanan.
-- *+ Tambah ...* di kanan atas dan *Ubah* di ujung baris membuka panel di sisi kanan. Panel tertutup sendiri setelah tersimpan, atau dengan Escape, tombol silang, atau klik di luar panel. Pesan singkat muncul di pojok kanan bawah. Pesan galat tetap tampil sampai ditutup.
+- *+ Tambah ...* di kanan atas dan *Ubah* di ujung baris membuka panel di sisi kanan. Panel tertutup sendiri setelah tersimpan, atau dengan Escape, tombol silang, atau klik di luar panel. Pesan singkat muncul di pojok kanan bawah. Kalau simpan ditolak (mis. nama kosong), panel tetap terbuka, isian yang sudah diketik tetap ada, dan alasannya tampil di dasar panel dekat tombol simpan. Foto yang baru diunggah di panel itu perlu dipilih lagi.
 - Urutan diatur dengan tombol panah naik dan turun di kolom *Urutan*. Urutannya langsung tersimpan dan sama dengan urutan di situs. Saat pencarian aktif, tombol urutan disembunyikan.
 - *Hapus* selalu membuka dialog yang menyebut nama item dan akibatnya. Item yang masih dipakai (mis. merek yang dipakai produk) tidak bisa dihapus. Dialognya menawarkan *Nonaktifkan*.
-- Item nonaktif tetap ada di tabel dengan lencana *Nonaktif* dan tombol *Aktifkan*.
+- Item nonaktif tetap ada di tabel dengan lencana *Nonaktif* dan tombol *Aktifkan*. Untuk merek dan kategori, isian *Tampil di situs* di panel *Ubah* melakukan hal yang sama tanpa lewat tombol Hapus.
+- Admin cabang membuka *Data cabang saya* (menu profil, atau kartu di Ringkasan) dan langsung melihat formnya tanpa tabel.
 
 ### Ringkasan
 
@@ -81,10 +82,10 @@ Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder 
 
 ### Tautan WhatsApp (menu Situs)
 
-- **Nomor WhatsApp utama**: satu nomor untuk dua cabang. Kalau kosong, situs memakai nomor tiap cabang.
+- **Nomor WhatsApp utama**: satu nomor untuk dua cabang. Kalau kosong, situs memakai nomor tiap cabang (diubah di Pengaturan, tab Cabang). Halaman ini menampilkan nomor tiap cabang sebagai bacaan saja. Nomor admin penerima ringkasan bot adalah hal lain dan diubah di Chatbot, tab Pengaturan bot.
 - **Tautan pendek**: semua tombol WhatsApp di situs mengarah ke `/wa/batu`, `/wa/karanglo`, atau `/wa` (umum). Tautan itu mengalihkan ke `wa.me/<nomor utama>?text=<kalimat pembuka cabang>`, jadi nomor dan kalimat cukup diubah di satu tempat. Ketiga tautan tampil di halaman ini dengan tombol salin, untuk dipasang di Google Maps, bio Instagram, dan QR di toko. Hitungan klik per cabang per hari ikut tampil. Yang disimpan hanya jumlah per cabang per hari, tanpa data pribadi.
-- **Kalimat pembuka** bisa diedit. Pertahankan nama cabang (`{cabang}`), karena bot mengenali cabang dari kata Batu atau Karanglo di pesan.
-- **Harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
+- **Kalimat pembuka** bisa diedit. Kalimat tombol umum wajib memuat `{cabang}` dan kalimat halaman produk wajib memuat `{cabang}` dan `{produk}`, karena bot mengenali cabang dari nama cabang di pesan. Simpan ditolak kalau salah satunya hilang. Bagian *Hasil saat ini* menampilkan nomor dan kalimat untuk tiap cabang.
+- **Harga di situs**: sakelarnya ada di Stok dan harga, tab Produk situs, dan hanya terlihat dan bisa diubah owner (dicek ulang di server). Bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
 
 ### Stok ban (menu Stok dan harga)
 
@@ -108,7 +109,7 @@ Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih sa
 
 ### Kalender dan akun nonaktif
 
-Di *Kalender libur dan promo* (tidak ada di menu; buka lewat alamat `/admin/kalender`), owner mencatat tanggal libur toko dan promo beserta keterangannya, lalu bisa mengubah atau menghapusnya. Tabelnya bisa disaring *Akan datang*, *Sudah lewat*, atau *Semua*. Di tab *Pengguna*, buka *Ubah* lalu hilangkan centang *Akun aktif* untuk menonaktifkan akun. Kata sandi diganti lewat *Reset kata sandi*. Akun yang dinonaktifkan: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
+Di *Kalender libur dan promo* (tidak ada di menu; buka lewat alamat `/admin/kalender`), owner mencatat tanggal libur toko dan promo beserta keterangannya, lalu bisa mengubah atau menghapusnya. Tabelnya bisa disaring *Akan datang*, *Sudah lewat*, atau *Semua*. Di tab *Pengguna*, buka *Ubah* lalu hilangkan centang *Akun aktif* untuk menonaktifkan akun. Kata sandi diganti di bagian *Ganti kata sandi* di bawah form yang sama. Akun yang dinonaktifkan: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
 
 ### Harga jasa
 
@@ -118,7 +119,7 @@ Daftar harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti o
 
 - **Kalkulator** (`/admin/ongkir`, semua admin): pilih ban dari stok, velg, atau berat manual. Kolom yang tidak dipakai oleh pilihan itu dinonaktifkan, dan hasil menyebut dari mana berat diambil. Tujuan dicari lewat kotak alamat atau lokasi (OpenStreetMap lewat server). Alamat lengkap gaya Google Maps boleh ditempel utuh: pencarian mencoba teks utuh, lalu versi tanpa kode pos dan nomor rumah, lalu jalan plus kecamatan dan kabupaten, lalu kecamatan plus kabupaten dan provinsi, lalu kabupaten plus provinsi, dan berhenti di yang pertama ketemu (Photon sebagai cadangan). Hasil menyebut tingkat ketepatannya (titik alamat, kecamatan, atau kota atau kabupaten). Hasil kosong hanya diingat beberapa menit, dan tombol *Cari ulang* melewati cache. Pencarian hanya jalan saat tombol ditekan. Hasilnya nama tempat, kecamatan, kota atau kabupaten, provinsi, koordinat, dan jarak garis lurus dari cabang asal. Kota hasil pencarian dicocokkan dengan tabel tarif J&T Cargo dan Baraka Express. Kalau belum ada tarifnya, tampil "tarif belum diisi" dengan tautan untuk menambah tarif kota itu.
 - **Tarif** (owner, `/admin/ongkir/tarif`): tarif per kota diisi dari daftar harga agen, satu per satu atau tempel banyak sekaligus.
-- **Pengaturan ongkir** (owner, menu Ongkir, tab Pengaturan): koordinat cabang asal, pembagi berat volume, packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh.
+- **Pengaturan ongkir** (owner, menu Ongkir, tab Pengaturan): titik toko tiap cabang (tempel tautan lengkap Google Maps atau dua angka koordinat, dibaca otomatis; kosong berarti titik lama dipertahankan), pembagi berat volume (dilipat di *Angka pembagi ekspedisi*), packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh. Label itu hilang sendiri setelah owner mengubah angka kemasan dan menyimpannya.
 - Baris tarif dan berat ban bertanda CONTOH tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
 - Penyedia lokasi bawaan OpenStreetMap tanpa kunci. Untuk memakai Google Maps nanti, isi `GOOGLE_MAPS_API_KEY` di `.env`.
 
@@ -127,7 +128,7 @@ Daftar harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti o
 Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di data stok dan harga jasa. Ada dan stok lebih dari 0 (atau jasa ada di tabel): kirim harga dan stok asli. Tidak ada, stok 0, harga kosong, atau pesan tidak dikenali: bot tidak menjawab harga, mengirim satu kalimat bahwa admin akan membalas, mengirim ringkasan ke nomor admin cabang, lalu diam di chat itu selama jangka waktu yang diatur. Admin menandai percakapan *Selesai, tersedia* atau *Selesai, tidak tersedia* (bot lalu mengirim kalimat penutup).
 
 - **Cabang**: dikenali dari kata Batu, Karanglo, atau Singosari di mana pun dalam pesan. Untuk stok tanpa cabang, cabang tidak ditanyakan sebelum menjawab. Bot menanyakannya (balas 1 atau 2) sebelum menyebut stok yang sudah ditetapkan ke cabang, sebelum serah terima ke admin, atau saat pelanggan mau datang, pasang, atau booking. Pilihan diingat per nomor pelanggan (bawaan 30 hari), dan pelanggan bisa mengganti dengan mengetik "ganti cabang" atau nama cabang lain. Kalau cabang belum diketahui dan pertanyaan cabang tidak dijawab, percakapan diserahkan ke nomor owner.
-- **Stok per cabang** (saklar di menu Chatbot, tab Pengaturan bot, bagian Jam aktif dan batas kirim, bawaan menyala):
+- **Stok per cabang** (saklar di menu Chatbot, tab Pengaturan bot, bagian Bot aktif dan jam layanan, bawaan menyala):
 
   | Keadaan | Sebelum revisi ini | Sesudah, saklar menyala |
   | --- | --- | --- |
@@ -142,7 +143,7 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
 - **Tab Percakapan**: daftar percakapan dengan filter status dan cabang (owner), dan tombol penanda selesai. Admin cabang hanya melihat dan menandai percakapan cabangnya; pemeriksaan ini juga dilakukan di server.
 - **Tab Kotak uji** (owner): tidak membuat percakapan dan tidak mengirim apa pun. Punya pilihan cabang yang diingat, pesan asal untuk mengetes jawaban 1 atau 2, dan saklar *Stok per cabang* khusus untuk uji itu (ikut pengaturan, nyala, atau mati).
 - **Tab Templat pesan** (owner): semua kalimat bot dengan pratinjau.
-- **Chatbot, tab Pengaturan bot** (owner): Sambungan WhatsApp (status tersambung dan mode kirim), Jam aktif dan batas kirim, Nomor admin per cabang, dan Balasan otomatis sosial media (Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
+- **Chatbot, tab Pengaturan bot** (owner): paling atas *Bot aktif dan jam layanan* (saklar, jam, stok per cabang). Angka teknis (jeda antar pesan, batas per hari, lama bot diam, lama cabang diingat, lama menunggu jawaban) dan *Hanya membalas nomor uji* ada di *Pengaturan lanjutan* yang tertutup. Kalau pembatasan nomor uji menyala dengan daftar kosong, bot diam ke semua orang, dan halaman memberi peringatan merah serta membuka Pengaturan lanjutan. Lalu Sambungan WhatsApp (status bot, tersambung, mode kirim, nomor yang dipakai), Nomor admin per cabang, dan Balasan otomatis sosial media (Instagram, Facebook, dan TikTok berisi tautan pendek situs `/wa/<cabang>`, disalin admin, tanpa integrasi API).
 - **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA.
 - **Label WhatsApp per cabang**: saat cabang percakapan diketahui atau berubah, worker memasang label "Batu" atau "Karanglo" (nama cabang tanpa "Bejo Ban" dan tanpa kurung) ke chat di akun WhatsApp Business. Label dicari menurut nama, dibuat kalau belum ada, dan id-nya disimpan di memori worker. Label lain yang dipasang admin tetap ada, hanya label cabang lain yang dilepas. Di uji kering worker hanya mencetak permintaan yang akan dikirim. Kalau label gagal (404, 501, engine tidak mendukung, jaringan), kegagalan dicatat sekali dan balasan bot tetap jalan. Pembentuk permintaannya ada di `src/lib/bot/label.ts`.
 

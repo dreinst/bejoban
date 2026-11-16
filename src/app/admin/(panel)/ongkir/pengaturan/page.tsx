@@ -24,31 +24,31 @@ export default async function PengaturanOngkir() {
     <PageBody>
       <PageHeader title="Pengaturan ongkir" note="Angka dasar yang dipakai kalkulator ongkir. Tarif per kota diisi di tab Tarif." />
       <SettingsGrid>
-        <div className="space-y-5">
           <Section id="asal" title="Asal kirim dan titik cabang" description="Titik toko dipakai untuk jarak garis lurus ke alamat tujuan.">
-            <form action={saveShipSettings}>
-              {bagian('asal')}
-              <FormGrid cols={1}>
-                <TextField label="Nama asal kirim" name="origin" defaultValue={s.origin} placeholder="mis. Cabang Batu" />
-                {branches.map((b) => {
-                  const t = s.origins[b.slug]
-                  const ada = t?.lat != null && t?.lon != null
-                  return (
-                    <TextField
-                      key={b.slug}
-                      label={`Titik toko ${branchLabel(b.name)}`}
-                      name={`titik_${b.slug}`}
-                      placeholder="Tempel tautan Google Maps"
-                      autoComplete="off"
-                      hint={`${ada ? `Tersimpan: ${t.lat}, ${t.lon}. ` : 'Belum diisi, jarak garis lurus tidak dihitung. '}Buka toko di Google Maps, salin tautannya (bukan tautan pendek) atau klik kanan titik toko lalu salin dua angkanya. Kosongkan kalau tidak diubah.`}
-                    />
-                  )
-                })}
-              </FormGrid>
-              <FormActions><SubmitButton>Simpan asal kirim</SubmitButton></FormActions>
-            </form>
-          </Section>
+          <form action={saveShipSettings}>
+            {bagian('asal')}
+            <FormGrid cols={1}>
+              <TextField label="Nama asal kirim" name="origin" defaultValue={s.origin} placeholder="mis. Cabang Batu" />
+              {branches.map((b) => {
+                const t = s.origins[b.slug]
+                const ada = t?.lat != null && t?.lon != null
+                return (
+                  <TextField
+                    key={b.slug}
+                    label={`Titik toko ${branchLabel(b.name)}`}
+                    name={`titik_${b.slug}`}
+                    placeholder="Tempel tautan Google Maps"
+                    autoComplete="off"
+                    hint={`${ada ? `Tersimpan: ${t.lat}, ${t.lon}. ` : 'Belum diisi, jarak garis lurus tidak dihitung. '}Buka toko di Google Maps, salin tautannya (bukan tautan pendek) atau klik kanan titik toko lalu salin dua angkanya. Kosongkan kalau tidak diubah.`}
+                  />
+                )
+              })}
+            </FormGrid>
+            <FormActions><SubmitButton>Simpan asal kirim</SubmitButton></FormActions>
+          </form>
+        </Section>
 
+        <div className="space-y-5">
           <Section id="hitung" title="Berat volume dan packing" description="Berat volume = panjang x lebar x tinggi (cm) dibagi angka pembagi dari ekspedisi.">
             <form action={saveShipSettings}>
               {bagian('hitung')}
@@ -65,7 +65,6 @@ export default async function PengaturanOngkir() {
               <FormActions><SubmitButton>Simpan berat volume dan packing</SubmitButton></FormActions>
             </form>
           </Section>
-        </div>
 
         <Section id="velg" title="Berat dan kemasan velg" description="Berat velg perkiraan toko. Kalau ukuran kemasan diisi 0, berat volume velg tidak dihitung.">
           <form action={saveShipSettings}>
@@ -79,6 +78,7 @@ export default async function PengaturanOngkir() {
             <FormActions><SubmitButton>Simpan velg</SubmitButton></FormActions>
           </form>
         </Section>
+        </div>
 
         <Section id="kemasan" title="Kemasan ban per ring" wide description="Berat dan ukuran kemasan satu ban. Beberapa ban dihitung bertumpuk.">
           <form action={saveShipSettings}>

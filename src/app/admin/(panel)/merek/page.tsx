@@ -113,7 +113,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
             hanyaHp: true,
             mobileLabel: false,
             cell: (b) => (
-              <span className="flex w-full flex-wrap items-center justify-between gap-2">
+              <span className="flex w-full items-center justify-between gap-1">
                 <QuickToggle action={setBrandByOrder} fields={{ id: b.id }} checked={b.byOrder} label={`By order ${b.name}`} onText="By order" offText="Distok" />
                 {!q && <ReorderButtons action={moveBrand} id={b.id} label={b.name} first={list.indexOf(b) === 0} last={list.indexOf(b) === list.length - 1} />}
               </span>
