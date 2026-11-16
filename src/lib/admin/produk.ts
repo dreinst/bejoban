@@ -9,14 +9,3 @@ export function aksesSimpanProduk(role: string, id: number): 'penuh' | 'harga' |
   if (role === 'OWNER') return 'penuh'
   return id > 0 ? 'harga' : 'tolak'
 }
-
-type Listing = { available: boolean; price: number }
-
-/**
- * Produk yang dijual harus punya harga. Baris lama yang sudah dijual dengan harga 0 dan tidak berubah
- * dibiarkan lolos, supaya satu baris lama tidak menggagalkan simpan seluruh halaman.
- */
-export function dijualTanpaHarga(baru: Listing, lama?: Listing | null): boolean {
-  if (!baru.available || baru.price > 0) return false
-  return !(lama && lama.available && lama.price === 0)
-}

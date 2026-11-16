@@ -68,7 +68,7 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
           <Section
             id="harga"
             title="Harga dan stok per cabang"
-            description="Harga coret diisi kalau sedang diskon (harus lebih tinggi dari harga jual). Produk hanya bisa dicentang Dijual kalau harga jualnya terisi. Kosongkan harga dan hilangkan centang Dijual untuk melepas produk dari cabang."
+            description="Harga coret diisi kalau sedang diskon (harus lebih tinggi dari harga jual). Harga jual boleh 0: situs tidak menampilkan harga 0 dan mengajak pelanggan bertanya lewat WhatsApp. Kosongkan harga dan hilangkan centang Dijual untuk melepas produk dari cabang."
             wide
           >
             <div className="grid gap-4 md:grid-cols-2">

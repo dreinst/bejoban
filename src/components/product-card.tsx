@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { rupiah } from '@/lib/format'
+import { bisaTampilHarga, rupiah } from '@/lib/format'
 import { currentBranch, type CardProduct } from '@/lib/shop'
 import { getSitus } from '@/lib/situs-server'
 import { Icon } from './icons'
 
 /* eslint-disable @next/next/no-img-element */
-// Kartu produk desain hitam putih. Harga tidak tampil kecuali pengaturan "Tampilkan harga di situs" dinyalakan.
+// Kartu produk desain hitam putih. Harga tidak tampil kecuali pengaturan "Tampilkan harga di situs" menyala dan harganya terisi (harga 0 sama dengan tanya via WhatsApp).
 export async function ProductCard({ p, button = 'Tanya harga via WhatsApp' }: { p: CardProduct; button?: string }) {
   const [{ showPrices }, { branch }] = await Promise.all([getSitus(), currentBranch()])
   return (
@@ -17,7 +17,7 @@ export async function ProductCard({ p, button = 'Tanya harga via WhatsApp' }: { 
       <div className="mt-4 flex flex-1 flex-col sm:mt-6">
         <Link href={`/produk/${p.slug}`} className="line-clamp-2 min-h-[34px] text-[13px] font-bold leading-[17px] text-ink hover:underline sm:min-h-[44px] sm:text-[17px] sm:leading-[22px]">{p.name}</Link>
         {p.spec && <span className="tag mt-1.5 self-start rounded-md bg-ink px-[7px] py-[3px] text-[11px] text-white sm:mt-2.5 sm:px-2.5 sm:py-[5px] sm:text-[13px]">{p.spec}</span>}
-        {showPrices && <p className="mt-2 text-sm font-bold text-ink">{rupiah(p.price)}</p>}
+        {bisaTampilHarga(showPrices, p.price) && <p className="mt-2 text-sm font-bold text-ink">{rupiah(p.price)}</p>}
         <a
           href={`/wa/${branch.slug}?p=${encodeURIComponent(p.name)}`}
           target="_blank"

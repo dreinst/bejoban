@@ -7,10 +7,9 @@ import { db } from '@/lib/db'
 import { createSession, destroySession, requireOwner, requireUser, canEditBranch, loginBlocked, loginFailed, loginOk } from '@/lib/auth'
 import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
-import { namaPendek } from '@/lib/tire/cabang'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
-import { aksesSimpanProduk, dijualTanpaHarga } from '@/lib/admin/produk'
+import { aksesSimpanProduk } from '@/lib/admin/produk'
 import { arahDari, aturanHapus, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
 import type { HasilAksi } from '@/components/admin/row-controls'
 
@@ -63,7 +62,6 @@ export async function saveProduct(fd: FormData) {
 
   // Periksa semua harga dulu supaya tidak ada yang tersimpan setengah.
   const branches = await db.branch.findMany()
-  const lama = id ? await db.listing.findMany({ where: { productId: id } }) : []
   const rencana: { branchId: number; listing: { price: number; comparePrice: number; available: boolean; flashSale: boolean } }[] = []
   for (const b of branches) {
     if (!canEditBranch(s, b.id) || !fd.has(`b${b.id}_price`)) continue
@@ -73,7 +71,6 @@ export async function saveProduct(fd: FormData) {
       available: fd.get(`b${b.id}_sell`) === 'on',
       flashSale: fd.get(`b${b.id}_flash`) === 'on',
     }
-    if (dijualTanpaHarga(listing, lama.find((l) => l.branchId === b.id))) gagal(balik, `Isi harga jual cabang ${namaPendek(b.name)}, atau hilangkan centang Dijual`)
     rencana.push({ branchId: b.id, listing })
   }
 
@@ -136,7 +133,6 @@ export async function savePrices(fd: FormData) {
   if (!canEditBranch(s, branchId)) redirect('/admin?e=akses')
   const ids = String(fd.get('ids') ?? '').split(',').map(Number).filter(Boolean)
   const rencana: { productId: number; listing: { price: number; comparePrice: number; available: boolean; flashSale: boolean } }[] = []
-  const tanpaHarga: number[] = []
   for (const productId of ids) {
     const listing = {
       price: int(fd, `p${productId}_price`),
@@ -145,14 +141,8 @@ export async function savePrices(fd: FormData) {
       flashSale: fd.get(`p${productId}_flash`) === 'on',
     }
     const exists = await db.listing.findUnique({ where: { productId_branchId: { productId, branchId } } })
-    if (dijualTanpaHarga(listing, exists)) tanpaHarga.push(productId)
     if (!exists && !listing.available && !listing.price) continue
     rencana.push({ productId, listing })
-  }
-  // Tolak semuanya kalau ada yang dijual tanpa harga, supaya tidak tersimpan separuh.
-  if (tanpaHarga.length) {
-    const nama = await db.product.findMany({ where: { id: { in: tanpaHarga } }, select: { name: true }, take: 3 })
-    gagal(`/admin/harga?cabang=${branchId}`, `Isi harga jual dulu atau hilangkan centang Dijual: ${nama.map((n) => n.name).join(', ')}${tanpaHarga.length > 3 ? `, dan ${tanpaHarga.length - 3} lainnya` : ''}`)
   }
   for (const { productId, listing } of rencana) {
     await simpanListing({ productId, branchId, data: listing, stok: int(fd, `p${productId}_stock`), pengguna: penggunaDari(s), refId: `harga:${branchId}` })

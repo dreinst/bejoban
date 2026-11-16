@@ -1,5 +1,8 @@
 export const rupiah = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
+/** Harga baru dicetak bila sakelar situs menyala dan harganya terisi. Harga 0 berarti tanya lewat WhatsApp. */
+export const bisaTampilHarga = (showPrices: boolean, price: number) => showPrices && price > 0
+
 export const slugify = (s: string) =>
   s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 

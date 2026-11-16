@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/lib/db'
 import { currentBranch } from '@/lib/shop'
-import { parseImages, rupiah } from '@/lib/format'
+import { bisaTampilHarga, parseImages, rupiah } from '@/lib/format'
 import { getSitus } from '@/lib/situs-server'
 import { ProductGallery } from '@/components/product-gallery'
 import { Icon } from '@/components/icons'
@@ -36,10 +36,10 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
           {p.spec && <p className="mt-2 text-sm">Ukuran: <b className="text-ink">{p.spec}</b></p>}
           {p.fitment && <p className="mt-1 text-sm">Cocok untuk: <b className="text-ink">{p.fitment}</b></p>}
           <div className="my-8 border-y border-line py-6">
-            <p className="text-xs text-mute">{situs.showPrices ? `Harga di ${branch.name}` : `Di ${branch.name}`}</p>
+            <p className="text-xs text-mute">{here && bisaTampilHarga(situs.showPrices, here.price) ? `Harga di ${branch.name}` : `Di ${branch.name}`}</p>
             {here ? (
               <>
-                {situs.showPrices ? (
+                {bisaTampilHarga(situs.showPrices, here.price) ? (
                   <>
                     {here.comparePrice > here.price && <p className="text-sm text-mute line-through">{rupiah(here.comparePrice)}</p>}
                     <p className="text-4xl font-bold text-ink">{rupiah(here.price)}</p>
@@ -66,7 +66,7 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
             <div className="mt-6 text-sm">
               <p className="mb-2 font-semibold text-ink">Tersedia juga di:</p>
               {others.map((l) => (
-                <p key={l.id}>{l.branch.name}{situs.showPrices && <>: <b className="text-ink">{rupiah(l.price)}</b></>}</p>
+                <p key={l.id}>{l.branch.name}{bisaTampilHarga(situs.showPrices, l.price) && <>: <b className="text-ink">{rupiah(l.price)}</b></>}</p>
               ))}
               <p className="mt-1 text-xs text-mute">Ganti cabang lewat pilihan Cabang di atas.</p>
             </div>
