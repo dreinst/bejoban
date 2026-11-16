@@ -1,6 +1,6 @@
 export const CARRIERS = ['JNT_CARGO', 'BARAKA'] as const
 export type Carrier = (typeof CARRIERS)[number]
-export const CARRIER_LABEL: Record<Carrier, string> = { JNT_CARGO: 'J&T Cargo', BARAKA: 'Baraka' }
+export const CARRIER_LABEL: Record<Carrier, string> = { JNT_CARGO: 'J&T Cargo', BARAKA: 'Baraka Express' }
 
 export const SAMPLE_LABEL = 'contoh, belum dari agen'
 
@@ -23,6 +23,9 @@ export type ShippingSettings = {
   packingPerTire: number // biaya packing per ban, 0 kalau tidak dipakai
   ringPack: Record<string, PackSpec> // kunci: nomor ring sebagai teks, "12" sampai "19"
   ringPackSample: boolean // true selama angka kemasan masih contoh
+  velg: PackSpec // berat dan ukuran kemasan satu velg
+  velgNote: string // sumber angka velg
+  origins: Record<string, { lat: number | null; lon: number | null }> // koordinat cabang asal, kunci: slug cabang
 }
 
 // Antarmuka sumber tarif. Sekarang hanya tabel isian admin (db-source.ts);
@@ -36,6 +39,7 @@ export interface RateSource {
 
 export type QuoteInput = {
   tires?: { count: number; ring: number }
+  velg?: { count: number }
   manualWeightKg?: number
   manualDimsCm?: { l: number; w: number; h: number } // dimensi total paket, opsional
   usePacking: boolean
@@ -58,5 +62,6 @@ export type Quote =
       etaDays: string
       note: string
       isSample: boolean // tarif atau ukuran kemasan masih contoh
+      notes: string[] // catatan sumber angka, mis. berat velg perkiraan toko
     }
   | { carrier: Carrier; status: 'NO_PACK'; city: string }

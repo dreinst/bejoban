@@ -8,7 +8,7 @@ export function quoteText(q: Quote): string {
   if (q.status === 'NO_RATE') return `${name} ke ${q.city}: tarif belum diisi`
   if (q.status === 'NO_PACK') return `${name} ke ${q.city}: ukuran kemasan ring ini belum diisi`
   const eta = q.etaDays ? `, estimasi ${q.etaDays} hari` : ''
-  const sample = q.isSample ? ` (${SAMPLE_LABEL})` : ''
+  const sample = q.isSample ? ` (${SAMPLE_LABEL})` : q.notes.length ? ` (${q.notes[0]})` : ''
   return `${name} ke ${q.city}: ${rp(q.total)}${eta}, ditagih ${q.billedKg} kg x ${rp(q.perKg)}${q.packing ? ` + packing ${rp(q.packing)}` : ''}${sample}`
 }
 

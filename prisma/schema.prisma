@@ -100,6 +100,11 @@ model StockTire {
   price      Int? // null kalau kosong atau formatnya janggal
   stock      Int      @default(0)
   note       String   @default("")
+  discount   Int      @default(0) // potongan dari keterangan "disc <angka>"; price tetap harga asli
+  priceIssue String   @default("") // alasan harga kosong atau janggal, dari impor
+  manual     Boolean  @default(false) // diubah manual di tabel stok
+  lockManual Boolean  @default(true) // true: sinkron berikutnya tidak menimpa baris ini
+  manualAt   DateTime?
   importedAt DateTime @default(now())
 
   @@index([sizeNorm])
@@ -138,4 +143,74 @@ model BotLog {
   handoff   Boolean  @default(false)
   sent      Boolean  @default(false)
   reason    String   @default("")
+  conversationId Int?
+}
+
+// Percakapan chatbot per pelanggan. Status: BARU, DIJAWAB_BOT, DISERAHKAN, SELESAI_ADA, SELESAI_TIDAK_ADA.
+model BotConversation {
+  id             Int       @id @default(autoincrement())
+  channel        String    @default("WA")
+  chatId         String // id chat WAHA, dipakai untuk membalas
+  customer       String    @default("") // nomor pelanggan (angka saja)
+  branchSlug     String    @default("")
+  status         String    @default("BARU")
+  question       String    @default("") // pesan terakhir yang memicu status
+  sizes          String    @default("") // ukuran yang ditanya, dipisah koma
+  result         String    @default("") // ringkasan hasil pencarian
+  mutedUntil     DateTime? // bot diam di chat ini sampai waktu ini
+  closingPending Boolean   @default(false) // penutup "tidak tersedia" belum terkirim
+  lastOutOfHoursAt DateTime?
+  awaitingBranch Boolean  @default(false) // bot sedang menunggu jawaban 1 atau 2 untuk cabang
+  pendingAction  String   @default("") // serah | ganti, tindakan yang menunggu jawaban cabang
+  pendingText    String   @default("") // pesan asal yang menunggu jawaban cabang
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([chatId, status])
+  @@index([status])
+}
+
+// Harga jasa (spooring, balance, nitrogen, dan lain-lain). Tidak tampil di situs publik.
+model ServicePrice {
+  id          Int     @id @default(autoincrement())
+  groupName   String // mis. "Spooring", dipakai untuk mengelompokkan
+  name        String // nama baris, mis. "Spooring"
+  variant     String  @default("") // mis. "R12 sampai R15"
+  ringMin     Int?
+  ringMax     Int?
+  minDiameter Int? // mis. 31 untuk "ban 31 ke atas"
+  price       Int? // null kalau belum diisi
+  unit        String  @default("") // mis. "per roda"
+  altLabel    String  @default("") // mis. "paket"
+  altPrice    Int?
+  note        String  @default("")
+  keywords    String  @default("") // kata kunci pencarian, dipisah koma
+  sort        Int     @default(0)
+}
+
+// Cache hasil pencarian lokasi (OpenStreetMap atau penyedia lain).
+model GeoCache {
+  id        Int      @id @default(autoincrement())
+  provider  String
+  query     String
+  results   String // JSON array Place
+  createdAt DateTime @default(now())
+
+  @@unique([provider, query])
+}
+
+// Cabang pilihan pelanggan, diingat per nomor selama jangka waktu yang bisa diatur.
+model BotBranchChoice {
+  customer   String   @id
+  branchSlug String
+  chosenAt   DateTime @default(now())
+}
+
+// Hitungan klik tautan pendek /wa per cabang per hari. Tanpa data pribadi.
+model WaClick {
+  day    String // YYYY-MM-DD, waktu Jakarta
+  branch String // slug cabang, kosong untuk tautan umum /wa
+  count  Int    @default(0)
+
+  @@id([day, branch])
 }

@@ -9,7 +9,12 @@ import { CARRIERS, type Carrier, type ShippingSettings } from '@/lib/ongkir/type
 import { mergeSettings } from '@/lib/ongkir/calc'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { mergeBot, normalizeNumber, type BotSettings } from '@/lib/bot/policy'
-import { respond } from '@/lib/bot/respond'
+import { loadBotSettings, loadSosmed, loadTemplates, runBot } from '@/lib/bot/respond'
+import { CHANNELS, TEMPLATE_KEYS, type Sosmed, type Templates } from '@/lib/bot/templates'
+import { applyImport } from '@/lib/tire/import'
+import { fetchSheetCsv, sheetCsvUrl } from '@/lib/tire/sheet'
+import { mergeSitus } from '@/lib/situs'
+import { nextStatus, type Status } from '@/lib/bot/conversation'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
 const int = (fd: FormData, k: string) => Math.max(0, Math.round(Number(String(fd.get(k) ?? '0').replace(/\D/g, '')) || 0))
@@ -17,7 +22,7 @@ const dec = (fd: FormData, k: string) => {
   const n = Number(str(fd, k, 20).replace(',', '.'))
   return Number.isFinite(n) && n >= 0 ? n : NaN
 }
-const go = (path: string, msg: string, kind: 'ok' | 'err' = 'ok') => {
+const go = (path: string, msg: string, kind: 'ok' | 'err' = 'ok'): never => {
   revalidatePath('/admin', 'layout')
   redirect(`${path}${path.includes('?') ? '&' : '?'}${kind}=${encodeURIComponent(msg)}`)
 }
@@ -39,21 +44,41 @@ export async function importStock(fd: FormData) {
   if (!text.trim()) go('/admin/stok-ban', 'Pilih berkas CSV atau tempel isinya dulu', 'err')
   const r = parsePricelist(text)
   if (!r.rows.length) go('/admin/stok-ban', 'Tidak ada baris ban yang terbaca. Pastikan ada kolom "Ukuran Ban".', 'err')
-  const now = new Date()
-  await db.$transaction([
-    db.stockTire.deleteMany(),
-    db.stockTire.createMany({ data: r.rows.map((x) => ({ ...x, importedAt: now })) }),
-  ])
-  await saveSetting('stok.lastImport', {
-    at: now.toISOString(),
-    total: r.rows.length,
-    withPrice: r.rows.filter((x) => x.price !== null).length,
-    noPrice: r.rows.filter((x) => x.price === null).length,
-    skipped: r.skipped,
-    problems: r.problems.slice(0, 300),
-    problemCount: r.problems.length,
+  const sum = await applyImport(r, 'berkas')
+  go('/admin/stok-ban', `${sum.total} baris masuk`)
+}
+
+// Sinkron dari Google Sheets: ambil ekspor CSV lalu jalankan impor yang sama.
+export async function syncSheet(fd: FormData) {
+  await requireOwner()
+  const url = str(fd, 'url', 500)
+  if (!url) go('/admin/stok-ban', 'Isi URL spreadsheet dulu', 'err')
+  const u = sheetCsvUrl(url, process.env.NODE_ENV !== 'production')
+  if (!u.ok) go('/admin/stok-ban', u.error, 'err')
+  await saveSetting('stok.sheet', { url })
+  const got = await fetchSheetCsv((u as { csvUrl: string }).csvUrl)
+  if (!got.ok) go('/admin/stok-ban', got.error, 'err')
+  const r = parsePricelist((got as { text: string }).text)
+  if (!r.rows.length) go('/admin/stok-ban', 'Spreadsheet terbaca tapi tidak ada baris ban. Pastikan ada kolom "Ukuran Ban".', 'err')
+  const sum = await applyImport(r, 'sheet')
+  go('/admin/stok-ban', `Sinkron selesai, ${sum.total} baris`)
+}
+
+// Ubah satu baris stok langsung di tabel. Baris diberi penanda manual.
+export async function saveStockRow(fd: FormData) {
+  await requireOwner()
+  const id = int(fd, 'id')
+  const back = String(fd.get('back') ?? '/admin/stok-ban')
+  const to = back.startsWith('/admin/stok-ban') ? back : '/admin/stok-ban'
+  const priceRaw = str(fd, 'price', 15).replace(/\D/g, '')
+  const price = priceRaw ? Number(priceRaw) : null
+  const discount = int(fd, 'discount')
+  if (price !== null && discount >= price) go(to, 'Potongan harus lebih kecil dari harga', 'err')
+  await db.stockTire.update({
+    where: { id },
+    data: { price, discount, stock: int(fd, 'stock'), note: str(fd, 'note', 200), priceIssue: price === null ? undefined : '', manual: true, lockManual: fd.get('lock') === 'on', manualAt: new Date() },
   })
-  go('/admin/stok-ban', `${r.rows.length} baris masuk`)
+  go(to, 'Baris stok tersimpan')
 }
 
 /* ---------- Ongkir ---------- */
@@ -138,6 +163,17 @@ export async function saveShipSettings(fd: FormData) {
     if (Object.values(p).some((v) => Number.isNaN(v) || v > 500)) go('/admin/ongkir/tarif', `Ukuran kemasan R${r} tidak valid`, 'err')
     ringPack[String(r)] = p
   }
+  const velgPack = { weightKg: dec(fd, 'velgW'), lengthCm: dec(fd, 'velgL'), widthCm: dec(fd, 'velgB'), heightCm: dec(fd, 'velgT') }
+  if (Object.values(velgPack).some((v) => Number.isNaN(v) || v > 500)) go('/admin/ongkir/tarif', 'Berat atau ukuran velg tidak valid', 'err')
+  const origins: ShippingSettings['origins'] = {}
+  for (const b of await db.branch.findMany({ select: { slug: true } })) {
+    const lat = str(fd, `lat_${b.slug}`, 20).replace(',', '.')
+    const lon = str(fd, `lon_${b.slug}`, 20).replace(',', '.')
+    const la = lat === '' ? null : Number(lat)
+    const lo = lon === '' ? null : Number(lon)
+    if ((la !== null && !(la >= -90 && la <= 90)) || (lo !== null && !(lo >= -180 && lo <= 180))) go('/admin/ongkir/tarif', `Koordinat cabang ${b.slug} tidak valid`, 'err')
+    origins[b.slug] = { lat: la, lon: lo }
+  }
   const jnt = int(fd, 'divJnt')
   const bar = int(fd, 'divBaraka')
   if (jnt < 1000 || bar < 1000) go('/admin/ongkir/tarif', 'Pembagi berat volume minimal 1000', 'err')
@@ -148,9 +184,69 @@ export async function saveShipSettings(fd: FormData) {
     packingPerTire: int(fd, 'packing'),
     ringPack,
     ringPackSample: fd.get('ringPackSample') === 'on',
+    velg: velgPack,
+    velgNote: str(fd, 'velgNote', 120),
+    origins,
   })
   await saveSetting('ongkir', next)
   go('/admin/ongkir/tarif', 'Pengaturan tersimpan')
+}
+
+/* ---------- Harga jasa ---------- */
+
+const optInt = (fd: FormData, k: string) => {
+  const v = str(fd, k, 12).replace(/\D/g, '')
+  return v === '' ? null : Number(v)
+}
+
+export async function saveService(fd: FormData) {
+  await requireOwner()
+  const id = int(fd, 'id')
+  const name = str(fd, 'name', 80)
+  const groupName = str(fd, 'groupName', 60) || name
+  if (!name) go('/admin/harga-jasa', 'Nama jasa wajib diisi', 'err')
+  const data = {
+    groupName,
+    name,
+    variant: str(fd, 'variant', 80),
+    ringMin: optInt(fd, 'ringMin'),
+    ringMax: optInt(fd, 'ringMax'),
+    minDiameter: optInt(fd, 'minDiameter'),
+    price: optInt(fd, 'price'),
+    unit: str(fd, 'unit', 40),
+    altLabel: str(fd, 'altLabel', 40),
+    altPrice: optInt(fd, 'altPrice'),
+    note: str(fd, 'note', 200),
+    keywords: str(fd, 'keywords', 200).toLowerCase(),
+    sort: int(fd, 'sort'),
+  }
+  if (data.ringMin !== null && data.ringMax !== null && data.ringMin > data.ringMax) go('/admin/harga-jasa', 'Ring awal tidak boleh lebih besar dari ring akhir', 'err')
+  if (id) await db.servicePrice.update({ where: { id }, data })
+  else await db.servicePrice.create({ data })
+  go('/admin/harga-jasa', 'Harga jasa tersimpan')
+}
+
+export async function deleteService(fd: FormData) {
+  await requireOwner()
+  await db.servicePrice.deleteMany({ where: { id: int(fd, 'id') } })
+  go('/admin/harga-jasa', 'Baris dihapus')
+}
+
+/* ---------- Pengaturan situs publik ---------- */
+
+export async function saveSitus(fd: FormData) {
+  await requireOwner()
+  const main = str(fd, 'mainWhatsapp', 30)
+  if (main && !/^62\d{8,13}$/.test(normalizeNumber(main))) go('/admin/situs', 'Nomor WhatsApp utama tidak valid', 'err')
+  const op = (k: string) => str(fd, k, 300)
+  const next = mergeSitus({
+    mainWhatsapp: main ? normalizeNumber(main) : '',
+    showPrices: fd.get('showPrices') === 'on',
+    openers: { umum: op('opUmum'), produk: op('opProduk'), keranjang: op('opKeranjang') },
+  })
+  for (const [k, v] of Object.entries(next.openers)) if (!v.trim()) go('/admin/situs', `Kalimat pembuka ${k} tidak boleh kosong`, 'err')
+  await saveSetting('situs', next)
+  go('/admin/situs', 'Pengaturan situs tersimpan')
 }
 
 /* ---------- Chatbot ---------- */
@@ -159,30 +255,102 @@ export async function testBot(fd: FormData) {
   await requireOwner()
   const input = str(fd, 'q', 500)
   if (!input) go('/admin/chatbot', 'Ketik pesan uji dulu', 'err')
-  const a = await respond(input)
+  const known = str(fd, 'known', 40)
+  const pending = str(fd, 'pending', 500)
+  const o = await runBot(input, '0857 0000 0000', { knownBranch: known || undefined, awaiting: pending ? { action: 'serah', text: pending } : null })
+  const reply = o.reply + (o.adminNote ? `\n\n[Ringkasan ke admin ${o.adminNumber || '(nomor admin belum diisi)'}]\n${o.adminNote}` : '')
   const log = await db.botLog.create({
-    data: { source: 'UJI', input, reply: a.reply, handoff: a.handoff, reason: a.reason },
+    data: { source: 'UJI', input, reply, handoff: o.kind === 'serah', reason: `${o.kind}${known ? ` [cabang diingat ${known}]` : ''}${pending ? ' [menunggu jawaban cabang]' : ''}${o.branchSlug ? ` (cabang ${o.branchSlug})` : ' (cabang tidak dikenali)'}: ${o.reason}` },
   })
-  redirect(`/admin/chatbot?log=${log.id}`)
+  redirect(`/admin/chatbot?log=${log.id}#uji`)
 }
 
 const time = (v: string, fallback: string) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : fallback)
+const BOT_PAGE = '/admin/chatbot/pengaturan'
 
-export async function saveBot(fd: FormData) {
+export async function saveBotHours(fd: FormData) {
   await requireOwner()
-  const numbers = [...new Set(str(fd, 'numbers', 2000).split(/[\s,;]+/).map(normalizeNumber).filter((n) => /^62\d{8,13}$/.test(n)))]
-  const given = str(fd, 'numbers', 2000).split(/[\s,;]+/).filter(Boolean).length
+  const cur = await loadBotSettings()
+  const given = str(fd, 'testNumbers', 2000).split(/[\s,;]+/).filter(Boolean)
+  const testNumbers = [...new Set(given.map(normalizeNumber).filter((n) => /^62\d{8,13}$/.test(n)))]
   const next: BotSettings = mergeBot({
+    ...cur,
     enabled: fd.get('enabled') === 'on',
     startTime: time(str(fd, 'startTime', 5), '08:00'),
     endTime: time(str(fd, 'endTime', 5), '17:00'),
     gapSec: Math.min(int(fd, 'gapSec'), 3600),
-    dailyLimit: Math.min(int(fd, 'dailyLimit'), 1000),
-    numbers,
-    replyOnHandoff: fd.get('replyOnHandoff') === 'on',
+    dailyLimit: Math.min(int(fd, 'dailyLimit'), 5000),
+    muteHours: Math.max(1, Math.min(int(fd, 'muteHours') || 6, 168)),
+    branchMemoryDays: Math.max(1, Math.min(int(fd, 'branchMemoryDays') || 30, 365)),
+    branchWaitMin: Math.max(1, Math.min(int(fd, 'branchWaitMin') || 15, 1440)),
+    restrictNumbers: fd.get('restrictNumbers') === 'on',
+    testNumbers,
   })
   await saveSetting('bot', next)
-  go('/admin/chatbot', given > numbers.length ? `Tersimpan, tapi ${given - numbers.length} nomor tidak valid atau dobel dibuang` : 'Pengaturan tersimpan')
+  go(BOT_PAGE, given.length > testNumbers.length ? `Tersimpan, ${given.length - testNumbers.length} nomor tidak valid atau dobel dibuang` : 'Jam dan batas kirim tersimpan')
+}
+
+export async function saveBotAdmins(fd: FormData) {
+  await requireOwner()
+  const cur = await loadBotSettings()
+  const adminNumbers: Record<string, string> = {}
+  const branchAliases: Record<string, string[]> = {}
+  for (const b of await db.branch.findMany({ select: { slug: true } })) {
+    branchAliases[b.slug] = str(fd, `alias_${b.slug}`, 200).toLowerCase().split(/[,;\n]/).map((x) => x.trim()).filter((x) => /^[a-z0-9 ]{3,30}$/.test(x))
+    const raw = str(fd, `admin_${b.slug}`, 30)
+    if (!raw) continue
+    const n = normalizeNumber(raw)
+    if (!/^62\d{8,13}$/.test(n)) go(BOT_PAGE, `Nomor admin ${b.slug} tidak valid`, 'err')
+    adminNumbers[b.slug] = n
+  }
+  const ownerRaw = str(fd, 'ownerNumber', 30)
+  const ownerNumber = ownerRaw ? normalizeNumber(ownerRaw) : ''
+  if (ownerNumber && !/^62\d{8,13}$/.test(ownerNumber)) go(BOT_PAGE, 'Nomor owner tidak valid', 'err')
+  await saveSetting('bot', mergeBot({ ...cur, adminNumbers, ownerNumber, branchAliases }))
+  go(BOT_PAGE, 'Nomor admin tersimpan')
+}
+
+export async function saveBotTemplates(fd: FormData) {
+  await requireOwner()
+  const cur = await loadTemplates()
+  const next = { ...cur } as Templates
+  for (const k of TEMPLATE_KEYS) {
+    const v = String(fd.get(`tpl_${k}`) ?? '').trim().slice(0, 1000)
+    if (!v) go(BOT_PAGE, `Templat "${k}" tidak boleh kosong`, 'err')
+    next[k] = v
+  }
+  await saveSetting('bot.templates', next)
+  go(BOT_PAGE, 'Templat pesan tersimpan')
+}
+
+export async function resetBotTemplates() {
+  await requireOwner()
+  await db.setting.deleteMany({ where: { key: 'bot.templates' } })
+  go(BOT_PAGE, 'Templat dikembalikan ke bawaan')
+}
+
+export async function saveSosmed(fd: FormData) {
+  await requireOwner()
+  const cur = await loadSosmed()
+  const next = { ...cur } as Sosmed
+  for (const c of CHANNELS) {
+    const v = String(fd.get(`sosmed_${c}`) ?? '').trim().slice(0, 1000)
+    if (v) next[c] = v
+  }
+  await saveSetting('bot.sosmed', next)
+  go(BOT_PAGE, 'Templat sosial media tersimpan')
+}
+
+// Admin menandai percakapan selesai. Tidak tersedia: bot mengirim kalimat penutup.
+export async function markConversation(fd: FormData) {
+  await requireOwner()
+  const id = int(fd, 'id')
+  const ada = str(fd, 'to', 20) === 'ada'
+  const c = await db.botConversation.findUnique({ where: { id } })
+  if (!c) go('/admin/chatbot', 'Percakapan tidak ditemukan', 'err')
+  const status = nextStatus(c!.status as Status, ada ? 'tandai_ada' : 'tandai_tidak_ada')
+  await db.botConversation.update({ where: { id }, data: { status, mutedUntil: null, closingPending: !ada && status === 'SELESAI_TIDAK_ADA' ? true : c!.closingPending } })
+  go('/admin/chatbot', ada ? 'Ditandai selesai, tersedia' : 'Ditandai selesai, tidak tersedia')
 }
 
 export async function clearBotLogs() {

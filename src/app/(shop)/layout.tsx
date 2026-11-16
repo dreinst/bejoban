@@ -3,13 +3,14 @@ import { Search, ShoppingBag, ArrowUpRight } from 'lucide-react'
 import { getContent } from '@/lib/settings'
 import { currentBranch } from '@/lib/shop'
 import { db } from '@/lib/db'
-import { waLink } from '@/lib/format'
+import { getSitus } from '@/lib/situs-server'
+import { waNumber } from '@/lib/situs'
 import { CartProvider, CartCount } from '@/components/cart'
 import { BranchPicker } from '@/components/branch-picker'
 
 /* eslint-disable @next/next/no-img-element */
 export default async function ShopLayout({ children }: LayoutProps<'/'>) {
-  const [c, { branches, branch }, categories] = await Promise.all([getContent(), currentBranch(), db.category.findMany({ orderBy: { sort: 'asc' } })])
+  const [c, { branches, branch }, categories, situs] = await Promise.all([getContent(), currentBranch(), db.category.findMany({ orderBy: { sort: 'asc' } }), getSitus()])
   const trust = c.trust.items as { title: string; sub: string }[]
 
   return (
@@ -90,7 +91,7 @@ export default async function ShopLayout({ children }: LayoutProps<'/'>) {
                 <li key={b.id}>
                   <p className="font-semibold">{b.name}</p>
                   <p className="text-paper/70">Buka {b.hours}</p>
-                  <a href={waLink(b.whatsapp)} target="_blank" className="underline underline-offset-4">WA {b.whatsapp}</a>
+                  <a href={`/wa/${b.slug}`} target="_blank" className="underline underline-offset-4">WA {waNumber(situs, b)}</a>
                 </li>
               ))}
             </ul>
@@ -102,7 +103,7 @@ export default async function ShopLayout({ children }: LayoutProps<'/'>) {
         <p className="border-t border-paper/10 px-4 py-6 text-center text-xs text-paper/50">© {new Date().getFullYear()} {c.footer.copyright}</p>
       </footer>
 
-      <a href={waLink(branch.whatsapp)} target="_blank" aria-label="Chat WhatsApp" className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink py-3 pl-4 pr-5 text-sm font-semibold text-paper shadow-lg ring-1 ring-paper/20">
+      <a href={`/wa/${branch.slug}`} target="_blank" aria-label="Chat WhatsApp" className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink py-3 pl-4 pr-5 text-sm font-semibold text-paper shadow-lg ring-1 ring-paper/20">
         <svg viewBox="0 0 24 24" className="size-5 fill-current" aria-hidden><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-.9 1.2-.3.2-.6.1a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.6-2c-.2-.3 0-.5.1-.6l.4-.5.3-.5v-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 0 0-.8.4 3.4 3.4 0 0 0-1 2.5 5.9 5.9 0 0 0 1.2 3.1 13.5 13.5 0 0 0 5.2 4.6c1.9.8 2.7.9 3.6.7a3.1 3.1 0 0 0 2-1.4 2.5 2.5 0 0 0 .2-1.4c-.1-.2-.3-.3-.6-.4zM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4a9.8 9.8 0 1 1 8.3 4.6zm8.4-18.2A11.8 11.8 0 0 0 1.8 17.8L.1 24l6.4-1.7a11.8 11.8 0 0 0 5.6 1.4A11.8 11.8 0 0 0 20.4 3.6z" /></svg>
         Chat
       </a>

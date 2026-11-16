@@ -18,6 +18,14 @@ export const DEFAULT_SETTINGS: ShippingSettings = {
   packingPerTire: 0,
   ringPack: DEFAULT_RING_PACK,
   ringPackSample: true,
+  // Velg: perkiraan toko 7 sampai 12 kg per buah. Ukuran kemasan belum diketahui, jadi berat volume tidak dihitung.
+  velg: { weightKg: 10, lengthCm: 0, widthCm: 0, heightCm: 0 },
+  velgNote: 'perkiraan toko, 7 sampai 12 kg per velg',
+  origins: {
+    // Perkiraan titik pusat wilayah, bukan titik toko. Ganti dengan koordinat toko di pengaturan.
+    batu: { lat: -7.8672, lon: 112.5239 },
+    karanglo: { lat: -7.9139, lon: 112.6578 },
+  },
 }
 
 // Gabung data tersimpan dengan bawaan, supaya bidang baru tidak membuat pembacaan gagal.
@@ -27,6 +35,8 @@ export function mergeSettings(saved: Partial<ShippingSettings> | null | undefine
     ...saved,
     divisor: { ...DEFAULT_SETTINGS.divisor, ...saved?.divisor },
     ringPack: { ...DEFAULT_SETTINGS.ringPack, ...saved?.ringPack },
+    velg: { ...DEFAULT_SETTINGS.velg, ...saved?.velg },
+    origins: { ...DEFAULT_SETTINGS.origins, ...saved?.origins },
   }
 }
 
@@ -40,7 +50,15 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
   let actualKg = 0
   let volumeKg = 0
   let packSample = false
-  if (input.tires) {
+  const notes: string[] = []
+  if (input.velg) {
+    const v = s.velg
+    const n = input.velg.count
+    actualKg = v.weightKg * n
+    volumeKg = ((v.lengthCm * v.widthCm * v.heightCm) * n) / s.divisor[carrier]
+    if (s.velgNote) notes.push(`Berat velg ${s.velgNote}`)
+    if (!(v.lengthCm * v.widthCm * v.heightCm)) notes.push('Ukuran kemasan velg belum diisi, berat volume tidak dihitung')
+  } else if (input.tires) {
     const pack = s.ringPack[String(input.tires.ring)]
     if (!pack) return { carrier, status: 'NO_PACK', city }
     const n = input.tires.count
@@ -55,7 +73,7 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
   }
   const billedKg = ceilKg(Math.max(actualKg, volumeKg, rate.minWeight))
   const shipping = billedKg * rate.perKg
-  const packing = input.usePacking && input.tires ? s.packingPerTire * input.tires.count : 0
+  const packing = input.usePacking && (input.tires || input.velg) ? s.packingPerTire * (input.tires?.count ?? input.velg!.count) : 0
   return {
     carrier,
     status: 'OK',
@@ -71,6 +89,7 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
     etaDays: rate.etaDays,
     note: rate.note,
     isSample: rate.isSample || packSample,
+    notes,
   }
 }
 

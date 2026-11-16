@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/lib/db'
 import { currentBranch } from '@/lib/shop'
-import { parseImages, rupiah, waLink } from '@/lib/format'
+import { parseImages, rupiah } from '@/lib/format'
+import { getSitus } from '@/lib/situs-server'
 import { QtyAdd } from '@/components/qty-add'
 import { ProductGallery } from '@/components/product-gallery'
 
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: PageProps<'/produk/[slug]'>) 
 
 export default async function ProductPage({ params }: PageProps<'/produk/[slug]'>) {
   const { slug } = await params
-  const { branch } = await currentBranch()
+  const [{ branch }, situs] = await Promise.all([currentBranch(), getSitus()])
   const p = await db.product.findUnique({ where: { slug }, include: { brand: true, category: true, listings: { include: { branch: true } } } })
   if (!p || !p.active) notFound()
   const images = parseImages(p.images)
@@ -35,30 +36,36 @@ export default async function ProductPage({ params }: PageProps<'/produk/[slug]'
           {p.spec && <p className="mt-2 text-sm">Ukuran: <b className="text-ink">{p.spec}</b></p>}
           {p.fitment && <p className="mt-1 text-sm">Cocok untuk: <b className="text-ink">{p.fitment}</b></p>}
           <div className="my-8 border-y border-line py-6">
-            <p className="text-xs text-mute">Harga di {branch.name}</p>
+            <p className="text-xs text-mute">{situs.showPrices ? `Harga di ${branch.name}` : `Di ${branch.name}`}</p>
             {here ? (
               <>
-                {here.comparePrice > here.price && <p className="text-sm text-mute line-through">{rupiah(here.comparePrice)}</p>}
-                <p className="text-4xl font-bold text-ink">{rupiah(here.price)}</p>
+                {situs.showPrices ? (
+                  <>
+                    {here.comparePrice > here.price && <p className="text-sm text-mute line-through">{rupiah(here.comparePrice)}</p>}
+                    <p className="text-4xl font-bold text-ink">{rupiah(here.price)}</p>
+                  </>
+                ) : (
+                  <p className="text-xl font-bold text-ink">Tanya harga lewat WhatsApp</p>
+                )}
                 <p className="mt-1 text-xs">{here.stock > 0 ? `Stok ${here.stock}` : 'Stok ditanyakan lewat WhatsApp'}</p>
               </>
             ) : (
               <p className="mt-1 font-semibold text-ink">Belum tersedia di cabang ini.</p>
             )}
           </div>
-          {here && <QtyAdd item={{ id: p.id, slug: p.slug, name: p.name, image: images[0] ?? '', price: here.price, branch: branch.slug }} />}
+          {here && <QtyAdd item={{ id: p.id, slug: p.slug, name: p.name, image: images[0] ?? '', price: situs.showPrices ? here.price : 0, branch: branch.slug }} />}
           <a
-            href={waLink(branch.whatsapp, `Halo ${branch.name}, saya mau tanya produk ${p.name}.`)}
+            href={`/wa/${branch.slug}?p=${encodeURIComponent(p.name)}`}
             target="_blank"
             className="mt-3 block rounded-full border border-ink py-3 text-center text-sm font-semibold"
           >
-            Tanya via WhatsApp
+            {situs.showPrices ? 'Tanya via WhatsApp' : 'Tanya harga via WhatsApp'}
           </a>
           {others.length > 0 && (
             <div className="mt-6 text-sm">
               <p className="mb-2 font-semibold text-ink">Tersedia juga di:</p>
               {others.map((l) => (
-                <p key={l.id}>{l.branch.name}: <b className="text-ink">{rupiah(l.price)}</b></p>
+                <p key={l.id}>{l.branch.name}{situs.showPrices && <>: <b className="text-ink">{rupiah(l.price)}</b></>}</p>
               ))}
               <p className="mt-1 text-xs text-mute">Ganti cabang lewat pilihan Cabang di atas.</p>
             </div>

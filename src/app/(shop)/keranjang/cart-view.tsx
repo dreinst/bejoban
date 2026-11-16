@@ -2,32 +2,31 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useCart } from '@/components/cart'
-import { rupiah, waLink } from '@/lib/format'
+import { rupiah } from '@/lib/format'
 
-type B = { slug: string; name: string; whatsapp: string }
+type B = { slug: string; name: string }
 
 /* eslint-disable @next/next/no-img-element */
-export function CartView({ branches }: { branches: B[] }) {
+export function CartView({ branches, showPrices }: { branches: B[]; showPrices: boolean }) {
   const { items, setQty, clear } = useCart()
   const [form, setForm] = useState({ nama: '', mobil: '', datang: '', catatan: '' })
   const groups = branches.map((b) => ({ b, list: items.filter((i) => i.branch === b.slug) })).filter((g) => g.list.length)
 
   const checkout = (b: B, list: typeof items) => {
-    const lines = list.map((i) => `• ${i.name} x${i.qty} = ${rupiah(i.price * i.qty)}`)
+    const lines = list.map((i) => (showPrices ? `• ${i.name} x${i.qty} = ${rupiah(i.price * i.qty)}` : `• ${i.name} x${i.qty}`))
     const total = list.reduce((s, i) => s + i.price * i.qty, 0)
     const msg = [
-      `Halo ${b.name}, saya mau pesan:`,
       ...lines,
-      `Total: ${rupiah(total)}`,
+      showPrices ? `Total: ${rupiah(total)}` : null,
       '',
       form.nama ? `Nama: ${form.nama}` : null,
       form.mobil ? `Mobil: ${form.mobil}` : null,
       form.datang ? `Rencana datang: ${form.datang}` : null,
       form.catatan ? `Catatan: ${form.catatan}` : null,
       '',
-      'Mohon konfirmasi stok dan harganya. Terima kasih.',
+      showPrices ? 'Mohon konfirmasi stok dan harganya. Terima kasih.' : 'Mohon info stok dan harganya ya. Terima kasih.',
     ].filter((x) => x !== null).join('\n')
-    window.open(waLink(b.whatsapp, msg), '_blank')
+    window.open(`/wa/${b.slug}?k=keranjang&x=${encodeURIComponent(msg)}`, '_blank')
   }
 
   if (!groups.length)
@@ -50,7 +49,7 @@ export function CartView({ branches }: { branches: B[] }) {
                 <img src={i.image} alt="" className="size-16 rounded-lg object-cover" />
                 <div className="flex-1">
                   <Link href={`/produk/${i.slug}`} className="text-sm font-semibold text-ink">{i.name}</Link>
-                  <p className="text-sm text-ink">{rupiah(i.price)}</p>
+                  {showPrices && <p className="text-sm text-ink">{rupiah(i.price)}</p>}
                 </div>
                 <div className="flex items-center rounded-lg border border-line">
                   <button onClick={() => setQty(i.id, b.slug, i.qty - 1)} className="size-9 text-ink" aria-label="Kurangi">−</button>
@@ -61,7 +60,7 @@ export function CartView({ branches }: { branches: B[] }) {
             ))}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <button onClick={() => clear(b.slug)} className="text-xs text-mute underline">Kosongkan</button>
-              <p className="font-bold text-ink">Total {rupiah(list.reduce((s, i) => s + i.price * i.qty, 0))}</p>
+              {showPrices ? <p className="font-bold text-ink">Total {rupiah(list.reduce((s, i) => s + i.price * i.qty, 0))}</p> : <p className="text-xs text-mute">Harga dikonfirmasi admin lewat WhatsApp</p>}
               <button onClick={() => checkout(b, list)} className="w-full rounded-full bg-ink py-3 text-sm font-semibold text-paper sm:w-auto sm:px-6">
                 Pesan via WhatsApp {b.name.replace(/ \(.*\)/, '')}
               </button>

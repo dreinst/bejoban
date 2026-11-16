@@ -9,7 +9,9 @@ export type ParsedTire = {
   sizeRaw: string
   sizeNorm: string
   brand: string
-  price: number | null
+  price: number | null // harga asli dari pricelist
+  discount: number // potongan dari keterangan "disc <angka>", 0 kalau tidak ada
+  priceIssue: string // alasan harga kosong atau janggal, kosong kalau normal
   stock: number
   note: string
 }
@@ -64,11 +66,17 @@ export function parseCsv(text: string): string[][] {
 // Hasil: angka, atau alasan kenapa tidak terbaca. Format janggal tidak ditebak.
 export function parsePrice(raw: string): { value: number | null; reason?: string } {
   const s = raw.replace(/^rp\.?\s*/i, '').replace(/\s+/g, '')
-  if (!s) return { value: null, reason: 'harga kosong' }
+  if (!s) return { value: null, reason: 'harga kosong (barang belum pernah dibeli toko)' }
   if (/^\d+$/.test(s) || /^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) {
     return { value: Number(s.replace(/[.,]/g, '')) }
   }
   return { value: null, reason: 'format harga janggal' }
+}
+
+// Keterangan "disc 50.000" berarti harga masih dipotong lagi sebesar angka itu.
+export function parseDiscount(note: string): number {
+  const m = /\bdisc(?:ount)?\.?\s*(?:rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+|\d+)/i.exec(note)
+  return m ? Number(m[1].replace(/[.,]/g, '')) : 0
 }
 
 const clean = (s: string | undefined) => (s ?? '').replace(/\s+/g, ' ').trim()
@@ -119,6 +127,11 @@ export function parsePricelist(csv: string): ParseResult {
       let stock = 0
       if (/^\d+$/.test(stockRaw)) stock = Number(stockRaw)
       else reasons.push(stockRaw ? 'stok bukan angka, dianggap 0' : 'stok kosong, dianggap 0')
+      let discount = parseDiscount(note)
+      if (discount && p.value !== null && discount >= p.value) {
+        reasons.push('potongan disc lebih besar dari harga, potongan diabaikan')
+        discount = 0
+      }
       rows.push({
         groupName: cur.name,
         ring: cur.ring || parsed?.ring || 0,
@@ -126,6 +139,8 @@ export function parsePricelist(csv: string): ParseResult {
         sizeNorm: parsed?.norm ?? size.toLowerCase().replace(/\s+/g, ''),
         brand,
         price: p.value,
+        discount,
+        priceIssue: p.reason ? (p.reason.startsWith('harga kosong') ? 'kosong' : `format janggal: ${priceRaw}`) : '',
         stock,
         note,
       })
@@ -133,4 +148,34 @@ export function parsePricelist(csv: string): ParseResult {
     }
   })
   return { rows, problems, skipped }
+}
+
+// ---- Baris yang diubah manual dan sinkron berikutnya ----
+
+export type ManualRow = ParsedTire & { lockManual: boolean }
+
+const keyOf = (r: { sizeNorm: string; brand: string }) => `${r.sizeNorm}|${r.brand.toLowerCase().replace(/\s+/g, ' ').trim()}`
+
+// Gabungkan baris hasil impor baru dengan baris manual yang dikunci.
+// Baris dikenali lewat ukuran dan merek (urutan kemunculan dipakai untuk baris kembar).
+// Baris manual yang dikunci dan ada di data baru: nilai manual dipertahankan.
+// Baris manual yang dikunci tapi tidak ada di data baru: tetap disimpan (orphan).
+// Baris manual yang tidak dikunci: ditimpa data baru.
+export function mergeManual(fresh: ParsedTire[], manual: ManualRow[]) {
+  const used = new Set<number>()
+  let kept = 0
+  const rows = fresh.map((r) => ({ ...r, manual: false, lockManual: true }))
+  const orphans: ManualRow[] = []
+  for (const m of manual.filter((x) => x.lockManual)) {
+    const i = rows.findIndex((r, idx) => !used.has(idx) && keyOf(r) === keyOf(m))
+    if (i < 0) {
+      orphans.push(m)
+      continue
+    }
+    used.add(i)
+    rows[i] = { ...m, manual: true, lockManual: true } as (typeof rows)[number]
+    kept++
+  }
+  const overwritten = manual.filter((x) => !x.lockManual).length
+  return { rows, orphans, kept, overwritten }
 }

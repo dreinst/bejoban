@@ -3,7 +3,9 @@ import { ArrowRight, ArrowUpRight, MapPin, Clock, Phone } from 'lucide-react'
 import { getContent } from '@/lib/settings'
 import { currentBranch, listProducts } from '@/lib/shop'
 import { db } from '@/lib/db'
-import { waLink, rupiah, isFuture } from '@/lib/format'
+import { rupiah, isFuture } from '@/lib/format'
+import { getSitus } from '@/lib/situs-server'
+import { waNumber } from '@/lib/situs'
 import { ProductCard } from '@/components/product-card'
 import { Countdown } from '@/components/countdown'
 
@@ -27,7 +29,7 @@ function Heading({ eyebrow, title, link }: { eyebrow?: string; title: string; li
 
 /* eslint-disable @next/next/no-img-element */
 export default async function Home() {
-  const [c, { branches, branch }] = await Promise.all([getContent(), currentBranch()])
+  const [c, { branches, branch }, situs] = await Promise.all([getContent(), currentBranch(), getSitus()])
   const flashOn = isFuture(c.flash.endsAt)
   const [categories, brands, flash, newest, look] = await Promise.all([
     db.category.findMany({ orderBy: { sort: 'asc' }, include: { products: { where: { active: true, listings: { some: { branchId: branch.id } } }, select: { id: true } } } }),
@@ -36,7 +38,7 @@ export default async function Home() {
     listProducts(branch.id, {}, { take: 8 }),
     c.promo.products?.length ? listProducts(branch.id, { ids: c.promo.products }) : Promise.resolve([]),
   ])
-  const wa = waLink(branch.whatsapp, `Halo ${branch.name}, saya mau booking servis.`)
+  const wa = `/wa/${branch.slug}`
   const side: string[] = c.hero.side ?? []
   const wrap = 'mx-auto max-w-7xl px-4 lg:px-8'
 
@@ -190,7 +192,7 @@ export default async function Home() {
                       <Link href={`/produk/${p.slug}`} className="flex items-center gap-4 py-3 hover:bg-paper/60">
                         <img src={p.image} alt="" className="size-14 rounded-lg object-cover" />
                         <span className="flex-1 text-sm font-medium">{p.name}</span>
-                        <span className="text-sm font-semibold">{rupiah(p.price)}</span>
+                        <span className="text-sm font-semibold">{situs.showPrices ? rupiah(p.price) : 'Tanya harga'}</span>
                       </Link>
                     </li>
                   ))}
@@ -240,11 +242,11 @@ export default async function Home() {
                 <dl className="mt-4 space-y-2 text-sm">
                   <div className="flex gap-3"><dt><MapPin className="size-4" /></dt><dd>{b.address || 'Alamat lengkap bisa ditanyakan lewat WhatsApp.'}</dd></div>
                   <div className="flex gap-3"><dt><Clock className="size-4" /></dt><dd>Buka {b.hours}</dd></div>
-                  <div className="flex gap-3"><dt><Phone className="size-4" /></dt><dd>WA {b.whatsapp}</dd></div>
+                  <div className="flex gap-3"><dt><Phone className="size-4" /></dt><dd>WA {waNumber(situs, b)}</dd></div>
                 </dl>
                 <p className="mt-4 text-xs uppercase tracking-widest text-mute">{b.services}</p>
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <a href={waLink(b.whatsapp)} target="_blank" className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper">Chat WhatsApp</a>
+                  <a href={`/wa/${b.slug}`} target="_blank" className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper">Chat WhatsApp</a>
                   {b.mapsUrl && <a href={b.mapsUrl} target="_blank" className="rounded-full border border-ink px-5 py-2.5 text-sm font-semibold">Petunjuk arah</a>}
                 </div>
               </div>

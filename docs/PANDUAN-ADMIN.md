@@ -21,26 +21,42 @@ Produk dengan label **CONTOH** adalah data isian awal. Ganti nama, harga, dan fo
 
 ## Fitur internal (khusus owner, kecuali Ongkir)
 
-Tiga halaman ini untuk keperluan toko, tidak tampil di web publik. Masih berupa draf untuk dicoba.
+Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder `data/`, tidak boleh masuk git.
+
+### Situs dan WhatsApp
+
+- **Nomor WhatsApp utama**: satu nomor untuk dua cabang. Kalau kosong, situs memakai nomor tiap cabang.
+- **Tautan pendek**: semua tombol WhatsApp di situs mengarah ke `/wa/batu`, `/wa/karanglo`, atau `/wa` (umum). Tautan itu mengalihkan ke `wa.me/<nomor utama>?text=<kalimat pembuka cabang>`, jadi nomor dan kalimat cukup diubah di satu tempat. Ketiga tautan tampil di halaman ini dengan tombol salin, untuk dipasang di Google Maps, bio Instagram, dan QR di toko. Hitungan klik per cabang per hari ikut tampil (tanpa data pribadi).
+- **Kalimat pembuka** bisa diedit. Pertahankan nama cabang (`{cabang}`), karena bot mengenali cabang dari kata Batu atau Karanglo di pesan.
+- **Tampilkan harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, detail, keranjang, dan flash sale hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
 
 ### Stok ban
 
-1. Buka **Stok ban**, pilih berkas CSV pricelist atau tempel isinya, lalu tekan *Impor dan ganti stok*. Setiap impor mengganti seluruh stok.
-2. Hasilnya berupa jumlah baris yang masuk dan daftar baris bermasalah (harga kosong, format harga janggal seperti `1.825.0000`, stok bukan angka, merek kosong). Baris itu ditampilkan apa adanya. Harga yang janggal disimpan kosong, jadi perbaiki di pricelist lalu impor lagi.
-3. Berkas pricelist asli berisi harga dan stok nyata. Jangan dimasukkan ke git, simpan di folder `data/`.
+- **Sinkron dari Google Sheets**: isi URL spreadsheet (disimpan di database, bukan di kode), lalu tekan *Sinkron sekarang*. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
+- **Impor CSV** dengan berkas atau tempel isi tetap tersedia. Keduanya memakai pengurai yang sama.
+- Hasil impor menampilkan jumlah baris masuk dan daftar baris bermasalah apa adanya. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal (misalnya `1.825.0000`) tidak ditebak: isi manual di tabel stok.
+- Keterangan `disc 50.000` dibaca sebagai potongan. Harga asli dan potongan disimpan terpisah, bot menyebut harga setelah potongan beserta harga asalnya.
+- **Edit langsung di tabel**: ubah harga, potongan, stok, atau keterangan per baris lalu Simpan. Baris itu diberi penanda *manual*. Centang *Kunci* supaya sinkron berikutnya tidak menimpanya. Baris manual yang tidak dikunci ditimpa data baru. Baris manual yang dikunci tapi hilang dari spreadsheet tetap disimpan. Filter *Harga bermasalah* dan *Diubah manual* membantu menemukan barisnya.
+
+### Harga jasa
+
+Tabel harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti oli) yang bisa diedit. Chatbot menjawab dari tabel ini. Kalau jasanya tidak ada atau harganya kosong, bot menyerahkan ke admin. "Paket" spooring ditulis apa adanya, isinya tidak dijelaskan di tabel. Untuk mengisi data awal dari berkas lokal `data/seed-lokal.json`, jalankan `npm run seed:lokal`.
 
 ### Ongkir
 
-- **Kalkulator** (`/admin/ongkir`, semua admin): pilih ukuran dan jumlah ban dari stok, atau isi berat manual, lalu pilih kota. J&T Cargo dan Baraka tampil berdampingan lengkap dengan berat asli, berat volume, berat ditagih, tarif per kg, packing, total, dan estimasi hari. Tombol *Salin ringkasan untuk WhatsApp* menyalin teks siap tempel.
-- **Tarif dan pengaturan** (owner): tarif per kota diisi dari daftar harga agen karena belum ada sumber tarif otomatis. Bisa tambah, ubah, hapus, atau tempel banyak baris. Atur juga asal kirim, pembagi berat volume tiap ekspedisi, packing per ban, dan berat serta ukuran kemasan per ring (R12 sampai R19).
-- Data awal bertanda CONTOH. Angka contoh selalu tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
-- Kalau tarif satu kota belum ada untuk satu ekspedisi, hasilnya "tarif belum diisi".
+- **Kalkulator** (`/admin/ongkir`, semua admin): pilih ban dari stok, velg, atau berat manual. Tujuan dicari lewat kotak pencarian lokasi (OpenStreetMap lewat server, hasil disimpan di cache database). Pencarian hanya jalan saat tombol ditekan. Hasilnya nama tempat, kecamatan, kota atau kabupaten, provinsi, koordinat, dan jarak garis lurus dari cabang asal. Kota hasil pencarian dicocokkan dengan tabel tarif J&T Cargo dan Baraka Express. Kalau belum ada tarifnya, tampil "tarif belum diisi" dengan tautan untuk menambah tarif kota itu.
+- **Tarif dan pengaturan** (owner): tarif per kota diisi dari daftar harga agen. Atur juga koordinat cabang asal, pembagi berat volume, packing per ban, berat velg, dan berat serta ukuran kemasan ban per ring (R12 sampai R19). Berat velg bawaan 10 kg, perkiraan toko (7 sampai 12 kg). Berat ban belum pernah dihitung toko, jadi angka bawaannya berlabel contoh.
+- Baris tarif dan berat ban bertanda CONTOH tampil dengan label "contoh, belum dari agen". Hilangkan centang *Contoh* setelah angkanya dari agen.
+- Penyedia lokasi bawaan OpenStreetMap tanpa kunci. Untuk memakai Google Maps nanti, isi `GOOGLE_MAPS_API_KEY` di `.env`.
 
 ### Chatbot
 
-- **Kotak uji**: ketik pesan seperti pelanggan (misalnya `hankook 185/65 R15` atau `ongkir 4 ban 185/65 R15 ke Surabaya`), lalu lihat balasan dan alasan pencocokannya. Bot menjawab hanya dari data stok dan tarif. Kalau pesan tidak memuat ukuran atau merek yang dikenali, hasilnya ditandai *serahkan ke admin*.
-- **Pengaturan**: saklar aktif, jam aktif (WIB), jeda antar balasan, batas balasan per hari, dan daftar nomor internal yang dilayani.
-- **Worker WhatsApp** (`scripts/bot-wa.ts`) membaca WAHA secara berkala dan hanya melayani nomor di daftar. Bawaannya uji kering (hanya mencetak balasan). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, jalankan dengan `npm run bot:wa`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Skrip ini belum pernah dicoba ke WAHA.
+Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di data stok dan harga jasa. Ada dan stok lebih dari 0 (atau jasa ada di tabel): kirim harga dan stok asli. Tidak ada, stok 0, harga kosong, atau pesan tidak dikenali: bot tidak menjawab harga, mengirim satu kalimat bahwa admin akan membalas, mengirim ringkasan ke nomor admin cabang, lalu diam di chat itu selama jangka waktu yang diatur. Admin menandai percakapan *Selesai, tersedia* atau *Selesai, tidak tersedia* (bot lalu mengirim kalimat penutup).
+
+- **Cabang**: dikenali dari kata Batu, Karanglo, atau Singosari di mana pun dalam pesan. Cabang tidak ditanyakan sebelum menjawab stok. Bot menanyakannya (balas 1 atau 2) hanya sebelum serah terima ke admin, atau saat pelanggan mau datang, pasang, atau booking. Pilihan diingat per nomor pelanggan (bawaan 30 hari), dan pelanggan bisa mengganti dengan mengetik "ganti cabang" atau nama cabang lain. Kalau cabang belum diketahui dan pertanyaan cabang tidak dijawab, percakapan diserahkan ke nomor owner.
+- **Tab Percakapan dan kotak uji**: daftar percakapan dengan filter status dan cabang, tombol penanda selesai, dan kotak uji (tidak membuat percakapan, tidak mengirim apa pun).
+- **Tab Pengaturan**: Sambungan WhatsApp (satu WAHA GOWS, satu nomor), Jam dan batas kirim, Templat pesan (dengan pratinjau), Nomor admin per cabang, dan Sosial media (templat balasan otomatis Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
+- **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA, dan label WhatsApp per cabang baru berupa fungsi kosong bercatatan.
 
 ## Ukuran foto
 

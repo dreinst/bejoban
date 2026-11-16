@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { calcQuote, mergeSettings, normCity } from '../src/lib/ongkir/calc'
 import { summaryText } from '../src/lib/ongkir/format'
-import type { Rate } from '../src/lib/ongkir/types'
+import { CARRIER_LABEL, type Rate } from '../src/lib/ongkir/types'
 
 const rate: Rate = { carrier: 'JNT_CARGO', city: 'Surabaya', perKg: 5000, minWeight: 10, etaDays: '2-3', note: '', isSample: false }
 const s = mergeSettings({
@@ -47,7 +47,17 @@ test('angka contoh selalu berlabel di ringkasan', () => {
   assert.ok(q.status === 'OK' && q.isSample)
   const text = summaryText([q, calcQuote('BARAKA', 'Surabaya', null, { manualWeightKg: 1, usePacking: false }, s)], '1 ban', 'Batu')
   assert.match(text, /contoh, belum dari agen/)
-  assert.match(text, /Baraka ke Surabaya: tarif belum diisi/)
+  assert.match(text, /Baraka Express ke Surabaya: tarif belum diisi/)
+})
+
+test('velg: berat bawaan perkiraan toko, bukan contoh, dan Baraka Express dipakai sebagai nama', () => {
+  const q = calcQuote('JNT_CARGO', 'Surabaya', rate, { velg: { count: 4 }, usePacking: false }, mergeSettings(null))
+  assert.ok(q.status === 'OK')
+  if (q.status !== 'OK') return
+  assert.equal(q.actualKg, 40)
+  assert.equal(q.isSample, false)
+  assert.ok(q.notes[0].includes('perkiraan toko'))
+  assert.equal(CARRIER_LABEL.BARAKA, 'Baraka Express')
 })
 
 test('nama kota dicocokkan tanpa peduli huruf besar dan awalan Kota', () => {

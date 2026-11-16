@@ -53,7 +53,7 @@ async function main() {
       name: 'Bejo Ban Karanglo',
       instagram: 'bejobankaranglo',
       whatsapp: '082140220910',
-      address: '',
+      address: 'Jl. Raya Gembrung No. 20, Gembrung, Tanjungtirto, Kec. Singosari, Kabupaten Malang, Jawa Timur',
       services: 'Ban, Oli, Spooring, Balancing, Nitrogen',
       photo: await img(ig('k09_DaUU9Bjp9w4.jpg'), 'branch', { top: 230, height: 210 }),
       sort: 2,

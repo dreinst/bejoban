@@ -1,31 +1,34 @@
-// Penghubung engine dengan database. Dipakai halaman admin dan skrip worker.
+// Penghubung mesin jawab dengan database. Dipakai halaman admin dan worker.
 import { db } from '../db'
-import { answer, type Answer, type ShipRequest, type Tire } from './engine'
-import { mergeBot, type BotSettings } from './policy'
-import { calcQuote, normCity } from '../ongkir/calc'
-import { loadShippingSettings } from '../ongkir/db-source'
-import { summaryText } from '../ongkir/format'
-import { CARRIERS, type Rate } from '../ongkir/types'
+import { handle, type BotContext, type Outcome, type Service, type Tire } from './engine'
+import { mergeBot, jamBukaText, type BotSettings } from './policy'
+import { mergeSosmed, mergeTemplates, type Sosmed, type Templates } from './templates'
 
-export async function loadBotSettings(): Promise<BotSettings> {
-  const row = await db.setting.findUnique({ where: { key: 'bot' } })
-  return mergeBot(row ? JSON.parse(row.value) : null)
+const read = async (key: string) => {
+  const row = await db.setting.findUnique({ where: { key } })
+  return row ? JSON.parse(row.value) : null
 }
 
-export async function respond(text: string): Promise<Answer> {
-  const tires: Tire[] = await db.stockTire.findMany({
-    select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, stock: true, note: true },
-  })
-  const settings = await loadShippingSettings()
-  const rates = await db.shippingRate.findMany()
-  const shipQuote = (r: ShipRequest) => {
-    const quotes = CARRIERS.map((c) => {
-      const hit = rates.find((x) => x.carrier === c && normCity(x.city) === normCity(r.city))
-      const rate: Rate | null = hit ? { ...hit, carrier: c } : null
-      return calcQuote(c, r.city, rate, { tires: { count: r.qty, ring: r.ring }, usePacking: true }, settings)
-    })
-    if (quotes.some((q) => q.status === 'NO_PACK')) return null
-    return summaryText(quotes, `${r.qty} ban ${r.sizeLabel} ke ${r.city}`, settings.origin)
+export const loadBotSettings = async (): Promise<BotSettings> => mergeBot(await read('bot'))
+export const loadTemplates = async (): Promise<Templates> => mergeTemplates(await read('bot.templates'))
+export const loadSosmed = async (): Promise<Sosmed> => mergeSosmed(await read('bot.sosmed'))
+
+export async function loadContext(settings?: BotSettings): Promise<{ ctx: BotContext; tires: Tire[]; settings: BotSettings }> {
+  const s = settings ?? (await loadBotSettings())
+  const [branches, tires, services, templates] = await Promise.all([
+    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
+    db.stockTire.findMany({ select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true } }),
+    db.servicePrice.findMany({ orderBy: { sort: 'asc' } }),
+    loadTemplates(),
+  ])
+  return {
+    ctx: { branches: branches.map((b) => ({ ...b, aliases: s.branchAliases[b.slug] ?? [] })), adminNumbers: s.adminNumbers, ownerNumber: s.ownerNumber, templates, services: services as Service[], jamBuka: jamBukaText(s) },
+    tires,
+    settings: s,
   }
-  return answer(text, tires, { shipQuote })
+}
+
+export async function runBot(text: string, customer = '', extra: Partial<BotContext> = {}): Promise<Outcome> {
+  const { ctx, tires } = await loadContext()
+  return handle(text, tires, { ...ctx, customer, ...extra })
 }

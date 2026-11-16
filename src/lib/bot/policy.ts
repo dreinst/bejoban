@@ -3,10 +3,16 @@ export type BotSettings = {
   enabled: boolean // saklar utama
   startTime: string // "08:00", waktu Jakarta
   endTime: string // "17:00"
-  gapSec: number // jeda minimal antar balasan
-  dailyLimit: number // batas balasan terkirim per hari
-  numbers: string[] // nomor internal yang dilayani, format 62812...
-  replyOnHandoff: boolean // false: diam saat diserahkan ke admin
+  gapSec: number // jeda minimal antar pesan terkirim
+  dailyLimit: number // batas pesan terkirim per hari
+  muteHours: number // lama bot diam di chat yang diserahkan ke admin
+  restrictNumbers: boolean // true: hanya melayani nomor uji (aman selama masih uji coba)
+  testNumbers: string[] // nomor uji, format 62812...
+  adminNumbers: Record<string, string> // slug cabang -> nomor admin untuk serah terima
+  branchMemoryDays: number // lama pilihan cabang pelanggan diingat
+  branchWaitMin: number // menit menunggu jawaban cabang sebelum diserahkan ke owner
+  branchAliases: Record<string, string[]> // kata lain pengenal cabang, kunci: slug
+  ownerNumber: string // dipakai kalau cabang tidak dikenali atau nomor admin kosong
 }
 
 export const DEFAULT_BOT: BotSettings = {
@@ -14,19 +20,28 @@ export const DEFAULT_BOT: BotSettings = {
   startTime: '08:00',
   endTime: '17:00',
   gapSec: 20,
-  dailyLimit: 50,
-  numbers: [],
-  replyOnHandoff: false,
+  dailyLimit: 100,
+  muteHours: 6,
+  restrictNumbers: true,
+  testNumbers: [],
+  adminNumbers: {},
+  branchMemoryDays: 30,
+  branchWaitMin: 15,
+  branchAliases: { karanglo: ['singosari'] },
+  ownerNumber: '',
 }
 
-export const mergeBot = (saved: Partial<BotSettings> | null | undefined): BotSettings => ({ ...DEFAULT_BOT, ...saved })
+export const mergeBot = (saved: (Partial<BotSettings> & { numbers?: string[] }) | null | undefined): BotSettings => {
+  const { numbers, ...rest } = saved ?? {}
+  return { ...DEFAULT_BOT, ...(numbers && !rest.testNumbers ? { testNumbers: numbers } : {}), ...rest, adminNumbers: { ...rest.adminNumbers }, branchAliases: { ...DEFAULT_BOT.branchAliases, ...rest.branchAliases } }
+}
 
-// "0812-3456 789", "+62 812..." menjadi "62812..."
+// "0812-3456 789", "+62 812...", "62812...@c.us" menjadi "62812..."
 export const normalizeNumber = (raw: string) => raw.replace(/@.*$/, '').replace(/\D/g, '').replace(/^0/, '62')
 
-export const isInternal = (sender: string, s: BotSettings) => {
+export const isTestNumber = (sender: string, s: BotSettings) => {
   const n = normalizeNumber(sender)
-  return !!n && s.numbers.some((x) => normalizeNumber(x) === n)
+  return !!n && s.testNumbers.some((x) => normalizeNumber(x) === n)
 }
 
 const toMin = (hhmm: string) => {
@@ -44,24 +59,16 @@ export const withinHours = (now: Date, s: BotSettings) => {
   return a <= b ? m >= a && m < b : m >= a || m < b
 }
 
-export type Decision = { send: boolean; reason: string }
+export const jamBukaText = (s: BotSettings) => `${s.startTime.replace(':', '.')} sampai ${s.endTime.replace(':', '.')}`
 
-export function decide(p: {
-  settings: BotSettings
-  now: Date
-  sender: string
-  handoff: boolean
-  adminReplied: boolean // admin sudah membalas chat ini setelah pesan masuk
-  sentToday: number
-  lastSentAt: Date | null
-}): Decision {
+export type Decision = { action: 'balas' | 'luar_jam' | 'diam'; reason: string }
+
+// Jeda antar pesan tidak diperiksa di sini: pengirim menunggu sampai jeda lewat.
+export function decide(p: { settings: BotSettings; now: Date; sender: string; sentToday: number }): Decision {
   const { settings: s } = p
-  if (!s.enabled) return { send: false, reason: 'saklar bot mati' }
-  if (!isInternal(p.sender, s)) return { send: false, reason: 'nomor bukan internal' }
-  if (p.adminReplied) return { send: false, reason: 'admin sudah membalas' }
-  if (!withinHours(p.now, s)) return { send: false, reason: `di luar jam aktif ${s.startTime} sampai ${s.endTime}` }
-  if (p.handoff && !s.replyOnHandoff) return { send: false, reason: 'diserahkan ke admin' }
-  if (p.sentToday >= s.dailyLimit) return { send: false, reason: `batas harian ${s.dailyLimit} tercapai` }
-  if (p.lastSentAt && p.now.getTime() - p.lastSentAt.getTime() < s.gapSec * 1000) return { send: false, reason: `jeda ${s.gapSec} detik belum lewat` }
-  return { send: true, reason: 'boleh membalas' }
+  if (!s.enabled) return { action: 'diam', reason: 'saklar bot mati' }
+  if (s.restrictNumbers && !isTestNumber(p.sender, s)) return { action: 'diam', reason: 'nomor bukan nomor uji (pembatasan nomor aktif)' }
+  if (!withinHours(p.now, s)) return { action: 'luar_jam', reason: `di luar jam aktif ${s.startTime} sampai ${s.endTime}` }
+  if (p.sentToday >= s.dailyLimit) return { action: 'diam', reason: `batas harian ${s.dailyLimit} tercapai` }
+  return { action: 'balas', reason: 'boleh membalas' }
 }

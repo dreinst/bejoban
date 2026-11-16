@@ -7,11 +7,13 @@ import { CARRIERS, CARRIER_LABEL, SAMPLE_LABEL } from '@/lib/ongkir/types'
 import { inputCls } from '@/components/admin/section-editor'
 import { Card, labelCls } from '@/components/admin/simple-list'
 
-export default async function Tarif() {
+export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/tarif'>) {
   await requireOwner()
-  const [rates, s] = await Promise.all([
+  const kota = String((await searchParams).kota ?? '').slice(0, 60)
+  const [rates, s, branches] = await Promise.all([
     db.shippingRate.findMany({ orderBy: [{ city: 'asc' }, { carrier: 'asc' }] }),
     loadShippingSettings(),
+    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
   ])
   const form = (r?: (typeof rates)[number]) => (
     <form action={saveRate} className="grid gap-2 md:grid-cols-[130px_1fr_110px_100px_100px_1fr_auto_auto]">
@@ -21,7 +23,7 @@ export default async function Tarif() {
           {CARRIERS.map((c) => <option key={c} value={c}>{CARRIER_LABEL[c]}</option>)}
         </select>
       </label>
-      <label className={labelCls}>Kota tujuan<input name="city" defaultValue={r?.city} required className={inputCls} /></label>
+      <label className={labelCls}>Kota tujuan<input name="city" defaultValue={r?.city ?? kota} required className={inputCls} /></label>
       <label className={labelCls}>Tarif/kg (Rp)<input name="perKg" defaultValue={r?.perKg} required inputMode="numeric" className={inputCls} /></label>
       <label className={labelCls}>Min. kg<input name="minWeight" defaultValue={r?.minWeight ?? 10} inputMode="decimal" className={inputCls} /></label>
       <label className={labelCls}>Estimasi hari<input name="etaDays" defaultValue={r?.etaDays} placeholder="2-3" className={inputCls} /></label>
@@ -58,7 +60,7 @@ export default async function Tarif() {
         </div>
       </Card>
 
-      <Card title="+ Tarif baru">{form()}</Card>
+      <section id="baru"><Card title="+ Tarif baru">{form()}</Card></section>
 
       <Card title="Tempel banyak tarif sekaligus">
         <form action={importRates} className="grid gap-3">
@@ -71,7 +73,7 @@ export default async function Tarif() {
         </form>
       </Card>
 
-      <Card title="Pengaturan">
+      <section id="pengaturan"><Card title="Pengaturan">
         <form action={saveShipSettings} className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-4">
             <label className={`${labelCls} md:col-span-2`}>Asal kirim (cabang)
@@ -80,6 +82,29 @@ export default async function Tarif() {
             <label className={labelCls}>Pembagi volume J&amp;T Cargo<input name="divJnt" defaultValue={s.divisor.JNT_CARGO} className={inputCls} /></label>
             <label className={labelCls}>Pembagi volume Baraka<input name="divBaraka" defaultValue={s.divisor.BARAKA} className={inputCls} /></label>
             <label className={labelCls}>Packing per ban (Rp, 0 = tanpa)<input name="packing" defaultValue={s.packingPerTire} className={inputCls} /></label>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold text-neutral-700">Koordinat cabang asal (untuk jarak garis lurus)</p>
+            <p className="mb-2 text-xs text-neutral-500">Angka bawaan hanya perkiraan pusat wilayah. Ganti dengan titik toko (klik kanan di Google Maps, salin dua angka koordinat).</p>
+            <div className="grid gap-2 md:grid-cols-2">
+              {branches.map((b) => (
+                <div key={b.slug} className="grid grid-cols-[1fr_1fr] gap-2">
+                  <label className={labelCls}>Lintang {b.name.replace(/\s*\(.*\)/, '')}<input name={`lat_${b.slug}`} defaultValue={s.origins[b.slug]?.lat ?? ''} className={inputCls} /></label>
+                  <label className={labelCls}>Bujur<input name={`lon_${b.slug}`} defaultValue={s.origins[b.slug]?.lon ?? ''} className={inputCls} /></label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold text-neutral-700">Velg</p>
+            <div className="grid gap-2 md:grid-cols-5">
+              <label className={labelCls}>Berat per velg (kg)<input name="velgW" defaultValue={s.velg.weightKg} className={inputCls} /></label>
+              <label className={labelCls}>Panjang (cm)<input name="velgL" defaultValue={s.velg.lengthCm} className={inputCls} /></label>
+              <label className={labelCls}>Lebar (cm)<input name="velgB" defaultValue={s.velg.widthCm} className={inputCls} /></label>
+              <label className={labelCls}>Tinggi (cm)<input name="velgT" defaultValue={s.velg.heightCm} className={inputCls} /></label>
+              <label className={labelCls}>Sumber angka<input name="velgNote" defaultValue={s.velgNote} className={inputCls} /></label>
+            </div>
+            <p className="mt-1 text-xs text-neutral-500">Berat velg perkiraan toko. Kalau ukuran kemasan 0, berat volume velg tidak dihitung.</p>
           </div>
           <div>
             <p className="mb-1 text-xs font-semibold text-neutral-700">Berat dan ukuran kemasan satu ban per ring</p>
@@ -111,7 +136,7 @@ export default async function Tarif() {
           </div>
           <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan pengaturan</button>
         </form>
-      </Card>
+      </Card></section>
     </div>
   )
 }
