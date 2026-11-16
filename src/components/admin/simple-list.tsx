@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-// Kartu form sederhana untuk halaman CRUD kecil (kategori, merek, cabang, pengguna).
+// Pola lama. Halaman baru memakai Section di ui.tsx dan kolom di field.tsx (docs/STANDAR-UI-ADMIN.md).
 export function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="adm-card p-5">

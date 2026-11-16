@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/auth'
 import { menuFor } from '@/lib/admin-menu'
 import { hitungPerluDicek } from '@/lib/perlu-dicek'
 import { logout } from '../actions'
-import { Flash } from '@/components/admin/flash'
+import { Toast } from '@/components/admin/toast'
 import { AdminSidebar } from '@/components/admin/sidebar'
 import { AdminTabs } from '@/components/admin/tabs'
 
@@ -19,8 +19,8 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
       <AdminSidebar menu={menu} name={s.name} role={s.role} logout={logout} />
       <main className="adm-area min-w-0 flex-1 p-4 md:p-8">
         <AdminTabs menu={menu} badges={{ 'perlu-dicek': cek.total }} />
-        <Suspense><Flash /></Suspense>
         {children}
+        <Suspense><Toast /></Suspense>
       </main>
     </div>
   )
