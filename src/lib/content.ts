@@ -221,9 +221,9 @@ export const SECTIONS: Section[] = [
   {
     key: 'brands',
     title: 'Judul bagian merek',
-    note: 'Daftar merek dan logonya diatur di menu Merek.',
-    fields: [txt('title', 'Judul'), txt('sub', 'Sub judul'), txt('names', 'Merek yang ditampilkan (pisah koma)')],
-    defaults: { title: 'Our Brand', sub: 'Brand Terpercaya untuk Performa Maksimal', names: 'Hankook, Michelin' },
+    note: 'Daftar merek, urutan, dan status by order diatur di menu Merek.',
+    fields: [txt('title', 'Judul'), txt('sub', 'Sub judul')],
+    defaults: { title: 'Our Brand', sub: 'Brand Terpercaya untuk Performa Maksimal' },
   },
   {
     key: 'gallery',

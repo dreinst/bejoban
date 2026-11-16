@@ -5,6 +5,10 @@
 // dan harga serta stok yang sudah diisi admin tidak ditimpa.
 //
 // Format seed.json (semua bagian opsional):
+//   brands:   [{ name, byOrder?, sort? }]                 merek resmi untuk menu Merek dan beranda, mis.
+//             [{ "name": "Dunlop", "byOrder": false, "sort": 5 }]. Nama dicocokkan tanpa membedakan huruf
+//             besar kecil: yang belum ada dibuat, yang sudah ada diperbarui byOrder dan sort-nya. Merek lain
+//             tidak disembunyikan atau dihapus.
 //   branches: [{ slug, address?, photo? }]               photo = nama berkas gambar di folder ini
 //   services: [{ groupName, name, variant?, ringMin?, ringMax?, minDiameter?, price, unit?, altLabel?, altPrice?, note?, keywords? }]
 //   content:  { <kunci bagian Tampilan Web>: { ...isi yang ditimpa } }   nama berkas gambar diganti URL otomatis
@@ -19,7 +23,9 @@ import { slugify } from '../src/lib/format'
 
 type Svc = { groupName: string; name: string; variant?: string; ringMin?: number | null; ringMax?: number | null; minDiameter?: number | null; price: number | null; unit?: string; altLabel?: string; altPrice?: number | null; note?: string; keywords?: string }
 type Prod = { name: string; spec: string; brand: string; category: string; image: string; fitment?: string }
+type SeedBrand = { name: string; byOrder?: boolean; sort?: number }
 type Seed = {
+  brands?: SeedBrand[]
   branches?: { slug: string; address?: string; photo?: string }[]
   services?: Svc[]
   content?: Record<string, Record<string, unknown>>
@@ -69,6 +75,26 @@ async function main() {
     process.exit(1)
   }
 
+  // Merek: idempoten, cocokkan nama tanpa beda huruf besar kecil, jangan duplikasi atau hapus merek lain.
+  let merekBaru = 0
+  let merekDiperbarui = 0
+  if (seed.brands?.length) {
+    const ada = await db.brand.findMany({ select: { id: true, name: true } })
+    for (const [i, b] of seed.brands.entries()) {
+      const name = String(b.name ?? '').trim()
+      if (!name) continue
+      const data = { byOrder: b.byOrder === true, sort: Number.isInteger(b.sort) ? b.sort! : i + 1 }
+      const cocok = ada.find((x) => x.name.toLowerCase() === name.toLowerCase())
+      if (cocok) {
+        await db.brand.update({ where: { id: cocok.id }, data })
+        merekDiperbarui++
+      } else {
+        ada.push(await db.brand.create({ data: { name, ...data }, select: { id: true, name: true } }))
+        merekBaru++
+      }
+    }
+  }
+
   for (const b of seed.branches ?? []) {
     const data: { address?: string; photo?: string } = {}
     if (b.address) data.address = b.address
@@ -104,7 +130,10 @@ async function main() {
   if (seed.products?.length) {
     const branches = await db.branch.findMany()
     for (const p of seed.products) {
-      const brand = (await db.brand.findUnique({ where: { name: p.brand } })) ?? (await db.brand.create({ data: { name: p.brand, sort: 99 } }))
+      const brand =
+        (await db.brand.findFirst({ where: { name: { equals: p.brand } } })) ??
+        (await db.brand.findMany()).find((x) => x.name.toLowerCase() === p.brand.toLowerCase()) ??
+        (await db.brand.create({ data: { name: p.brand, sort: 99 } }))
       const cat = await db.category.findFirst({ where: { name: p.category } })
       const image = await imageUrl(p.image, 'productCut')
       const data = { name: p.name, spec: p.spec, fitment: p.fitment ?? '', images: JSON.stringify([image]), isSample: false, active: true, brandId: brand.id, categoryId: cat?.id ?? null }
@@ -129,6 +158,7 @@ async function main() {
     await db.setting.upsert({ where: { key }, create: { key, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } })
   }
 
+  console.log(`Merek: ${merekBaru} baru, ${merekDiperbarui} diperbarui.`)
   console.log(`Seed lokal selesai: ${seed.branches?.length ?? 0} cabang, ${seed.services?.length ?? 0} baris jasa, ${seed.products?.length ?? 0} produk, ${Object.keys(content).length} bagian konten.`)
 }
 

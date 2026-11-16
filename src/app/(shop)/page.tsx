@@ -36,7 +36,10 @@ function Section({ id, bg, children }: { id?: string; bg: string; children: Reac
 
 export default async function Home() {
   const [c, { branch }] = await Promise.all([getContent(), currentBranch()])
-  const [branches, brandRows] = await Promise.all([db.branch.findMany({ orderBy: { sort: 'asc' } }), db.brand.findMany()])
+  const [branches, brandRows] = await Promise.all([
+    db.branch.findMany({ orderBy: { sort: 'asc' } }),
+    db.brand.findMany({ orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, byOrder: true } }),
+  ])
   const ids: number[] = c.newest.products ?? []
   const products = ids.length ? await listProducts(branch.id, { ids }, {}) : await listProducts(branch.id, {}, { take: 6 })
   const ordered = ids.length ? ids.map((id) => products.find((p) => p.id === id)).filter((p): p is (typeof products)[number] => !!p) : products
@@ -46,7 +49,6 @@ export default async function Home() {
   const steps = c.steps.items as { title: string; sub: string }[]
   const cars = (c.cars.items as { title: string; sub: string; query: string; tone?: string; image: string }[]) ?? []
   const gallery: string[] = (c.gallery.images ?? []).slice(0, 4)
-  const brandNames = String(c.brands.names ?? '').split(',').map((x) => x.trim()).filter(Boolean)
   const cta2 = String(c.hero.cta2)
 
   return (
@@ -178,15 +180,14 @@ export default async function Home() {
       <section className="bg-graphite">
         <div className="mx-auto max-w-[1440px] px-5 py-14 lg:px-20 lg:py-24">
           <Head title={c.brands.title} sub={c.brands.sub} dark />
-          <ul className="mt-7 flex flex-col justify-center gap-3.5 lg:mt-12 lg:flex-row lg:gap-7">
-            {brandNames.map((n) => {
-              const logo = brandRows.find((b) => b.name.toLowerCase() === n.toLowerCase())?.logo
-              return (
-                <li key={n} className="card-d flex h-24 items-center justify-center lg:h-[130px] lg:w-[420px]">
-                  {logo ? <img src={logo} alt={n} className="max-h-[60%] max-w-[70%] object-contain" /> : <span className="font-display text-[32px] font-extrabold uppercase leading-none tracking-[4px] text-white lg:text-[44px] lg:tracking-[6px]">{n}</span>}
-                </li>
-              )
-            })}
+          {/* Nama merek dari tabel Brand (menu Merek), urut sort. Tanpa logo, supaya rapi untuk banyak merek. */}
+          <ul className="mx-auto mt-7 grid max-w-[1100px] grid-cols-2 gap-3 lg:mt-12 lg:grid-cols-4 lg:gap-5">
+            {brandRows.map((b) => (
+              <li key={b.id} className="card-d flex h-[88px] flex-col items-center justify-center gap-1.5 px-2 text-center lg:h-[120px]">
+                <span className="font-display text-[17px] font-extrabold uppercase leading-tight tracking-[1.5px] text-white [overflow-wrap:anywhere] lg:text-[26px] lg:tracking-[3px]">{b.name}</span>
+                {b.byOrder && <span className="rounded border border-[#3a3a3a] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-mute-dark lg:text-[11px]">by order</span>}
+              </li>
+            ))}
           </ul>
         </div>
       </section>

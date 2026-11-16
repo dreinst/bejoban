@@ -186,10 +186,10 @@ export async function saveBrand(fd: FormData) {
   const name = str(fd, 'name', 60)
   if (!name) redirect('/admin/merek?err=Nama wajib diisi')
   const logo = String(fd.get('logo') ?? '')
-  const data = { name, sort: int(fd, 'sort'), logo: isMedia(logo) ? logo : '' }
+  const data = { name, sort: int(fd, 'sort'), logo: isMedia(logo) ? logo : '', byOrder: fd.get('byOrder') === 'on' }
   if (id) await db.brand.update({ where: { id }, data })
   else await db.brand.create({ data })
-  await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name })
+  await catat(s, id ? 'ubah' : 'tambah', 'merek', { id: id || null, nama: name, byOrder: data.byOrder })
   done('/admin/merek')
 }
 
