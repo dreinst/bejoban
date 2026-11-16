@@ -3,7 +3,7 @@ import { requireOwner } from '@/lib/auth'
 import { saveShipSettings } from '../../../fitur-actions'
 import { loadShippingSettings } from '@/lib/ongkir/db-source'
 import { SAMPLE_LABEL } from '@/lib/ongkir/types'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { PageHeader } from '@/components/admin/ui'
 

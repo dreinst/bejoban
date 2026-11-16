@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { deleteRate, importRates, saveRate } from '../../../fitur-actions'
 import { CARRIERS, CARRIER_LABEL, SAMPLE_LABEL } from '@/lib/ongkir/types'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { PageHeader } from '@/components/admin/ui'
 

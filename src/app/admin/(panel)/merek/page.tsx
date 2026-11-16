@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { saveBrand, deleteBrand } from '../../actions'
 import { ImagesInput } from '@/components/admin/image-input'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 
 export default async function Merek() {

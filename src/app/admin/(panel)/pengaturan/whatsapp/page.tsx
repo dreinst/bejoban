@@ -6,7 +6,7 @@ import { SosmedEditor } from '@/components/admin/sosmed-editor'
 import { loadBotSettings, loadSosmed } from '@/lib/bot/respond'
 import { getSitus } from '@/lib/situs-server'
 import { branchLabel, waHref, waNumber } from '@/lib/situs'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { Badge, PageHeader } from '@/components/admin/ui'
 

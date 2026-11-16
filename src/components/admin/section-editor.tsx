@@ -2,12 +2,12 @@
 import { useState } from 'react'
 import type { Field } from '@/lib/content'
 import { ImagesInput } from './image-input'
+import { inputCls } from './form-cls'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Obj = Record<string, any>
 type Opt = { id: number; name: string }
 
-export const inputCls = 'w-full rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 disabled:cursor-not-allowed disabled:bg-soft disabled:text-mute'
 
 function Fields({ fields, value, set, products }: { fields: Field[]; value: Obj; set: (v: Obj) => void; products: Opt[] }) {
   return (

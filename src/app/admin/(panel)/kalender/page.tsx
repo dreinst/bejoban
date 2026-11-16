@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { Badge, Empty, PageHeader } from '@/components/admin/ui'
 import { JENIS_KALENDER, LABEL_JENIS, type JenisKalender } from '@/lib/stok/kalender'

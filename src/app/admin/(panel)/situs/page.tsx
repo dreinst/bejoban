@@ -5,7 +5,7 @@ import { saveSitus } from '../../fitur-actions'
 import { getSitus } from '@/lib/situs-server'
 import { db } from '@/lib/db'
 import { branchLabel, waHref } from '@/lib/situs'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { PageHeader } from '@/components/admin/ui'
 

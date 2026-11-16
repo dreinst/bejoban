@@ -4,7 +4,7 @@ import { requireUser, canEditBranch } from '@/lib/auth'
 import { parseImages } from '@/lib/format'
 import { saveProduct, deleteProduct } from '../../../actions'
 import { ImagesInput } from '@/components/admin/image-input'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 
 export default async function EditProduct({ params }: PageProps<'/admin/produk/[id]'>) {
   const s = await requireUser()

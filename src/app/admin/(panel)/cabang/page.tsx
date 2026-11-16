@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { requireUser, canEditBranch } from '@/lib/auth'
 import { saveBranch } from '../../actions'
 import { ImagesInput } from '@/components/admin/image-input'
-import { inputCls } from '@/components/admin/section-editor'
+import { inputCls } from '@/components/admin/form-cls'
 import { Card, labelCls } from '@/components/admin/simple-list'
 import { PageHeader } from '@/components/admin/ui'
 
