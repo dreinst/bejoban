@@ -13,11 +13,15 @@ async function upload(file: File, preset: PresetKey) {
   return j.url as string
 }
 
+// Saran ukuran plus tautan kecil ke panduan lengkap. Dibuka di tab baru supaya isian form tidak hilang.
 export function SizeHint({ preset }: { preset: PresetKey }) {
   const p = PRESETS[preset]
   return (
     <p className="text-[11px] leading-snug text-neutral-500">
-      Disarankan <b>{p.w}×{p.h} px</b> (rasio {p.ratio}). {p.tip}
+      Disarankan <b>{p.w}×{p.h} px</b> (rasio {p.ratio}). {p.tip}{' '}
+      <a href="/admin/panduan-foto" target="_blank" rel="noopener" className="font-semibold text-ink underline underline-offset-2">
+        Panduan ukuran<span className="sr-only"> (tab baru)</span>
+      </a>
     </p>
   )
 }

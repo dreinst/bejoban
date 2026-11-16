@@ -3,6 +3,7 @@ import { requireOwner } from '@/lib/auth'
 import { saveUser, deleteUser } from '../../actions'
 import { inputCls } from '@/components/admin/section-editor'
 import { Card, labelCls } from '@/components/admin/simple-list'
+import { PageHeader } from '@/components/admin/ui'
 
 export default async function Pengguna() {
   const s = await requireOwner()
@@ -15,7 +16,7 @@ export default async function Pengguna() {
       <label className={labelCls}>Peran
         <select name="role" defaultValue={u?.role ?? 'BRANCH_ADMIN'} className={inputCls}>
           <option value="OWNER">Owner (semua akses)</option>
-          <option value="BRANCH_ADMIN">Admin cabang (produk & harga cabangnya)</option>
+          <option value="BRANCH_ADMIN">Admin cabang (cabangnya sendiri)</option>
         </select>
       </label>
       <label className={labelCls}>Cabang (untuk admin cabang)
@@ -26,15 +27,14 @@ export default async function Pengguna() {
       </label>
       <label className={labelCls}>{u ? 'Password baru (kosongkan kalau tidak diganti)' : 'Password (min. 8 karakter)'}<input name="password" type="password" autoComplete="new-password" className={inputCls} /></label>
       <input type="hidden" name="aktif_form" value="1" />
-      <label className={`${labelCls} flex items-center gap-2`}><input type="checkbox" name="aktif" defaultChecked={u?.aktif ?? true} disabled={u?.id === s.uid} />Akun aktif (nonaktif: tidak bisa login)</label>
+      <label className={`${labelCls} flex items-center gap-2`}><input type="checkbox" name="aktif" defaultChecked={u?.aktif ?? true} disabled={u?.id === s.uid} />Akun aktif (kalau mati, tidak bisa masuk)</label>
       {u?.id === s.uid && <input type="hidden" name="aktif" value="on" />}
       <div className="flex items-end"><button className="adm-btn">Simpan</button></div>
     </form>
   )
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-bold text-ink">Pengguna</h1>
-      <p className="text-sm text-neutral-500">Owner bisa mengatur semuanya. Admin cabang hanya bisa mengubah produk, harga dan stok, serta data cabangnya sendiri.</p>
+      <PageHeader title="Pengguna" note="Owner mengatur semuanya. Admin cabang melihat Ringkasan, Produk situs, Perlu dicek, Percakapan chatbot, dan Hitung ongkir untuk cabangnya, serta bisa mengubah data cabangnya sendiri." />
       {users.map((u) => (
         <Card key={u.id} title={`${u.username} · ${u.role === 'OWNER' ? 'Owner' : `Admin ${u.branch?.name ?? ''}`}`}>
           {form(u)}
