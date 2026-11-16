@@ -33,11 +33,21 @@ Halaman ini untuk keperluan toko dan masih berupa draf untuk dicoba. Data nyata 
 
 ### Stok ban
 
-- **Sinkron dari Google Sheets**: isi URL spreadsheet (disimpan di database, bukan di kode), lalu tekan *Sinkron sekarang*. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
+- **Stok per cabang**: stok Batu dan Karanglo terpisah. Tiap baris punya cabang, atau belum punya (baris *tanpa cabang*, misalnya 325 baris pricelist lama yang belum diketahui milik cabang mana). Baris tanpa cabang dipakai sebagai stok bersama.
+- **Sinkron dari Google Sheets**: ada satu kolom URL untuk *Tanpa cabang*, satu untuk tiap cabang, dan satu untuk *Sheet gabungan*. Isi URL lalu tekan *Sinkron sekarang* di barisnya. URL disimpan di database per cabang, bukan di kode. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
+- **Impor per cabang**: impor atau sinkron ke satu cabang hanya memperbarui dan menonaktifkan baris cabang itu. Cabang lain dan baris tanpa cabang tidak tersentuh. *Sheet gabungan* dipakai kalau satu sheet berisi dua cabang: baris judulnya harus punya kolom `Cabang` berisi Batu atau Karanglo. Baris dengan cabang kosong atau tulisan lain tidak ditebak, barisnya dilewati dan tampil di daftar bermasalah. Ringkasan impor menyebut cabang tujuannya.
+- **Tetapkan baris tanpa cabang**: kalau owner sudah tahu pricelist lama milik cabang mana, pilih cabangnya di kartu *Baris tanpa cabang*, centang *Yakin*, lalu *Tetapkan*. Baris yang kodenya (ukuran dan merek) sudah ada di cabang tujuan dilewati dan tetap tanpa cabang, jumlahnya disebut di pesan hasil. Aksi ini tercatat di log aktivitas dan buku stok.
+- **Filter dan banding cabang**: di tabel stok ada pilihan *Semua*, *Tanpa cabang*, *Batu*, *Karanglo*, dan *Banding cabang*. Mode banding menampilkan satu baris per ukuran dan merek dengan stok dan harga (setelah potongan) tiap cabang berdampingan.
 - **Impor CSV** dengan berkas atau tempel isi tetap tersedia. Keduanya memakai pengurai yang sama.
 - Hasil impor menampilkan jumlah baris masuk dan daftar baris bermasalah apa adanya. Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga janggal (misalnya `1.825.0000`) tidak ditebak: isi manual di tabel stok.
 - Keterangan `disc 50.000` dibaca sebagai potongan. Harga asli dan potongan disimpan terpisah, bot menyebut harga setelah potongan beserta harga asalnya.
 - **Edit langsung di tabel**: ubah harga, potongan, stok, atau keterangan per baris lalu Simpan. Baris itu diberi penanda *manual*. Centang *Kunci* supaya sinkron berikutnya tidak menimpanya. Baris manual yang tidak dikunci ditimpa data baru. Baris manual yang dikunci tapi hilang dari spreadsheet tetap disimpan. Filter *Harga bermasalah* dan *Diubah manual* membantu menemukan barisnya.
+
+### Merek dan status by order
+
+Menu *Merek* (owner) mengatur nama, urutan, logo, dan centang *By order* (merek tidak distok, dipesan dulu). Merek resmi: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Accelera, Falken, Delium, dan Maxxis berstatus by order. Ban truk (Aeolus, Swallow, Sailun, dan lainnya) menyusul dan belum dijual.
+
+Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih satu warna dengan tinggi yang sama, jadi unggah SVG atau PNG transparan. Merek tanpa logo tampil sebagai nama. Merek by order diberi keterangan kecil "by order". Kolom lama "Merek yang ditampilkan" di *Tampilan Web* sudah tidak dipakai. Daftar merek juga bisa diisi dari `seed.json` bagian `brands` (lihat bagian data lokal).
 
 ### Peringatan, kalender, dan akun nonaktif
 
@@ -58,16 +68,41 @@ Tabel harga jasa (spooring, balance, nitrogen, pasang atau bongkar ban, ganti ol
 
 Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di data stok dan harga jasa. Ada dan stok lebih dari 0 (atau jasa ada di tabel): kirim harga dan stok asli. Tidak ada, stok 0, harga kosong, atau pesan tidak dikenali: bot tidak menjawab harga, mengirim satu kalimat bahwa admin akan membalas, mengirim ringkasan ke nomor admin cabang, lalu diam di chat itu selama jangka waktu yang diatur. Admin menandai percakapan *Selesai, tersedia* atau *Selesai, tidak tersedia* (bot lalu mengirim kalimat penutup).
 
-- **Cabang**: dikenali dari kata Batu, Karanglo, atau Singosari di mana pun dalam pesan. Cabang tidak ditanyakan sebelum menjawab stok. Bot menanyakannya (balas 1 atau 2) hanya sebelum serah terima ke admin, atau saat pelanggan mau datang, pasang, atau booking. Pilihan diingat per nomor pelanggan (bawaan 30 hari), dan pelanggan bisa mengganti dengan mengetik "ganti cabang" atau nama cabang lain. Kalau cabang belum diketahui dan pertanyaan cabang tidak dijawab, percakapan diserahkan ke nomor owner.
-- **Tab Percakapan dan kotak uji**: daftar percakapan dengan filter status dan cabang, tombol penanda selesai, dan kotak uji (tidak membuat percakapan, tidak mengirim apa pun).
+- **Cabang**: dikenali dari kata Batu, Karanglo, atau Singosari di mana pun dalam pesan. Untuk stok tanpa cabang, cabang tidak ditanyakan sebelum menjawab. Bot menanyakannya (balas 1 atau 2) sebelum menyebut stok yang sudah ditetapkan ke cabang, sebelum serah terima ke admin, atau saat pelanggan mau datang, pasang, atau booking. Pilihan diingat per nomor pelanggan (bawaan 30 hari), dan pelanggan bisa mengganti dengan mengetik "ganti cabang" atau nama cabang lain. Kalau cabang belum diketahui dan pertanyaan cabang tidak dijawab, percakapan diserahkan ke nomor owner.
+- **Stok per cabang** (saklar di Pengaturan, bagian Jam dan batas kirim, bawaan menyala):
+
+  | Keadaan | Sebelum revisi ini | Sesudah, saklar menyala |
+  | --- | --- | --- |
+  | Baris tanpa cabang | Dijawab langsung | Sama, dijawab langsung tanpa menanyakan cabang |
+  | Baris bercabang, cabang pelanggan belum diketahui | (belum ada baris bercabang) | Bot menanyakan cabang dulu, lalu menjawab stok dan harga cabang itu |
+  | Kosong di cabang pelanggan, ada di cabang lain | (satu stok) | Bot menyebut "tersedia di cabang ..." tanpa angka stok dan harga, lalu menyerahkan ke admin cabang pelanggan |
+  | Semua cabang kosong | Serah ke admin | Serah ke admin |
+  | Merek by order yang stoknya kosong | Serah ke admin | Bot menjawab merek itu bisa dipesan dulu, lalu menyerahkan ke admin cabang |
+
+  Saklar mati: cabang baris diabaikan dan semua baris dianggap satu stok seperti sebelumnya. Merek by order tetap dikenali.
+- **Templat baru**: *Tersedia di cabang lain* (`{cabang}`, `{cabangLain}`, `{ukuran}`) dan *Merek by order* (`{merek}`, `{cabang}`, `{ukuran}`). Keduanya bisa diedit di Templat pesan seperti templat lain.
+- **Tab Percakapan dan kotak uji**: daftar percakapan dengan filter status dan cabang, tombol penanda selesai, dan kotak uji (tidak membuat percakapan, tidak mengirim apa pun). Kotak uji punya pilihan cabang yang diingat, pesan asal untuk mengetes jawaban 1 atau 2, dan saklar *Stok per cabang* khusus untuk uji itu (ikut pengaturan, nyala, atau mati).
 - **Tab Pengaturan**: Sambungan WhatsApp (satu WAHA GOWS, satu nomor), Jam dan batas kirim, Templat pesan (dengan pratinjau), Nomor admin per cabang, dan Sosial media (templat balasan otomatis Instagram, Facebook, dan TikTok berisi tautan WhatsApp, disalin admin, tanpa integrasi API).
-- **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA, dan label WhatsApp per cabang baru berupa fungsi kosong bercatatan.
+- **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA.
+- **Label WhatsApp per cabang**: saat cabang percakapan diketahui atau berubah, worker memasang label "Batu" atau "Karanglo" (nama cabang tanpa "Bejo Ban" dan tanpa kurung) ke chat di akun WhatsApp Business. Label dicari menurut nama, dibuat kalau belum ada, dan id-nya disimpan di memori worker. Label lain yang dipasang admin tetap ada, hanya label cabang lain yang dilepas. Di uji kering worker hanya mencetak permintaan yang akan dikirim. Kalau label gagal (404, 501, engine tidak mendukung, jaringan), kegagalan dicatat sekali dan balasan bot tetap jalan. Pembentuk permintaannya ada di `src/lib/bot/label.ts`.
+
+  Dukungan endpoint label WAHA menurut dokumentasi resmi, dibaca 16 November 2026 dari https://waha.devlike.pro/docs/how-to/labels/ dan tabel fitur di https://waha.devlike.pro/docs/how-to/engines/:
+
+  | Endpoint | WEBJS | WPP | NOWEB | GOWS |
+  | --- | --- | --- | --- | --- |
+  | `GET /api/{session}/labels` (daftar label) | ya | ya | ya | ya |
+  | `POST /api/{session}/labels` (buat, isi `name` dan `color` 0 sampai 19) | ya | ya | ya | ya |
+  | `GET /api/{session}/labels/chats/{chatId}/` (label chat) | ya | ya | ya | ya |
+  | `PUT /api/{session}/labels/chats/{chatId}/` (isi `labels: [{ id }]`, mengganti seluruh label chat) | ya | ya | ya | ya |
+  | Event `label.upsert`, `label.deleted` | tidak | tidak | ya | ya |
+
+  Jadi label didukung engine GOWS yang kita pakai. Dokumentasi menyebut label adalah fitur WhatsApp Business, dan tidak menjelaskan apa yang terjadi di akun WhatsApp biasa. Bentuk jawaban `POST` membuat label tidak didokumentasikan: worker memakai `id` dari jawaban itu, atau membaca ulang daftar label kalau tidak ada. Semua ini belum dicoba ke WAHA sungguhan.
 
 ## Tampilan situs terbaru dan data lokal
 
 Beranda memakai desain hitam putih terbaru (hero, bar keunggulan, layanan, produk, alur, rekomendasi mobil, merek, galeri, lokasi). Semua teks dan foto tetap diatur dari *Tampilan Web*, bagian baru *Layanan bengkel* ikut di sana. Bagian flash sale, pembayaran, panel, dan promo tidak tampil di desain ini tapi isinya tetap tersimpan.
 
-Foto mobil, galeri, cabang, dan gambar ban pabrikan tidak masuk git. Letakkan di folder `data/seed-lokal/` bersama satu berkas `seed.json`, lalu jalankan `npm run seed:lokal` (di server: di dalam container dengan data di `/app/data/seed-lokal/`). Skrip ini aman dijalankan berulang: gambar yang sama tidak diunggah ulang, enam produk beranda dibuat lewat upsert (harga dan stok yang sudah diisi tidak ditimpa), produk bertanda CONTOH disembunyikan, dan konten beranda dipasang. Format `seed.json` ada di komentar awal `scripts/seed-lokal.ts`.
+Foto mobil, galeri, cabang, dan gambar ban pabrikan tidak masuk git. Letakkan di folder `data/seed-lokal/` bersama satu berkas `seed.json`, lalu jalankan `npm run seed:lokal` (di server: di dalam container dengan data di `/app/data/seed-lokal/`). Skrip ini aman dijalankan berulang: gambar yang sama tidak diunggah ulang, enam produk beranda dibuat lewat upsert (harga dan stok yang sudah diisi tidak ditimpa), produk bertanda CONTOH disembunyikan, dan konten beranda dipasang. Bagian `brands` (`[{ "name": "Dunlop", "byOrder": false, "sort": 5, "logo": "dunlop.svg" }]`, `logo` opsional) membuat merek yang belum ada dan memperbarui `byOrder` serta `sort` merek yang sudah ada, dicocokkan menurut nama tanpa membedakan huruf besar kecil. Merek lain tidak disembunyikan atau dihapus. Logo dari seed hanya dipasang kalau logo merek itu masih kosong atau masih logo dari seed sebelumnya, jadi logo yang diganti admin tidak tertimpa. Format `seed.json` ada di komentar awal `scripts/seed-lokal.ts`.
 
 ## Ukuran foto
 
