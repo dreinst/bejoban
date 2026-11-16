@@ -25,9 +25,9 @@ export default async function Dashboard() {
   if (owner) {
     const since = sevenDaysAgo()
     const [stokRows, stokKosong, bermasalah, menunggu, klik, cabang, last] = await Promise.all([
-      db.stockTire.count(),
-      db.stockTire.count({ where: { stock: 0 } }),
-      db.stockTire.count({ where: { priceIssue: { not: '' } } }),
+      db.stockTire.count({ where: { aktif: true } }),
+      db.stockTire.count({ where: { aktif: true, stock: 0 } }),
+      db.stockTire.count({ where: { aktif: true, priceIssue: { not: '' } } }),
       db.botConversation.count({ where: { status: 'DISERAHKAN' } }),
       db.waClick.groupBy({ by: ['branch'], where: { day: { gte: since } }, _sum: { count: true } }),
       db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
@@ -40,8 +40,8 @@ export default async function Dashboard() {
         <h2 className="mb-3 mt-8 font-display text-lg font-extrabold text-ink">Stok ban dan layanan pelanggan</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Baris stok ban" value={stokRows} href="/admin/stok-ban" />
-          <StatCard label="Stok kosong" value={stokKosong} href="/admin/stok-ban" warn={stokKosong > 0} hint="dari baris stok ban" />
-          <StatCard label="Harga bermasalah" value={bermasalah} href="/admin/stok-ban?f=masalah" warn={bermasalah > 0} hint="perlu diisi manual" />
+          <StatCard label="Stok kosong" value={stokKosong} href="/admin/peringatan" warn={stokKosong > 0} hint="dari baris stok ban aktif" />
+          <StatCard label="Harga bermasalah" value={bermasalah} href="/admin/peringatan" warn={bermasalah > 0} hint="perlu diisi manual" />
           <StatCard label="Menunggu admin" value={menunggu} href="/admin/chatbot?status=DISERAHKAN#percakapan" warn={menunggu > 0} hint="percakapan chatbot" />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

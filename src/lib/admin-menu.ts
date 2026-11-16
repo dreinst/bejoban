@@ -18,6 +18,13 @@ export const ADMIN_MENU: MenuGroup[] = [
   },
   { title: 'Kasir dan Harga', soon: 'menyusul dari BejoStock' },
   {
+    title: 'Peringatan',
+    items: [
+      { href: '/admin/peringatan', label: 'Peringatan', owner: true },
+      { href: '/admin/kalender', label: 'Kalender libur dan promo', owner: true },
+    ],
+  },
+  {
     title: 'Kanal',
     items: [
       { href: '/admin/chatbot', label: 'Chatbot', owner: true },
