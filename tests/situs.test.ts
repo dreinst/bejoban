@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { branchLabel, mergeSitus, waHref, waNumber } from '../src/lib/situs'
+import { alamatSitusDari, branchLabel, daftarTautanWa, mergeSitus, waHref, waNumber } from '../src/lib/situs'
 import { renderTemplate } from '../src/lib/text/template'
 import { mergeTemplates, DEFAULT_TEMPLATES, mergeSosmed } from '../src/lib/bot/templates'
 import { sheetCsvUrl } from '../src/lib/tire/sheet'
@@ -55,4 +55,19 @@ test('kebijakan balas: saklar, nomor uji, jam aktif, batas harian', () => {
   assert.equal(withinHours(noon, s), true)
   assert.deepEqual(mergeBot({ numbers: ['0811'] } as never).testNumbers, ['0811'])
   assert.deepEqual(mergeBot(null).branchAliases, { karanglo: ['singosari'] })
+})
+
+test('alamat situs untuk tautan pendek: SITE_URL menang, tanpa garis miring di akhir', () => {
+  assert.equal(alamatSitusDari('https://bejoban.id/', 'http', '100.64.0.1:3210'), 'https://bejoban.id')
+  assert.equal(alamatSitusDari('  https://bejoban.id//  ', null, null), 'https://bejoban.id')
+  assert.equal(alamatSitusDari('', 'https', 'bejoban.id'), 'https://bejoban.id')
+  assert.equal(alamatSitusDari(undefined, null, null), 'http://localhost')
+  assert.equal(alamatSitusDari('bukan-alamat', 'http', 'localhost:3210'), 'http://localhost:3210')
+})
+
+test('daftar tautan pendek memuat satu baris per cabang', () => {
+  assert.equal(
+    daftarTautanWa([{ name: 'Bejo Ban Batu (Hankook Masters)', slug: 'batu' }, { name: 'Bejo Ban Karanglo', slug: 'karanglo' }], 'https://bejoban.id'),
+    '- Bejo Ban Batu: https://bejoban.id/wa/batu\n- Bejo Ban Karanglo: https://bejoban.id/wa/karanglo',
+  )
 })
