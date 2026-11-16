@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { hitungPerluDicek } from '@/lib/perlu-dicek'
 import { waktuWib } from '@/lib/format'
+import { loadBotSettings } from '@/lib/bot/respond'
 import { PageBody, PageHeader, StatCard } from '@/components/admin/ui'
 
 
@@ -28,6 +29,10 @@ export default async function Dashboard() {
     { n: cek.produkTanpaHarga, label: 'Produk dijual tanpa harga', hint: 'sakelar harga di situs menyala', href: '/admin/peringatan#produk' },
     { n: noPhoto, label: 'Produk tanpa foto', hint: 'tampil di situs tanpa gambar', href: '/admin/harga?f=tanpa-foto' },
   ].filter((t) => t.n > 0)
+
+  // Bot menyala tetapi hanya boleh membalas nomor uji dan daftarnya kosong: tidak ada pelanggan yang dibalas. Hanya owner yang mengatur bot.
+  const bot = owner ? await loadBotSettings() : null
+  const botDiam = !!bot && bot.enabled && bot.restrictNumbers && bot.testNumbers.length === 0
 
   const kartu = 'adm-card block p-5 transition hover:-translate-y-px hover:shadow-md'
   let info: React.ReactNode = null
@@ -76,6 +81,12 @@ export default async function Dashboard() {
   return (
     <PageBody>
       <PageHeader title="Ringkasan" note={owner ? undefined : `Cabang ${cabang?.name.replace(/\s*\(.*\)/, '') ?? 'kamu'}`} />
+      {botDiam && (
+        <Link href="/admin/chatbot/pengaturan#lanjutan" role="alert" className="block rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 hover:border-red-400">
+          <p className="font-semibold">Bot sedang diam ke semua orang.</p>
+          <p className="mt-0.5">Bot aktif, tetapi hanya boleh membalas nomor uji dan daftarnya kosong. Buka Pengaturan bot untuk mengisi nomor uji atau mematikan pilihan itu.</p>
+        </Link>
+      )}
       {tugas.length ? (
         <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))]">
           {tugas.map((t) => <StatCard key={t.label} label={t.label} value={t.n} hint={t.hint} href={t.href} warn />)}

@@ -19,19 +19,21 @@ export default async function PengaturanWhatsapp() {
   const tersambung = ['WAHA_URL', 'WAHA_API_KEY', 'WAHA_SESSION'].every((k) => !!process.env[k])
   const kirim = process.env.BOT_SEND === '1'
   const mainNumber = situs.mainWhatsapp || null
-  const diamSemua = s.enabled && s.restrictNumbers && s.testNumbers.length === 0
+  // Pilihan nomor uji menyala dengan daftar kosong: bot tidak akan membalas siapa pun begitu dinyalakan.
+  const daftarKosong = s.restrictNumbers && s.testNumbers.length === 0
+  const diamSemua = s.enabled && daftarKosong
   const statusBot = !s.enabled ? <Badge tone="outline">Mati</Badge> : diamSemua ? <Badge tone="outline">Aktif, tapi diam ke semua orang</Badge> : s.restrictNumbers ? <Badge>Aktif, hanya {s.testNumbers.length} nomor uji</Badge> : <Badge>Aktif</Badge>
   return (
     <PageBody>
       <PageHeader title="Pengaturan bot" note="Bot aktif dan jam layanan, sambungan WhatsApp, dan nomor admin per cabang. Kalimat bot dan balasan sosial media ada di tab Templat pesan." />
-      {diamSemua && (
-        <div role="alert" className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">Bot sedang diam ke semua orang.</p>
-          <p className="mt-0.5">&quot;Hanya membalas nomor uji&quot; menyala, tetapi daftar nomor uji kosong. Buka Pengaturan lanjutan di bawah, lalu isi nomor uji atau matikan pilihan itu.</p>
-        </div>
-      )}
       <SettingsGrid>
         <Section id="jam" wide title="Bot aktif dan jam layanan" description="Di luar jam ini bot membalas dengan kalimat luar jam. Angka teknis ada di Pengaturan lanjutan.">
+          {daftarKosong && (
+            <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <p className="font-semibold">{s.enabled ? 'Bot sedang diam ke semua orang.' : 'Bot akan diam ke semua orang begitu dinyalakan.'}</p>
+              <p className="mt-0.5">&quot;Hanya membalas nomor uji&quot; menyala, tetapi daftar nomor uji kosong. Buka <a href="#lanjutan" className="font-semibold underline">Pengaturan lanjutan</a>, lalu isi nomor uji atau matikan pilihan itu.</p>
+            </div>
+          )}
           <FormPulih nama="jam">
             <form action={saveBotHours}>
               <FormGrid cols={3}>
@@ -46,8 +48,8 @@ export default async function PengaturanWhatsapp() {
                   hint="Menyala: bot hanya menyebut stok cabang pelanggan dan menanyakan cabangnya dulu kalau belum tahu. Kalau cabang itu kosong tapi cabang lain ada, bot menyebut nama cabang lain tanpa angka lalu menyerahkan ke admin. Stok tanpa cabang tetap dijawab langsung. Mati: stok semua cabang dianggap satu."
                 />
               </FormGrid>
-              <details id="lanjutan" open={diamSemua} className="mt-5 rounded-[10px] border border-line px-4 py-3">
-                <summary className="min-h-6 cursor-pointer text-sm font-semibold text-ink">Pengaturan lanjutan</summary>
+              <details id="lanjutan" open={daftarKosong} className="mt-5 rounded-[10px] border border-line px-4 py-3">
+                <summary className="min-h-6 cursor-pointer max-md:flex max-md:min-h-11 max-md:items-center text-sm font-semibold text-ink">Pengaturan lanjutan</summary>
                 <p className="mt-2 text-xs text-mute">Angka teknis dan pembatasan nomor. Biasanya tidak perlu diubah.</p>
                 <div className="mt-4">
                   <FormGrid cols={3}>
