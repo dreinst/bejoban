@@ -39,12 +39,23 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
     const ubah = () => {
       if (!hp.matches) setOpen(false)
     }
-    const awal = document.body.style.overflow
-    if (hp.matches) document.body.style.overflow = 'hidden'
+    // Kunci gulir dengan body `position: fixed; top: -scrollY`. `overflow: hidden` saja tidak menahan gulir di Safari iOS.
+    // Posisi disimpan lalu dikembalikan tanpa animasi (html memakai scroll-behavior: smooth).
+    const y = window.scrollY
+    const gaya = document.body.style
+    const awal = { position: gaya.position, top: gaya.top, left: gaya.left, right: gaya.right, overflow: gaya.overflow }
+    if (hp.matches) {
+      gaya.position = 'fixed'
+      gaya.top = `-${y}px`
+      gaya.left = '0'
+      gaya.right = '0'
+      gaya.overflow = 'hidden'
+    }
     document.addEventListener('keydown', key)
     hp.addEventListener('change', ubah)
     return () => {
-      document.body.style.overflow = awal
+      Object.assign(gaya, awal)
+      if (hp.matches) window.scrollTo({ top: y, behavior: 'instant' })
       document.removeEventListener('keydown', key)
       hp.removeEventListener('change', ubah)
     }

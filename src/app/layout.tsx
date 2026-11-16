@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="id" className={`${rubik.variable} ${dmSans.variable} antialiased`}>
+    <html lang="id" data-scroll-behavior="smooth" className={`${rubik.variable} ${dmSans.variable} antialiased`}>
       <body className="min-h-screen">{children}</body>
     </html>
   )
