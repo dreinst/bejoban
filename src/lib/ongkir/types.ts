@@ -63,5 +63,6 @@ export type Quote =
       note: string
       isSample: boolean // tarif atau ukuran kemasan masih contoh
       notes: string[] // catatan sumber angka, mis. berat velg perkiraan toko
+      source: string // dari mana berat diambil, ditampilkan di hasil
     }
   | { carrier: Carrier; status: 'NO_PACK'; city: string }

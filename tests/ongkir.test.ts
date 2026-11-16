@@ -63,3 +63,13 @@ test('velg: berat bawaan perkiraan toko, bukan contoh, dan Baraka Express dipaka
 test('nama kota dicocokkan tanpa peduli huruf besar dan awalan Kota', () => {
   assert.equal(normCity('Kota  Surabaya'), normCity('surabaya'))
 })
+
+test('hasil menyebut dari mana berat diambil', () => {
+  const s2 = mergeSettings({ ringPack: { '15': { weightKg: 9, lengthCm: 60, widthCm: 60, heightCm: 20 } }, ringPackSample: true })
+  const ban = calcQuote('JNT_CARGO', 'Surabaya', rate, { tires: { count: 4, ring: 15 }, usePacking: false }, s2)
+  assert.ok(ban.status === 'OK' && ban.source.includes('4 ban R15 x 9 kg') && ban.source.includes('contoh'))
+  const man = calcQuote('JNT_CARGO', 'Surabaya', rate, { manualWeightKg: 50, usePacking: false }, s2)
+  assert.ok(man.status === 'OK' && man.source.startsWith('berat manual 50 kg'))
+  const velg = calcQuote('JNT_CARGO', 'Surabaya', rate, { velg: { count: 2 }, usePacking: false }, s2)
+  assert.ok(velg.status === 'OK' && velg.source.includes('2 velg'))
+})

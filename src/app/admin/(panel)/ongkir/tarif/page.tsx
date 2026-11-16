@@ -29,14 +29,14 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
       <label className={labelCls}>Estimasi hari<input name="etaDays" defaultValue={r?.etaDays} placeholder="2-3" className={inputCls} /></label>
       <label className={labelCls}>Catatan<input name="note" defaultValue={r?.note} className={inputCls} /></label>
       <label className="flex items-end gap-1 pb-2 text-xs"><input type="checkbox" name="isSample" defaultChecked={r?.isSample ?? false} />Contoh</label>
-      <button className="self-end rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan</button>
+      <button className="self-end adm-btn">Simpan</button>
     </form>
   )
   return (
     <div className="max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-ink">Tarif ongkir dan pengaturan</h1>
-        <Link href="/admin/ongkir" className="rounded-lg border border-ink px-4 py-2 text-sm font-semibold text-ink">Ke kalkulator</Link>
+        <Link href="/admin/ongkir" className="adm-btn-line">Ke kalkulator</Link>
       </div>
       <p className="text-sm text-neutral-500">
         Isi dari daftar harga agen. Baris yang dicentang Contoh tampil dengan label &quot;{SAMPLE_LABEL}&quot; di kalkulator. Hilangkan centang setelah tarifnya dari agen.
@@ -69,7 +69,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
             <textarea name="paste" rows={5} className={`${inputCls} font-mono`} placeholder={'JNT_CARGO, Malang, 4500, 10, 2-3, tarif agen Batu\nBARAKA, Malang, 4000, 10, 3-4,'} />
           </label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isSample" />Tandai semua sebagai contoh</label>
-          <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Masukkan tarif</button>
+          <button className="w-fit adm-btn">Masukkan tarif</button>
         </form>
       </Card>
 
@@ -134,7 +134,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
               Angka kemasan ini masih contoh (hasil hitung diberi label &quot;{SAMPLE_LABEL}&quot;)
             </label>
           </div>
-          <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Simpan pengaturan</button>
+          <button className="w-fit adm-btn">Simpan pengaturan</button>
         </form>
       </Card></section>
     </div>

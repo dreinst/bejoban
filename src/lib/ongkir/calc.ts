@@ -51,11 +51,13 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
   let volumeKg = 0
   let packSample = false
   const notes: string[] = []
+  let source = ''
   if (input.velg) {
     const v = s.velg
     const n = input.velg.count
     actualKg = v.weightKg * n
     volumeKg = ((v.lengthCm * v.widthCm * v.heightCm) * n) / s.divisor[carrier]
+    source = `${n} velg x ${v.weightKg} kg per velg (pengaturan velg)`
     if (s.velgNote) notes.push(`Berat velg ${s.velgNote}`)
     if (!(v.lengthCm * v.widthCm * v.heightCm)) notes.push('Ukuran kemasan velg belum diisi, berat volume tidak dihitung')
   } else if (input.tires) {
@@ -66,10 +68,12 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
     // Anggapan: ban ditumpuk, jadi volume = jumlah ban x volume satu kemasan.
     volumeKg = (pack.lengthCm * pack.widthCm * pack.heightCm * n) / s.divisor[carrier]
     packSample = s.ringPackSample
+    source = `${n} ban R${input.tires.ring} x ${pack.weightKg} kg per ban (pengaturan kemasan ring${s.ringPackSample ? ', angka contoh' : ''})`
   } else {
     actualKg = input.manualWeightKg ?? 0
     const d = input.manualDimsCm
     volumeKg = d ? (d.l * d.w * d.h) / s.divisor[carrier] : 0
+    source = `berat manual ${actualKg} kg${d ? ` dan dimensi ${d.l} x ${d.w} x ${d.h} cm` : ''}`
   }
   const billedKg = ceilKg(Math.max(actualKg, volumeKg, rate.minWeight))
   const shipping = billedKg * rate.perKg
@@ -90,6 +94,7 @@ export function calcQuote(carrier: Carrier, city: string, rate: Rate | null, inp
     note: rate.note,
     isSample: rate.isSample || packSample,
     notes,
+    source,
   }
 }
 

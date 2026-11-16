@@ -6,6 +6,7 @@ export type Place = {
   lat: number
   lon: number
   display: string // alamat lengkap dari penyedia
+  precision?: 'alamat' | 'kecamatan' | 'kota' | 'provinsi' // seberapa tepat titik hasil, untuk ditampilkan jujur ke admin
 }
 
 // Antarmuka penyedia lokasi. Bawaan OpenStreetMap (tanpa kunci), Google Maps kalau kunci API diisi.

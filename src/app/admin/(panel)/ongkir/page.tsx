@@ -6,12 +6,13 @@ import { dbRateSource, loadShippingSettings } from '@/lib/ongkir/db-source'
 import { summaryText } from '@/lib/ongkir/format'
 import { CARRIERS, CARRIER_LABEL, SAMPLE_LABEL, type Quote, type QuoteInput } from '@/lib/ongkir/types'
 import { searchPlaces } from '@/lib/geo/search'
+import { PRECISION_LABEL } from '@/lib/geo/address'
 import { matchCity } from '@/lib/geo/match'
 import { distanceKm } from '@/lib/geo/distance'
 import type { Place } from '@/lib/geo/types'
 import { CopyButton } from '@/components/admin/copy-button'
-import { inputCls } from '@/components/admin/section-editor'
-import { Card, labelCls } from '@/components/admin/simple-list'
+import { Card } from '@/components/admin/simple-list'
+import { OngkirForm } from '@/components/admin/ongkir-form'
 
 const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 const num = (v: unknown) => {
@@ -44,7 +45,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const cityText = one('city').trim().slice(0, 60)
 
   // Pencarian lokasi lewat server (OpenStreetMap secara bawaan), hasilnya di-cache di database.
-  const geo = q ? await searchPlaces(q) : null
+  const geo = q ? await searchPlaces(q, { fresh: one('fresh') === '1' }) : null
   const place: Place | null = geo && pickIdx >= 0 ? (geo.places[pickIdx] ?? null) : null
   const match = place ? matchCity(place, cities) : null
   const city = place ? (match?.city ?? place.city) : cityText
@@ -88,7 +89,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-ink">Estimasi ongkir</h1>
         {user.role === 'OWNER' && (
-          <Link href="/admin/ongkir/tarif" className="rounded-lg border border-ink px-4 py-2 text-sm font-semibold text-ink">Tarif dan pengaturan</Link>
+          <Link href="/admin/ongkir/tarif" className="adm-btn-line">Tarif dan pengaturan</Link>
         )}
       </div>
       <p className="text-sm text-neutral-500">
@@ -96,74 +97,56 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
       </p>
 
       <Card title="Hitung">
-        <form className="grid gap-3 md:grid-cols-4">
-          <label className={labelCls}>Barang
-            <select name="mode" defaultValue={mode} className={inputCls}>
-              <option value="stok">Ban dari stok</option>
-              <option value="velg">Velg</option>
-              <option value="manual">Berat manual</option>
-            </select>
-          </label>
-          <label className={`${labelCls} md:col-span-2`}>Ukuran ban (kalau dari stok)
-            <select name="size" defaultValue={size} className={inputCls}>
-              <option value="">{uniqSizes.length ? 'Pilih ukuran' : 'Stok kosong, impor dulu'}</option>
-              {uniqSizes.map((s) => <option key={s.sizeNorm} value={s.sizeNorm}>{s.sizeRaw.trim()} (R{s.ring})</option>)}
-            </select>
-          </label>
-          <label className={labelCls}>Jumlah
-            <input name="qty" type="number" min={1} max={200} defaultValue={qty} className={inputCls} />
-          </label>
-          <label className={labelCls}>Berat manual (kg)
-            <input name="kg" defaultValue={kg || ''} inputMode="decimal" className={inputCls} />
-          </label>
-          <label className={labelCls}>Dimensi paket manual, cm (p, l, t)
-            <span className="flex gap-1">
-              <input name="pl" placeholder="p" defaultValue={dims.l || ''} className={inputCls} />
-              <input name="lb" placeholder="l" defaultValue={dims.w || ''} className={inputCls} />
-              <input name="tg" placeholder="t" defaultValue={dims.h || ''} className={inputCls} />
-            </span>
-          </label>
-          <label className={labelCls}>Cabang asal
-            <select name="cabang" defaultValue={cabang?.slug} className={inputCls}>
-              {branches.map((b) => <option key={b.slug} value={b.slug}>{b.name.replace(/\s*\(.*\)/, '')}</option>)}
-            </select>
-          </label>
-          <label className="flex items-end gap-2 pb-2 text-sm">
-            <input type="checkbox" name="packing" value="1" defaultChecked={usePacking} />
-            Tambah packing ({rp(settings.packingPerTire)}/ban)
-          </label>
-          <label className={`${labelCls} md:col-span-3`}>Cari lokasi tujuan (kecamatan, kota, atau nama tempat)
-            <input name="q" defaultValue={q} className={inputCls} placeholder="mis. Wonokromo Surabaya" />
-          </label>
-          <label className={labelCls}>Atau ketik kota di tabel tarif
-            <input name="city" list="kota" defaultValue={cityText} className={inputCls} placeholder="mis. Surabaya" />
-            <datalist id="kota">{cities.map((c) => <option key={c} value={c} />)}</datalist>
-          </label>
-          <div className="md:col-span-4">
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white">Cari lokasi dan hitung</button>
-            <span className="ml-3 text-xs text-neutral-500">Pencarian hanya jalan saat tombol ditekan (aturan pakai OpenStreetMap), hasilnya disimpan di cache.</span>
-          </div>
-        </form>
+        <OngkirForm
+          d={{ mode, size, qty, kg: kg ? String(kg) : '', pl: dims.l ? String(dims.l) : '', lb: dims.w ? String(dims.w) : '', tg: dims.h ? String(dims.h) : '', cabang: cabang?.slug ?? '', packing: usePacking, q, city: cityText }}
+          sizes={uniqSizes}
+          cities={cities}
+          branches={branches}
+          packingFee={rp(settings.packingPerTire)}
+        />
       </Card>
 
-      {geo?.error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Pencarian lokasi gagal: {geo.error}</p>}
-
-      {geo && !geo.error && !place && (
-        <Card title={`Hasil pencarian lokasi untuk "${q}"`}>
+      {geo && !place && (
+        <Card title={geo.places.length ? `Hasil pencarian lokasi untuk "${q.length > 60 ? q.slice(0, 60) + '...' : q}"` : 'Lokasi tidak ketemu'}>
           {geo.places.length === 0 ? (
-            <p className="text-sm text-neutral-500">Tidak ada lokasi yang cocok. Coba tulis kecamatan dan kota.</p>
+            <div className="space-y-3 text-sm">
+              <p className={geo.error ? 'font-semibold text-red-700' : 'text-neutral-700'}>
+                {geo.error ? `Pencarian lokasi gagal: ${geo.error}.` : 'Tidak ada lokasi yang cocok di semua tingkat pencarian.'}
+              </p>
+              <div>
+                <p className="text-xs font-semibold text-neutral-600">Yang sudah dicoba:</p>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-xs text-neutral-600">
+                  {geo.attempts.map((a, i) => (
+                    <li key={i}>{a.label} ({a.provider}): &quot;{a.q}&quot; {a.error ? `gagal, ${a.error}` : `0 hasil${a.cached ? ', dari cache' : ''}`}</li>
+                  ))}
+                </ol>
+              </div>
+              <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari ulang&quot;, atau pilih kota langsung dari tabel tarif:</p>
+              <div className="flex flex-wrap gap-2">
+                {cities.map((c) => <Link key={c} href={href({ q: '', city: c })} className="rounded-full border border-ink px-3 py-1 text-xs font-semibold text-ink">{c}</Link>)}
+                {!cities.length && <span className="text-xs text-neutral-500">Tabel tarif masih kosong.</span>}
+              </div>
+            </div>
           ) : (
-            <ul className="divide-y divide-neutral-100">
-              {geo.places.map((p, i) => (
-                <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                  <span>
-                    <b>{p.name}</b>
-                    <span className="block text-xs text-neutral-500">{[p.kecamatan && `Kec. ${p.kecamatan}`, p.city, p.province].filter(Boolean).join(', ')} · {p.lat.toFixed(4)}, {p.lon.toFixed(4)}</span>
-                  </span>
-                  <Link href={href({ pick: String(i) })} className="rounded-lg border border-ink px-3 py-1.5 text-xs font-semibold text-ink">Pakai lokasi ini</Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              {geo.level && geo.level.key !== 'utuh' && (
+                <p className="mb-2 rounded-lg bg-neutral-100 px-3 py-2 text-xs text-neutral-700">
+                  Teks utuh tidak ketemu. Hasil ini dari pencarian &quot;{geo.level.label}&quot;: &quot;{geo.level.q}&quot;.
+                </p>
+              )}
+              <ul className="divide-y divide-neutral-100">
+                {geo.places.map((p, i) => (
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                    <span>
+                      <b>{p.name}</b>
+                      <span className="ml-2 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-bold text-white">{PRECISION_LABEL[p.precision ?? 'kota']}</span>
+                      <span className="block text-xs text-neutral-500">{[p.kecamatan && `Kec. ${p.kecamatan}`, p.city, p.province].filter(Boolean).join(', ')} · {p.lat.toFixed(4)}, {p.lon.toFixed(4)}</span>
+                    </span>
+                    <Link href={href({ pick: String(i) })} className="adm-btn-line adm-btn-sm">Pakai lokasi ini</Link>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
           <p className="mt-2 text-xs text-neutral-500">Sumber: {geo.provider}{geo.cached ? ' (dari cache)' : ''}. Data peta oleh kontributor OpenStreetMap.</p>
         </Card>
@@ -172,6 +155,8 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
       {place && (
         <Card title="Lokasi tujuan">
           <dl className="grid grid-cols-[160px_1fr] gap-y-1 text-sm">
+            <dt className="text-neutral-500">Ketepatan</dt>
+            <dd><b>{PRECISION_LABEL[place.precision ?? 'kota']}</b>{place.precision === 'kota' || place.precision === 'provinsi' ? ': jarak dihitung ke titik pusat wilayah, bukan alamat persis. Untuk tarif, kota atau kabupaten yang cocok sudah cukup.' : place.precision === 'kecamatan' ? ': jarak dihitung ke titik pusat kecamatan.' : ': jarak dihitung ke titik alamat.'}</dd>
             <dt className="text-neutral-500">Tempat</dt><dd>{place.name}</dd>
             <dt className="text-neutral-500">Kecamatan</dt><dd>{place.kecamatan || '-'}</dd>
             <dt className="text-neutral-500">Kota atau kabupaten</dt><dd>{place.city || '-'}</dd>
@@ -220,6 +205,7 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
                       <dt className="font-bold">Total</dt><dd className="text-lg font-black text-ink">{rp(q2.total)}</dd>
                       <dt>Estimasi</dt><dd>{q2.etaDays ? `${q2.etaDays} hari` : 'belum diisi'}</dd>
                     </dl>
+                    <p className="text-xs text-neutral-600">Sumber berat: {q2.source}</p>
                     {q2.notes.map((n) => <p key={n} className="text-xs text-neutral-500">{n}</p>)}
                     {q2.note && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
                   </div>
