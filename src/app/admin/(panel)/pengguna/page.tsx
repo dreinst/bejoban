@@ -9,7 +9,7 @@ import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/a
 type Pengguna = { id: number; username: string; name: string; role: string; branchId: number | null; aktif: boolean }
 type Cabang = { id: number; name: string }
 
-// Satu form untuk tambah dan ubah. Password hanya diisi saat tambah; mengganti password lewat "Reset password".
+// Satu form untuk tambah dan ubah. Kata sandi hanya diisi saat tambah; menggantinya lewat "Reset kata sandi".
 function FormPengguna({ u, cabang, sendiri }: { u?: Pengguna; cabang: Cabang[]; sendiri?: boolean }) {
   return (
     <form action={saveUser}>
@@ -26,7 +26,7 @@ function FormPengguna({ u, cabang, sendiri }: { u?: Pengguna; cabang: Cabang[]; 
           <option value="">(tidak ada)</option>
           {cabang.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </SelectField>
-        {!u && <TextField label="Password" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint="Minimal 8 karakter." />}
+        {!u && <TextField label="Kata sandi" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint="Minimal 8 karakter." />}
         <CheckField label="Akun aktif" name="aktif" defaultChecked={u?.aktif ?? true} disabled={sendiri} hint={sendiri ? 'Akun sendiri tidak bisa dinonaktifkan.' : 'Kalau dimatikan, pengguna tidak bisa masuk.'} />
         {sendiri && <input type="hidden" name="aktif" value="on" />}
       </FormGrid>
@@ -43,11 +43,11 @@ function FormReset({ u }: { u: Pengguna }) {
     <form action={resetUserPassword}>
       <input type="hidden" name="id" value={u.id} />
       <FormGrid cols={1}>
-        <TextField label="Password baru" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint={`Minimal 8 karakter. ${u.username} memakai password ini untuk masuk berikutnya.`} />
+        <TextField label="Kata sandi baru" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint={`Minimal 8 karakter. ${u.username} memakai kata sandi ini untuk masuk berikutnya.`} />
       </FormGrid>
       <FormActions>
         <CloseButton />
-        <SubmitButton>Ganti password</SubmitButton>
+        <SubmitButton>Ganti kata sandi</SubmitButton>
       </FormActions>
     </form>
   )
@@ -98,7 +98,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
             <Drawer trigger="Ubah" triggerLabel={`Ubah ${u.username}`} title={`Ubah pengguna ${u.username}`}>
               <FormPengguna u={u} cabang={cabang} sendiri={u.id === s.uid} />
             </Drawer>
-            <Drawer trigger="Reset password" triggerLabel={`Reset password ${u.username}`} title={`Reset password ${u.username}`}>
+            <Drawer trigger="Reset kata sandi" triggerLabel={`Reset kata sandi ${u.username}`} title={`Reset kata sandi ${u.username}`}>
               <FormReset u={u} />
             </Drawer>
             {u.id !== s.uid && (

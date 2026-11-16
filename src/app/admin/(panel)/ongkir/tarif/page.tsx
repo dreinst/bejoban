@@ -92,7 +92,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
   return (
     <PageBody>
       <PageHeader
-        title="Tarif ongkir"
+        title="Tarif"
         note={`Isi dari daftar harga agen. Tarif bertanda Contoh tampil dengan label "${SAMPLE_LABEL}" di kalkulator.`}
         actions={
           <>

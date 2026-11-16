@@ -43,7 +43,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
   return (
     <PageBody>
       <PageHeader
-        title="Percakapan chatbot"
+        title="Percakapan"
         note="Bot menjawab dari data stok dan harga jasa. Kalau datanya tidak ada atau pesannya tidak dikenali, percakapan diserahkan ke admin. Tandai selesai setelah pelanggan dibalas."
       />
       <ListToolbar

@@ -382,7 +382,7 @@ export async function saveUser(fd: FormData) {
   if (!username) gagal(P, 'Username wajib diisi')
   if (role === 'BRANCH_ADMIN' && !branchId) gagal(P, 'Admin cabang wajib punya cabang')
   if (branchId && !(await db.branch.findUnique({ where: { id: branchId }, select: { id: true } }))) gagal(P, 'Cabang tidak ditemukan')
-  if (!id && password.length < 8) gagal(P, 'Password minimal 8 karakter')
+  if (!id && password.length < 8) gagal(P, 'Kata sandi minimal 8 karakter')
   // Status aktif hanya diubah kalau form mengirim penandanya.
   const aktif = fd.has('aktif_form') ? fd.get('aktif') === 'on' : undefined
   if (id && id === s.uid && aktif === false) gagal(P, 'Tidak bisa menonaktifkan akun sendiri')
@@ -398,17 +398,17 @@ export async function saveUser(fd: FormData) {
   done(P, id ? `${username} tersimpan` : `${username} ditambahkan`)
 }
 
-// Reset password oleh owner. Password baru tidak disimpan di log aktivitas.
+// Reset kata sandi oleh owner. Kata sandi baru tidak disimpan di log aktivitas.
 export async function resetUserPassword(fd: FormData) {
   const s = await requireOwner()
   const id = int(fd, 'id')
   const password = str(fd, 'password', 200)
   const u = await db.user.findUnique({ where: { id }, select: { username: true } })
   if (!u) return gagal('/admin/pengguna', 'Pengguna tidak ditemukan')
-  if (password.length < 8) gagal('/admin/pengguna', 'Password baru minimal 8 karakter')
+  if (password.length < 8) gagal('/admin/pengguna', 'Kata sandi baru minimal 8 karakter')
   await db.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10) } })
   await catat(s, 'reset_password', 'pengguna', { id, username: u.username })
-  done('/admin/pengguna', `Password ${u.username} diganti`)
+  done('/admin/pengguna', `Kata sandi ${u.username} diganti`)
 }
 
 export async function deleteUser(fd: FormData) {

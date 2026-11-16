@@ -150,9 +150,9 @@ Sidebar admin tidak lagi memakai judul kelompok modul Asah. Pemetaannya dicatat 
 | Modul Asah | Menu admin sekarang |
 | --- | --- |
 | Analitik | Ringkasan |
-| Inventaris | Stok dan Harga (Stok ban, Harga jasa, Produk situs, Perlu dicek); Merek dan Kategori ada di menu Situs |
+| Inventaris | Stok dan harga (Stok ban, Harga jasa, Produk situs, Perlu dicek); Merek dan Kategori ada di menu Situs |
 | Kasir dan Harga | belum ada halaman (lihat daftar di bawah); dulu tampil sebagai baris "menyusul dari BejoStock" di sidebar |
-| Peringatan | Stok dan Harga, tab Perlu dicek; Kalender libur dan promo disembunyikan dari menu, halamannya di `/admin/kalender` |
+| Peringatan | Stok dan harga, tab Perlu dicek; Kalender libur dan promo disembunyikan dari menu, halamannya di `/admin/kalender` |
 | Akses | Pengaturan (Cabang, Pengguna); Akun saya di menu profil |
 
 ## Yang sengaja ditunda

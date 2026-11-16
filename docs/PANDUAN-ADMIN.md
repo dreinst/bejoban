@@ -11,7 +11,7 @@ Nama pengguna, *Lihat situs*, *Akun saya*, dan *Keluar* ada di satu menu profil 
 | Menu | Tab (alamat) | Owner | Admin cabang |
 | --- | --- | --- | --- |
 | Ringkasan | tanpa tab (`/admin`) | ya | ya, cabangnya |
-| Stok dan Harga | Stok ban (`/admin/stok-ban`) | ya | tidak |
+| Stok dan harga | Stok ban (`/admin/stok-ban`) | ya | tidak |
 | | Harga jasa (`/admin/harga-jasa`) | ya | tidak |
 | | Produk situs (`/admin/harga`, juga `/admin/produk/baru` dan `/admin/produk/[id]`) | ya | ya, harga dan stok cabangnya |
 | | Perlu dicek (`/admin/peringatan`) | ya | ya, cabangnya |
@@ -86,7 +86,7 @@ Data nyata client (pricelist, harga jasa) disimpan di database lokal dan folder 
 - **Kalimat pembuka** bisa diedit. Pertahankan nama cabang (`{cabang}`), karena bot mengenali cabang dari kata Batu atau Karanglo di pesan.
 - **Harga di situs**: bawaan mati. Saat mati, beranda, daftar produk, dan detail produk hanya menampilkan ajakan tanya harga lewat WhatsApp. Halaman admin tetap menampilkan harga. Harga jasa tidak pernah tampil di situs.
 
-### Stok ban (menu Stok dan Harga)
+### Stok ban (menu Stok dan harga)
 
 - **Stok per cabang**: stok Batu dan Karanglo terpisah. Tiap baris punya cabang, atau belum punya (baris *tanpa cabang*, misalnya 325 baris pricelist lama yang belum diketahui milik cabang mana). Baris tanpa cabang dipakai sebagai stok bersama.
 - **Sinkron dari Google Sheets**: ada satu kolom URL untuk *Tanpa cabang*, satu untuk tiap cabang, dan satu untuk *Sheet gabungan*. Isi URL lalu tekan *Sinkron sekarang* di barisnya. URL disimpan di database per cabang, bukan di kode. Spreadsheet harus dibagikan sebagai "Siapa saja yang memiliki tautan dapat melihat". Yang diambil adalah ekspor CSV tab yang sedang dibuka (angka `gid` di URL).
@@ -108,7 +108,7 @@ Bagian merek di beranda mengambil daftar ini sesuai urutan. Logo tampil putih sa
 
 ### Kalender dan akun nonaktif
 
-Di *Kalender libur dan promo* (tidak ada di menu; buka lewat alamat `/admin/kalender`), owner mencatat tanggal libur toko dan promo beserta keterangannya, lalu bisa mengubah atau menghapusnya. Tabelnya bisa disaring *Akan datang*, *Sudah lewat*, atau *Semua*. Di tab *Pengguna*, buka *Ubah* lalu hilangkan centang *Akun aktif* untuk menonaktifkan akun. Password diganti lewat *Reset password*. Akun yang dinonaktifkan: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
+Di *Kalender libur dan promo* (tidak ada di menu; buka lewat alamat `/admin/kalender`), owner mencatat tanggal libur toko dan promo beserta keterangannya, lalu bisa mengubah atau menghapusnya. Tabelnya bisa disaring *Akan datang*, *Sudah lewat*, atau *Semua*. Di tab *Pengguna*, buka *Ubah* lalu hilangkan centang *Akun aktif* untuk menonaktifkan akun. Kata sandi diganti lewat *Reset kata sandi*. Akun yang dinonaktifkan: pemiliknya tidak bisa login dan sesi yang sedang berjalan langsung berhenti. Owner tidak bisa menonaktifkan akunnya sendiri. Sejak tahap ini impor stok ban tidak lagi menghapus baris: baris yang hilang dari pricelist disembunyikan dan muncul lagi kalau ada di impor berikutnya, dan setiap perubahan stok tercatat di buku stok (rinciannya di `docs/PENYELARASAN-BEJOSTOCK.md`).
 
 ### Harga jasa
 

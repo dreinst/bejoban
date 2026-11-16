@@ -11,7 +11,7 @@ import { matchCity } from '@/lib/geo/match'
 import { distanceKm } from '@/lib/geo/distance'
 import type { Place } from '@/lib/geo/types'
 import { CopyButton } from '@/components/admin/copy-button'
-import { PageHeader, Section } from '@/components/admin/ui'
+import { PageBody, PageHeader, Section } from '@/components/admin/ui'
 import { OngkirForm } from '@/components/admin/ongkir-form'
 
 const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
@@ -43,7 +43,8 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const size = one('size')
   const qty = Math.min(Math.round(num(one('qty'))) || 1, 200)
   const usePacking = one('packing') === '1'
-  const cabang = branches.find((b) => b.slug === one('cabang')) ?? branches[0]
+  // Cabang asal bawaan: pilihan di alamat, lalu cabang si admin (admin cabang), lalu cabang pertama.
+  const cabang = branches.find((b) => b.slug === one('cabang')) ?? (user.role === 'OWNER' ? undefined : branches.find((b) => b.id === user.branchId)) ?? branches[0]
   const adaDiCabang = (x: { cabang: string[] }) => x.cabang.includes('') || (!!cabang && x.cabang.includes(cabang.slug))
   const tire = allSizes.find((s) => s.sizeNorm === size && adaDiCabang(s))
   const kg = num(one('kg'))
@@ -93,35 +94,53 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
     return `/admin/ongkir?${p}`
   }
 
+  // Setelah ada hasil (atau daftar lokasi untuk dipilih), hasil tampil di atas dan form dilipat jadi satu baris "Ubah".
+  const adaHasil = quotes.length > 0 || (!!geo && !place && geo.places.length > 0)
+  const form = (
+    <OngkirForm
+      d={{ mode, size, qty, kg: kg ? String(kg) : '', pl: dims.l ? String(dims.l) : '', lb: dims.w ? String(dims.w) : '', tg: dims.h ? String(dims.h) : '', cabang: cabang?.slug ?? '', packing: usePacking, q, city: cityText }}
+      sizes={allSizes}
+      cities={cities}
+      branches={branches.map((b) => ({ slug: b.slug, name: b.name }))}
+      packingFee={rp(settings.packingPerTire)}
+    />
+  )
+  const wilayah = place ? [place.kecamatan && `Kec. ${place.kecamatan}`, place.city, place.province].filter(Boolean).join(', ') : ''
+
   return (
-    <div className="max-w-[1200px]">
+    <PageBody>
       <PageHeader
-        title="Estimasi ongkir"
+        title="Hitung ongkir"
         note={<>Hitung ongkir J&amp;T Cargo dan Baraka Express ke seluruh Indonesia dari tarif agen. Angka berlabel &quot;{SAMPLE_LABEL}&quot; hanya untuk mencoba.</>}
       />
 
-      <div className="grid items-start gap-5 xl:grid-cols-[640px_minmax(0,1fr)]">
-      <Section title="Hitung">
-        <OngkirForm
-          d={{ mode, size, qty, kg: kg ? String(kg) : '', pl: dims.l ? String(dims.l) : '', lb: dims.w ? String(dims.w) : '', tg: dims.h ? String(dims.h) : '', cabang: cabang?.slug ?? '', packing: usePacking, q, city: cityText }}
-          sizes={allSizes}
-          cities={cities}
-          branches={branches.map((b) => ({ slug: b.slug, name: b.name }))}
-          packingFee={rp(settings.packingPerTire)}
-        />
-      </Section>
+      {adaHasil && (
+        <p className="text-sm text-mute">
+          {desc ? <>Menghitung <b className="text-ink">{desc}</b> dari {originLabel}.</> : <>Dari {originLabel}.</>}
+        </p>
+      )}
 
-      <div className="space-y-5">
+      {adaHasil ? (
+        <details id="form" className="adm-card px-5 py-1">
+          <summary className="flex min-h-12 cursor-pointer items-center font-display text-base font-extrabold text-ink">Ubah perhitungan</summary>
+          <div className="max-w-[760px] pb-5 pt-2">{form}</div>
+        </details>
+      ) : (
+        <Section title="Hitung">
+          <div className="max-w-[760px]">{form}</div>
+        </Section>
+      )}
+
       {geo && !place && (
-        <Section title={geo.places.length ? `Hasil pencarian lokasi untuk "${q.length > 60 ? q.slice(0, 60) + '...' : q}"` : 'Lokasi tidak ketemu'}>
+        <Section title={geo.places.length ? `Pilih lokasi untuk "${q.length > 60 ? q.slice(0, 60) + '...' : q}"` : 'Lokasi tidak ketemu'}>
           {geo.places.length === 0 ? (
             <div className="space-y-3 text-sm">
               <p className={geo.error ? 'font-semibold text-red-700' : 'text-neutral-700'}>
                 {geo.error ? 'Pencarian lokasi sedang gagal. Coba lagi sebentar lagi, atau pilih kota dari tabel tarif.' : 'Tidak ada lokasi yang cocok.'}
               </p>
-              <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari ulang&quot;, atau pilih kota langsung dari tabel tarif:</p>
+              <p className="text-neutral-700">Coba tulis kecamatan dan kota saja, tekan &quot;Cari lagi tanpa simpanan&quot;, atau pilih kota langsung dari tabel tarif:</p>
               <div className="flex flex-wrap gap-2">
-                {cities.map((c) => <Link key={c} href={href({ q: '', city: c })} className="rounded-full border border-ink px-3 py-1 text-xs font-semibold text-ink">{c}</Link>)}
+                {cities.map((c) => <Link key={c} href={href({ q: '', city: c })} className="inline-flex min-h-9 items-center rounded-full border border-ink px-3 py-1 text-xs font-semibold text-ink max-md:min-h-11">{c}</Link>)}
                 {!cities.length && <span className="text-xs text-neutral-500">Tabel tarif masih kosong.</span>}
               </div>
             </div>
@@ -135,10 +154,10 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
               <ul className="divide-y divide-neutral-100">
                 {geo.places.map((p, i) => (
                   <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                    <span>
+                    <span className="min-w-0">
                       <b>{p.name}</b>
                       <span className="ml-2 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-bold text-white">{PRECISION_LABEL[p.precision ?? 'kota']}</span>
-                      <span className="block text-xs text-neutral-500">{[p.kecamatan && `Kec. ${p.kecamatan}`, p.city, p.province].filter(Boolean).join(', ')} · {p.lat.toFixed(4)}, {p.lon.toFixed(4)}</span>
+                      <span className="block text-xs text-neutral-500">{[p.kecamatan && `Kec. ${p.kecamatan}`, p.city, p.province].filter(Boolean).join(', ')}</span>
                     </span>
                     <Link href={href({ pick: String(i) })} className="adm-btn-line adm-btn-sm">Pakai lokasi ini</Link>
                   </li>
@@ -150,18 +169,61 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
         </Section>
       )}
 
+      {error && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
+
+      {quotes.length > 0 && (
+        <>
+          <div className="grid gap-5 md:grid-cols-2">
+            {quotes.map((q2) => (
+              <Section key={q2.carrier} title={`${CARRIER_LABEL[q2.carrier]} ke ${q2.city}`}>
+                {q2.status === 'NO_RATE' && (
+                  <p className="text-sm font-semibold text-red-700">
+                    Tarif belum diisi{' '}
+                    {user.role === 'OWNER' && <Link className="underline" href={`/admin/ongkir/tarif?kota=${encodeURIComponent(q2.city)}#baru`}>Tambah tarif</Link>}
+                  </p>
+                )}
+                {q2.status === 'NO_PACK' && <p className="text-sm font-semibold text-red-700">Ukuran kemasan ring ini belum diisi (pengaturan hanya untuk R12 sampai R19).</p>}
+                {q2.status === 'OK' && (
+                  <div className="space-y-3 text-sm">
+                    {q2.isSample && <p className="inline-block rounded bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">{SAMPLE_LABEL}</p>}
+                    <div>
+                      <p className="text-xs text-mute">Total</p>
+                      <p className="font-display text-3xl font-black leading-tight text-ink">{rp(q2.total)}</p>
+                      <p className="mt-1 text-sm text-ink">Estimasi {q2.etaDays ? `${q2.etaDays} hari` : 'belum diisi'}</p>
+                    </div>
+                    <details className="rounded-lg border border-line px-3 py-1">
+                      <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink max-md:min-h-11">Rincian</summary>
+                      <dl className="mb-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+                        <dt>Berat asli</dt><dd>{q2.actualKg} kg</dd>
+                        <dt>Berat volume</dt><dd>{q2.volumeKg} kg</dd>
+                        <dt>Berat minimum tarif</dt><dd>{q2.minWeight} kg</dd>
+                        <dt>Berat ditagih</dt><dd><b>{q2.billedKg} kg</b></dd>
+                        <dt>Tarif per kg</dt><dd>{rp(q2.perKg)}</dd>
+                        <dt>Ongkir</dt><dd>{rp(q2.shipping)}</dd>
+                        <dt>Packing</dt><dd>{rp(q2.packing)}</dd>
+                      </dl>
+                      <p className="mb-2 text-xs text-neutral-600">Sumber berat: {q2.source}</p>
+                    </details>
+                    {q2.notes.map((n) => <p key={n} className="text-xs text-neutral-500">{n}</p>)}
+                    {q2.note && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
+                  </div>
+                )}
+              </Section>
+            ))}
+          </div>
+          <CopyButton text={text + (km !== null ? `\nJarak garis lurus sekitar ${Math.round(km)} km.` : '')} />
+        </>
+      )}
+
       {place && (
         <Section title="Lokasi tujuan">
-          <dl className="grid grid-cols-[160px_1fr] gap-y-1 text-sm">
-            <dt className="text-neutral-500">Ketepatan</dt>
-            <dd><b>{PRECISION_LABEL[place.precision ?? 'kota']}</b>{place.precision === 'kota' || place.precision === 'provinsi' ? ': jarak dihitung ke titik pusat wilayah, bukan alamat persis. Untuk tarif, kota atau kabupaten yang cocok sudah cukup.' : place.precision === 'kecamatan' ? ': jarak dihitung ke titik pusat kecamatan.' : ': jarak dihitung ke titik alamat.'}</dd>
+          <dl className="grid gap-y-1 text-sm sm:grid-cols-[190px_1fr]">
             <dt className="text-neutral-500">Tempat</dt><dd>{place.name}</dd>
-            <dt className="text-neutral-500">Kecamatan</dt><dd>{place.kecamatan || '-'}</dd>
-            <dt className="text-neutral-500">Kota atau kabupaten</dt><dd>{place.city || '-'}</dd>
-            <dt className="text-neutral-500">Provinsi</dt><dd>{place.province || '-'}</dd>
-            <dt className="text-neutral-500">Koordinat</dt><dd>{place.lat.toFixed(5)}, {place.lon.toFixed(5)}</dd>
+            {wilayah && (<><dt className="text-neutral-500">Wilayah</dt><dd>{wilayah}</dd></>)}
+            <dt className="text-neutral-500">Ketepatan</dt>
+            <dd><b>{PRECISION_LABEL[place.precision ?? 'kota']}</b>{place.precision === 'kota' || place.precision === 'provinsi' ? ' (jarak ke titik pusat wilayah, cukup untuk tarif)' : place.precision === 'kecamatan' ? ' (jarak ke titik pusat kecamatan)' : ''}</dd>
             <dt className="text-neutral-500">Jarak dari {originLabel}</dt>
-            <dd>{km !== null ? <>sekitar <b>{Math.round(km)} km</b> garis lurus (bukan jarak tempuh)</> : <>titik cabang belum diisi.{' '}{user.role === 'OWNER' ? <Link className="underline" href="/admin/pengaturan/ongkir#asal">Isi di Pengaturan</Link> : 'Minta owner mengisinya.'}</>}</dd>
+            <dd>{km !== null ? <>sekitar <b>{Math.round(km)} km</b> garis lurus (bukan jarak tempuh)</> : <>titik cabang belum diisi.{' '}{user.role === 'OWNER' ? <Link className="underline" href="/admin/ongkir/pengaturan#asal">Isi di tab Pengaturan</Link> : 'Minta owner mengisinya.'}</>}</dd>
             <dt className="text-neutral-500">Cocok dengan tabel tarif</dt>
             <dd>
               {match?.city ? <>Ya, &quot;{match.city}&quot;</> : (
@@ -175,48 +237,6 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
         </Section>
       )}
 
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
-
-      {quotes.length > 0 && (
-        <>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-1">
-            {quotes.map((q2) => (
-              <Section key={q2.carrier} title={`${CARRIER_LABEL[q2.carrier]} ke ${q2.city}`}>
-                {q2.status === 'NO_RATE' && (
-                  <p className="text-sm font-semibold text-red-700">
-                    Tarif belum diisi{' '}
-                    {user.role === 'OWNER' && <Link className="underline" href={`/admin/ongkir/tarif?kota=${encodeURIComponent(q2.city)}#baru`}>Tambah tarif</Link>}
-                  </p>
-                )}
-                {q2.status === 'NO_PACK' && <p className="text-sm font-semibold text-red-700">Ukuran kemasan ring ini belum diisi (pengaturan hanya untuk R12 sampai R19).</p>}
-                {q2.status === 'OK' && (
-                  <div className="space-y-2 text-sm">
-                    {q2.isSample && <p className="inline-block rounded bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">{SAMPLE_LABEL}</p>}
-                    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
-                      <dt>Berat asli</dt><dd>{q2.actualKg} kg</dd>
-                      <dt>Berat volume</dt><dd>{q2.volumeKg} kg</dd>
-                      <dt>Berat minimum tarif</dt><dd>{q2.minWeight} kg</dd>
-                      <dt>Berat ditagih</dt><dd><b>{q2.billedKg} kg</b></dd>
-                      <dt>Tarif per kg</dt><dd>{rp(q2.perKg)}</dd>
-                      <dt>Ongkir</dt><dd>{rp(q2.shipping)}</dd>
-                      <dt>Packing</dt><dd>{rp(q2.packing)}</dd>
-                      <dt className="font-bold">Total</dt><dd className="text-lg font-black text-ink">{rp(q2.total)}</dd>
-                      <dt>Estimasi</dt><dd>{q2.etaDays ? `${q2.etaDays} hari` : 'belum diisi'}</dd>
-                    </dl>
-                    <p className="text-xs text-neutral-600">Sumber berat: {q2.source}</p>
-                    {q2.notes.map((n) => <p key={n} className="text-xs text-neutral-500">{n}</p>)}
-                    {q2.note && <p className="text-xs text-neutral-500">Catatan: {q2.note}</p>}
-                  </div>
-                )}
-              </Section>
-            ))}
-          </div>
-          <CopyButton text={text + (km !== null ? `\nJarak garis lurus sekitar ${Math.round(km)} km.` : '')} />
-          <pre className="adm-card whitespace-pre-wrap p-4 font-sans text-xs text-neutral-700">{text}</pre>
-        </>
-      )}
-      </div>
-      </div>
-    </div>
+    </PageBody>
   )
 }

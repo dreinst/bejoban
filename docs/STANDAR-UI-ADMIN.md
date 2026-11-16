@@ -109,22 +109,22 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Menu, tab | Alamat | Status | Catatan |
 | --- | --- | --- | --- |
 | Ringkasan | `/admin` | ya | Kartu angka hanya untuk yang perlu ditindaklanjuti. Owner dan admin cabang. |
-| Stok dan Harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah. |
-| Stok dan Harga, Harga jasa | `/admin/harga-jasa` | ya | Urutan naik turun, form lengkap di panel. |
-| Stok dan Harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris lalu satu tombol Simpan. Tambah produk bergaris karena tombol utamanya Simpan. |
+| Stok dan harga, Stok ban | `/admin/stok-ban` | ya | Impor dan sinkron jadi dua kartu form. Tetapkan cabang lewat dialog. Daftar stok tabel baca dengan panel Ubah. |
+| Stok dan harga, Harga jasa | `/admin/harga-jasa` | ya | Urutan naik turun, form lengkap di panel. |
+| Stok dan harga, Produk situs | `/admin/harga` | ya | Sunting cepat banyak baris lalu satu tombol Simpan. Tambah produk bergaris karena tombol utamanya Simpan. |
 | Form produk | `/admin/produk/[id]` | ya | Halaman sendiri karena panjang. Hapus lewat dialog. |
-| Stok dan Harga, Perlu dicek | `/admin/peringatan` | ya | Owner dan admin cabang. |
+| Stok dan harga, Perlu dicek | `/admin/peringatan` | ya | Owner dan admin cabang. |
 | Chatbot, Percakapan | `/admin/chatbot` | ya | "Selesai, tidak tersedia" lewat dialog karena bot mengirim kalimat penutup. |
 | Chatbot, Kotak uji | `/admin/chatbot/uji` | ya | Hapus riwayat lewat dialog. |
-| Chatbot, Templat pesan | `/admin/chatbot/templat` | ya | Kembalikan ke bawaan lewat dialog. |
-| Ongkir, Hitung | `/admin/ongkir` | ya | Form kiri, hasil kanan. |
+| Chatbot, Templat pesan | `/admin/chatbot/templat` | ya | Tabel 12 baris (Ke pelanggan, Ke admin), Ubah per templat di panel samping dengan pratinjau. Kembalikan satu atau semua ke bawaan. |
+| Ongkir, Hitung | `/admin/ongkir` | ya | Setelah dihitung, hasil di atas (total dan estimasi besar, rincian dilipat) dan form dilipat jadi "Ubah perhitungan". Kolom yang tidak dipakai mode terpilih disembunyikan. |
 | Ongkir, Tarif | `/admin/ongkir/tarif` | ya | Tempel banyak tarif di panel kedua. `?kota=` membuka panel tambah. |
 | Situs, Tampilan beranda | `/admin/konten`, `/admin/konten/[key]` | ya | Urutan bagian ditentukan kode beranda, jadi tanpa tombol urutan. Editor punya halaman sendiri. |
 | Situs, Merek | `/admin/merek` | ya | Halaman acuan. |
 | Situs, Kategori | `/admin/kategori` | ya | Kategori nonaktif tidak tampil di situs. |
 | Situs, Tautan WhatsApp | `/admin/situs` | ya | |
 | Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang hanya melihat cabangnya. |
-| Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset password di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
+| Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset kata sandi di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
 | Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. |
 | Ongkir, Pengaturan | `/admin/ongkir/pengaturan` | ya | Khusus owner. |
 | Kalender (tanpa tab) | `/admin/kalender` | ya | Disembunyikan dari menu, datanya belum dipakai. Saringan Akan datang, Sudah lewat, Semua. |

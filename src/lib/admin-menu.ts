@@ -9,7 +9,7 @@
 //   setiap halaman dan aksi tetap memeriksa sesi dan peran di server.
 // - Halaman yang tidak masuk tab (Akun saya, Panduan ukuran foto) tidak punya menu aktif.
 //
-// Pemetaan ke modul BejoStock (Asah): Ringkasan = Analitik, Stok dan Harga = Inventaris,
+// Pemetaan ke modul BejoStock (Asah): Ringkasan = Analitik, Stok dan harga = Inventaris,
 // Pengaturan = Akses. Modul Kasir dan Harga belum ada di sini; rinciannya di docs/PENYELARASAN-BEJOSTOCK.md.
 
 export type Role = 'OWNER' | 'BRANCH_ADMIN'
@@ -34,7 +34,7 @@ export const ADMIN_MENU: AdminMenu[] = [
   { key: 'ringkasan', label: 'Ringkasan', href: '/admin', tabs: [] },
   {
     key: 'stok-harga',
-    label: 'Stok dan Harga',
+    label: 'Stok dan harga',
     href: '/admin/stok-ban',
     tabs: [
       { key: 'stok-ban', label: 'Stok ban', href: '/admin/stok-ban', owner: true },

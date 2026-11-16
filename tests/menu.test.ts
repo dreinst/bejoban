@@ -11,11 +11,11 @@ const aktif = (path: string, menu = owner) => {
 
 test('sidebar paling banyak enam menu, owner melihat semuanya dalam urutan yang ditetapkan', () => {
   assert.ok(ADMIN_MENU.length <= 6)
-  assert.deepEqual(owner.map((m) => m.label), ['Ringkasan', 'Stok dan Harga', 'Chatbot', 'Ongkir', 'Situs', 'Pengaturan'])
+  assert.deepEqual(owner.map((m) => m.label), ['Ringkasan', 'Stok dan harga', 'Chatbot', 'Ongkir', 'Situs', 'Pengaturan'])
 })
 
 test('admin cabang hanya mendapat empat menu tanpa item owner', () => {
-  assert.deepEqual(cabang.map((m) => m.label), ['Ringkasan', 'Stok dan Harga', 'Chatbot', 'Ongkir'])
+  assert.deepEqual(cabang.map((m) => m.label), ['Ringkasan', 'Stok dan harga', 'Chatbot', 'Ongkir'])
   const tabs = cabang.flatMap((m) => m.tabs)
   assert.ok(tabs.every((t) => !t.owner))
   assert.deepEqual(cabang.find((m) => m.key === 'stok-harga')!.tabs.map((t) => t.key), ['produk-situs', 'perlu-dicek'])
