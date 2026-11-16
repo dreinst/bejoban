@@ -25,7 +25,7 @@ export function SosmedEditor({ initial, tautanWa }: { initial: Sosmed; tautanWa:
             />
             <div className="space-y-2">
               <p className="text-xs font-semibold text-neutral-700">Pratinjau yang disalin</p>
-              <pre className="whitespace-pre-wrap break-all rounded-lg bg-soft px-3 py-2 font-sans text-sm text-ink">{text}</pre>
+              <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-soft px-3 py-2 font-sans text-sm text-ink">{text}</pre>
               <CopyButton text={text} label={`Salin untuk ${CHANNEL_LABEL[c]}`} />
             </div>
           </div>

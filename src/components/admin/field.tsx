@@ -28,7 +28,7 @@ export function TextField({ label, hint, error, id, className, ...input }: Meta 
   const { fid, desc } = ids(input.name, id, hint, error)
   return (
     <Wrap fid={fid} label={label} hint={hint} error={error} className={className}>
-      <input id={fid} aria-describedby={desc} aria-invalid={error ? true : undefined} className={`${inputCls} min-h-10`} {...input} />
+      <input id={fid} aria-describedby={desc} aria-invalid={error ? true : undefined} className={`${inputCls} min-h-10 max-md:min-h-11`} {...input} />
     </Wrap>
   )
 }
@@ -37,7 +37,7 @@ export function SelectField({ label, hint, error, id, className, children, ...se
   const { fid, desc } = ids(select.name, id, hint, error)
   return (
     <Wrap fid={fid} label={label} hint={hint} error={error} className={className}>
-      <select id={fid} aria-describedby={desc} aria-invalid={error ? true : undefined} className={`${inputCls} min-h-10`} {...select}>
+      <select id={fid} aria-describedby={desc} aria-invalid={error ? true : undefined} className={`${inputCls} min-h-10 max-md:min-h-11`} {...select}>
         {children}
       </select>
     </Wrap>
@@ -58,9 +58,9 @@ export function CheckField({ label, hint, id, className, ...input }: Omit<Meta, 
   const { fid, desc } = ids(input.name, id, hint, null)
   return (
     <div className={`flex items-start gap-3 ${className ?? ''}`}>
-      <input id={fid} type="checkbox" aria-describedby={desc} className="mt-3 size-4 shrink-0 accent-ink" {...input} />
+      <input id={fid} type="checkbox" aria-describedby={desc} className="mt-3 size-4 shrink-0 accent-ink max-md:mt-3.5" {...input} />
       <div className="min-w-0">
-        <label htmlFor={fid} className="flex min-h-10 items-center text-sm font-semibold text-ink">{label}</label>
+        <label htmlFor={fid} className="flex min-h-10 items-center text-sm font-semibold text-ink max-md:min-h-11">{label}</label>
         {hint && <p id={`${fid}-hint`} className="-mt-1 text-xs leading-snug text-mute">{hint}</p>}
       </div>
     </div>

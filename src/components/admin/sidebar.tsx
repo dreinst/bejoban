@@ -21,15 +21,43 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const active = activeFor(pathname, menu).menu
+  const tombol = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLElement>(null)
+
+  // Menu HP terbuka: Escape menutup dan mengembalikan fokus ke tombol menu, gulir halaman dikunci.
+  // Menu profil yang sedang terbuka menutup dirinya dulu dengan Escape yang sama.
+  useEffect(() => {
+    if (!open) return
+    const hp = window.matchMedia('(max-width: 767px)')
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !hp.matches) return
+      if (panel.current?.querySelector('[aria-controls][aria-expanded="true"]')) return
+      setOpen(false)
+      tombol.current?.focus()
+    }
+    const ubah = () => {
+      if (!hp.matches) setOpen(false)
+    }
+    const awal = document.body.style.overflow
+    if (hp.matches) document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', key)
+    hp.addEventListener('change', ubah)
+    return () => {
+      document.body.style.overflow = awal
+      document.removeEventListener('keydown', key)
+      hp.removeEventListener('change', ubah)
+    }
+  }, [open])
   return (
     <>
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between bg-ink px-4 text-white md:hidden">
         <Link href="/admin" aria-label="Ringkasan admin"><img src="/logo-bejoban-putih.svg" alt="Bejo Ban" className="h-7 w-auto" /></Link>
-        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="menu-admin" aria-label={open ? 'Tutup menu' : 'Buka menu'} className="grid size-10 place-items-center rounded-lg hover:bg-white/10">
+        <button ref={tombol} type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="menu-admin" aria-label={open ? 'Tutup menu' : 'Buka menu'} className="grid size-10 place-items-center rounded-lg hover:bg-white/10 max-md:size-11">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
       <aside
+        ref={panel}
         id="menu-admin"
         className={`bg-ink text-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col ${open ? 'fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col md:inset-auto md:top-0' : 'hidden'}`}
       >
@@ -47,7 +75,7 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
                     href={m.href}
                     onClick={() => setOpen(false)}
                     aria-current={on ? 'page' : undefined}
-                    className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2.5 text-sm ${on ? 'border-white bg-white/10 font-bold text-white' : 'border-transparent text-soft-dark hover:bg-white/5 hover:text-white'}`}
+                    className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2.5 text-sm max-md:min-h-11 ${on ? 'border-white bg-white/10 font-bold text-white' : 'border-transparent text-soft-dark hover:bg-white/5 hover:text-white'}`}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden />
                     {m.label}
@@ -95,7 +123,7 @@ function ProfileMenu({ name, role, logout, onPick }: { name: string; role: strin
     setOpen(false)
     onPick()
   }
-  const item = 'block w-full rounded-md px-3 py-2 text-left text-sm text-soft-dark hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white'
+  const item = 'block w-full rounded-md px-3 py-2 text-left text-sm max-md:flex max-md:min-h-11 max-md:items-center text-soft-dark hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white'
   return (
     <div className="relative border-t border-line-dark px-3 py-3">
       {open && (
@@ -114,7 +142,7 @@ function ProfileMenu({ name, role, logout, onPick }: { name: string; role: strin
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-controls={id}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-white/5"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-white/5 max-md:min-h-11"
       >
         <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold uppercase">{name.slice(0, 1)}</span>
         <span className="min-w-0 flex-1">

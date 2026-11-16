@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 // Komponen tata letak bersama halaman admin (komponen server). Aturan lengkap: docs/STANDAR-UI-ADMIN.md.
@@ -35,7 +36,7 @@ export function Section({ title, description, id, wide, actions, children }: { t
   return (
     <section id={id} aria-labelledby={id ? `${id}-judul` : undefined} className={`adm-card scroll-mt-20 p-5 ${wide ? 'xl:col-span-2' : ''}`}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
           <h2 id={id ? `${id}-judul` : undefined} className="font-display text-base font-extrabold text-ink">{title}</h2>
           {description && <p className="mt-1 text-sm text-mute">{description}</p>}
         </div>
@@ -52,9 +53,10 @@ export function StatCard({ label, value, href, hint, warn }: { label: string; va
       <p className="font-display text-3xl font-extrabold leading-none text-ink">{value}</p>
       <p className="mt-2 text-sm font-medium text-ink">{label}</p>
       {hint && <p className="mt-0.5 text-xs text-mute">{hint}</p>}
+      {href && <ChevronRight aria-hidden className="absolute right-3 top-3 size-4 text-mute" />}
     </>
   )
-  const cls = `adm-card block p-5 ${warn ? 'border-l-4 !border-l-ink' : ''} ${href ? 'transition hover:-translate-y-px hover:shadow-md' : ''}`
+  const cls = `adm-card relative block p-5 ${warn ? 'border-l-4 !border-l-ink' : ''} ${href ? 'transition hover:-translate-y-px hover:shadow-md' : ''}`
   return href ? <Link href={href} className={cls}>{body}</Link> : <div className={cls}>{body}</div>
 }
 

@@ -129,14 +129,14 @@ export function ListToolbar({
         {total !== undefined && total !== count && <> dari {total.toLocaleString('id-ID')}</>}
       </p>
       {search && (
-        <form role="search" className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md">
+        <form role="search" className="flex min-w-[min(100%,16rem)] flex-1 items-center gap-2 sm:max-w-md">
           {Object.entries(search.keep ?? {}).map(([k, v]) => (v === undefined || v === '' ? null : <input key={k} type="hidden" name={k} value={v} />))}
           <label className="sr-only" htmlFor="cari-daftar">{search.label ?? search.placeholder}</label>
           <input id="cari-daftar" type="search" name="q" defaultValue={search.value} placeholder={search.placeholder} className="min-h-10 w-full min-w-0 rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
           <button className="adm-btn-line adm-btn-sm">Cari</button>
         </form>
       )}
-      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-2 max-sm:basis-full">{children}</div>}
     </div>
   )
 }

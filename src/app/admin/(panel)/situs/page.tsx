@@ -40,7 +40,7 @@ export default async function Situs() {
           rowKey={(l) => l.path}
           columns={[
             { key: 'nama', header: 'Nama', cell: (l) => <span className="font-semibold text-ink">{l.label}</span> },
-            { key: 'tautan', header: 'Tautan', cell: (l) => <code className="break-all text-xs">{l.url}</code> },
+            { key: 'tautan', header: 'Tautan', cell: (l) => <code className="text-xs [overflow-wrap:anywhere]">{l.url}</code> },
             { key: 'klik', header: 'Klik 14 hari', align: 'right', className: 'whitespace-nowrap', cell: (l) => l.total.toLocaleString('id-ID') },
           ]}
           actions={(l) => <CopyButton text={l.url} label="Salin tautan" />}
@@ -113,7 +113,7 @@ export default async function Situs() {
             <div className="mt-4 text-xs text-mute">
               <p className="font-semibold text-ink">Hasil saat ini</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5">
-                {branches.map((b) => <li key={b.id}>{branchLabel(b.name)}: <span className="break-all">{decodeURIComponent(waHref(s, b, 'umum'))}</span></li>)}
+                {branches.map((b) => <li key={b.id}>{branchLabel(b.name)}: <span className="[overflow-wrap:anywhere]">{decodeURIComponent(waHref(s, b, 'umum'))}</span></li>)}
               </ul>
             </div>
             <FormActions><SubmitButton>Simpan kalimat pembuka</SubmitButton></FormActions>

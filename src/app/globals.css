@@ -65,7 +65,7 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   .adm-btn:hover { filter: brightness(1.15); }
   .adm-btn-lg { min-height: 3rem; padding: .75rem 1.5rem; }
   .adm-btn-line { font-weight: 600; color: #0a0a0a; background: #fff; border: 1px solid #0a0a0a; }
-  .adm-btn-line:hover { background: #0a0a0a; color: #fff; }
+  .adm-btn-line:hover { background: var(--color-soft); }
   .adm-btn-ghost { font-weight: 600; color: #0a0a0a; background: transparent; border: 1px solid transparent; }
   .adm-btn-ghost:hover { background: var(--color-soft); }
   .adm-btn-danger { font-weight: 700; color: #fff; background: #b91c1c; border: 1px solid #991b1b; border-bottom: 3px solid #7f1d1d; }
