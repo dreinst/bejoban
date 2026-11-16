@@ -1,11 +1,12 @@
+import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { clearBotLogs, testBot } from '../../../fitur-actions'
-import { inputCls } from '@/components/admin/form-cls'
-import { Card, labelCls } from '@/components/admin/simple-list'
-import { PageHeader } from '@/components/admin/ui'
+import { Badge, Empty, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
+import { FormActions, FormGrid, SelectField, TextField } from '@/components/admin/field'
+import { ConfirmDialog, SubmitButton } from '@/components/admin/overlay'
 
-const wib = (d: Date) => d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+const wib = (d: Date) => d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 // Kotak uji: mencoba jawaban bot tanpa membuat percakapan dan tanpa mengirim apa pun ke WhatsApp.
 export default async function UjiChatbot({ searchParams }: PageProps<'/admin/chatbot/uji'>) {
@@ -17,58 +18,84 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
     db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
   ])
   const [custReply, adminPart] = (current?.reply ?? '').split('\n\n[Ringkasan ke admin')
+  const label = 'mb-1 text-xs font-semibold text-neutral-700'
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="space-y-5">
       <PageHeader title="Kotak uji" note="Ketik pesan seperti pelanggan untuk melihat balasan bot. Tidak membuat percakapan dan tidak mengirim apa pun ke WhatsApp." />
-      <Card title="Pesan uji">
-        <form action={testBot} className="grid gap-2 md:grid-cols-[1fr_auto]">
-          <input name="q" required maxLength={500} aria-label="Pesan uji" placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" className={inputCls} />
-          <button className="adm-btn">Kirim uji</button>
-          <div className="grid gap-2 md:col-span-2 md:grid-cols-3">
-            <label className={labelCls}>Cabang yang sudah diingat untuk nomor ini
-              <select name="known" className={`${inputCls} mt-1`} defaultValue="">
+      <SettingsGrid>
+        <Section id="uji" title="Pesan uji" description="Hasilnya tampil di bawah formulir dan tersimpan di riwayat.">
+          <form action={testBot}>
+            <FormGrid cols={1}>
+              <TextField label="Pesan uji" name="q" required maxLength={500} placeholder="mis. Halo kak Bejo Ban Batu, ada ban 185/65 R15?" autoComplete="off" />
+              <SelectField label="Cabang yang sudah diingat untuk nomor ini" name="known" defaultValue="">
                 <option value="">Belum ada</option>
                 {branches.map((b) => <option key={b.slug} value={b.slug}>{b.name.replace(/\s*\(.*\)/, '')}</option>)}
-              </select>
-            </label>
-            <label className={labelCls}>Opsional: pesan asal kalau mengetes jawaban 1 atau 2
-              <input name="pending" maxLength={500} placeholder="mis. ada ban 225/45 R17?" className={`${inputCls} mt-1`} />
-            </label>
-            <label className={labelCls}>Stok per cabang untuk uji ini
-              <select name="perCabang" className={`${inputCls} mt-1`} defaultValue="">
+              </SelectField>
+              <TextField label="Pesan asal (opsional)" name="pending" maxLength={500} placeholder="mis. ada ban 225/45 R17?" hint="Isi kalau mengetes jawaban 1 atau 2 untuk pertanyaan cabang." autoComplete="off" />
+              <SelectField label="Stok per cabang untuk uji ini" name="perCabang" defaultValue="">
                 <option value="">Ikut pengaturan</option>
                 <option value="on">Nyala</option>
                 <option value="off">Mati</option>
-              </select>
-            </label>
-          </div>
-        </form>
-        {current && (
-          <div className="mt-4 space-y-2 text-sm">
-            <p className="text-xs font-semibold text-neutral-500">Pesan</p>
-            <p className="rounded-lg bg-neutral-100 px-3 py-2">{current.input}</p>
-            <p className="text-xs font-semibold text-neutral-500">Balasan ke pelanggan {current.handoff && <span className="ml-1 rounded bg-ink px-2 py-0.5 text-white">diserahkan ke admin</span>}</p>
-            <pre className="whitespace-pre-wrap rounded-lg border border-neutral-200 bg-white px-3 py-2 font-sans">{custReply}</pre>
-            {adminPart && (
-              <>
-                <p className="text-xs font-semibold text-neutral-500">Ringkasan untuk admin</p>
-                <pre className="whitespace-pre-wrap rounded-lg border border-dashed border-neutral-300 bg-white px-3 py-2 font-sans">{'[Ringkasan ke admin' + adminPart}</pre>
-              </>
-            )}
-            <p className="text-xs text-neutral-500">Alasan pencocokan: {current.reason || '-'}</p>
-          </div>
-        )}
-      </Card>
-      {logs.length > 0 && (
-        <Card title="Uji terakhir">
-          <ul className="space-y-1 text-sm text-neutral-700">
-            {logs.map((l) => (
-              <li key={l.id}><a className="underline" href={`/admin/chatbot/uji?log=${l.id}`}>{l.input}</a> <span className="text-xs text-neutral-400">{wib(l.createdAt)}</span></li>
-            ))}
-          </ul>
-          <form action={clearBotLogs} className="mt-3"><button className="text-xs font-semibold text-red-600">Hapus riwayat uji</button></form>
-        </Card>
-      )}
+              </SelectField>
+            </FormGrid>
+            <FormActions>
+              <SubmitButton pending="Menguji...">Kirim uji</SubmitButton>
+            </FormActions>
+          </form>
+          {current && (
+            <div className="mt-5 space-y-2 border-t border-line pt-4 text-sm" aria-live="polite">
+              <p className={label}>Pesan</p>
+              <p className="rounded-lg bg-soft px-3 py-2">{current.input}</p>
+              <p className={`${label} flex flex-wrap items-center gap-2`}>
+                Balasan ke pelanggan {current.handoff && <Badge>Diserahkan ke admin</Badge>}
+              </p>
+              <pre className="whitespace-pre-wrap rounded-lg border border-line bg-white px-3 py-2 font-sans">{custReply}</pre>
+              {adminPart && (
+                <>
+                  <p className={label}>Ringkasan untuk admin</p>
+                  <pre className="whitespace-pre-wrap rounded-lg border border-dashed border-[#cfcfcf] bg-white px-3 py-2 font-sans">{'[Ringkasan ke admin' + adminPart}</pre>
+                </>
+              )}
+              <p className="text-xs text-mute">Alasan pencocokan: {current.reason || '-'}</p>
+            </div>
+          )}
+        </Section>
+
+        <Section
+          id="riwayat"
+          title="Uji terakhir"
+          description="Pilih salah satu untuk melihat balasannya lagi."
+          actions={
+            logs.length > 0 ? (
+              <ConfirmDialog
+                trigger="Hapus riwayat uji"
+                triggerClassName="adm-btn-line adm-btn-sm"
+                title="Hapus riwayat uji?"
+                message={
+                  <>
+                    <p>Semua catatan di Kotak uji dihapus dan tidak bisa dikembalikan.</p>
+                    <p className="text-mute">Percakapan pelanggan yang sebenarnya tidak ikut terhapus.</p>
+                  </>
+                }
+                confirm={{ action: clearBotLogs, label: 'Hapus riwayat' }}
+              />
+            ) : undefined
+          }
+        >
+          {logs.length ? (
+            <ul className="divide-y divide-line text-sm">
+              {logs.map((l) => (
+                <li key={l.id} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
+                  <Link href={`/admin/chatbot/uji?log=${l.id}`} className={`min-w-0 break-words underline ${l.id === logId ? 'font-bold' : ''}`}>{l.input}</Link>
+                  <span className="text-xs text-mute">{wib(l.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="Belum ada uji">Kirim pesan uji pertama lewat formulir.</Empty>
+          )}
+        </Section>
+      </SettingsGrid>
     </div>
   )
 }

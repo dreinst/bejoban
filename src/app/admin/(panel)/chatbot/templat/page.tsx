@@ -2,22 +2,41 @@ import { requireOwner } from '@/lib/auth'
 import { resetBotTemplates, saveBotTemplates } from '../../../fitur-actions'
 import { TemplateEditor } from '@/components/admin/template-editor'
 import { loadTemplates } from '@/lib/bot/respond'
-import { Card } from '@/components/admin/simple-list'
-import { PageHeader } from '@/components/admin/ui'
+import { PageBody, PageHeader, Section } from '@/components/admin/ui'
+import { FormActions } from '@/components/admin/field'
+import { ConfirmDialog, SubmitButton } from '@/components/admin/overlay'
 
 export default async function TemplatChatbot() {
   await requireOwner()
   const templates = await loadTemplates()
   return (
-    <div className="max-w-5xl space-y-4">
+    <PageBody>
       <PageHeader title="Templat pesan" note="Semua kalimat yang dikirim bot. Kata dalam kurung kurawal diganti isi sebenarnya; pratinjau di kanan memakai contoh." />
-      <Card title="Templat">
-        <form action={saveBotTemplates} className="space-y-4">
+      <Section
+        id="templat"
+        title="Kalimat bot"
+        actions={
+          <ConfirmDialog
+            trigger="Kembalikan semua templat ke bawaan"
+            triggerClassName="adm-btn-line adm-btn-sm"
+            title="Kembalikan semua templat ke bawaan?"
+            message={
+              <>
+                <p>Semua kalimat bot yang sudah kamu ubah diganti dengan kalimat bawaan. Perubahan itu tidak bisa dikembalikan.</p>
+                <p className="text-mute">Templat sosial media di Pengaturan, WhatsApp dan chatbot tidak ikut berubah.</p>
+              </>
+            }
+            confirm={{ action: resetBotTemplates, label: 'Kembalikan ke bawaan' }}
+          />
+        }
+      >
+        <form action={saveBotTemplates}>
           <TemplateEditor initial={templates} />
-          <button className="adm-btn">Simpan templat</button>
+          <FormActions>
+            <SubmitButton>Simpan templat</SubmitButton>
+          </FormActions>
         </form>
-        <form action={resetBotTemplates} className="mt-4 border-t border-line pt-3"><button className="text-xs font-semibold text-red-600">Kembalikan semua templat ke bawaan</button></form>
-      </Card>
-    </div>
+      </Section>
+    </PageBody>
   )
 }

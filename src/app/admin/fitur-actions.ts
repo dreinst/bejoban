@@ -20,6 +20,8 @@ import { nextStatus, type Status } from '@/lib/bot/conversation'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { ubahStokTx } from '@/lib/stok/ubah'
 import { GalatStok } from '@/lib/stok/logika'
+import { arahDari, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
+import type { HasilAksi } from '@/components/admin/row-controls'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
 const int = (fd: FormData, k: string) => Math.max(0, Math.round(Number(String(fd.get(k) ?? '0').replace(/\D/g, '')) || 0))
@@ -313,13 +315,32 @@ export async function saveService(fd: FormData) {
     altPrice: optInt(fd, 'altPrice'),
     note: str(fd, 'note', 200),
     keywords: str(fd, 'keywords', 200).toLowerCase(),
-    sort: int(fd, 'sort'),
   }
   if (data.ringMin !== null && data.ringMax !== null && data.ringMin > data.ringMax) go('/admin/harga-jasa', 'Ring awal tidak boleh lebih besar dari ring akhir', 'err')
-  if (id) await db.servicePrice.update({ where: { id }, data })
-  else await db.servicePrice.create({ data })
+  if (id) {
+    // Urutan tidak diubah dari form; atur lewat tombol naik turun.
+    const { count } = await db.servicePrice.updateMany({ where: { id }, data })
+    if (!count) go('/admin/harga-jasa', 'Baris harga jasa tidak ditemukan', 'err')
+  } else {
+    const semua = await db.servicePrice.findMany({ select: { sort: true } })
+    await db.servicePrice.create({ data: { ...data, sort: urutanBerikut(semua) } })
+  }
   await catat(s, id ? 'ubah' : 'tambah', 'harga_jasa', { id: id || null, nama: name })
   go('/admin/harga-jasa', 'Harga jasa tersimpan')
+}
+
+// Urutan harga jasa: tukar dengan tetangga. Urutan sama dengan tabel (sort, lalu id).
+export async function moveService(fd: FormData): Promise<HasilAksi> {
+  const s = await requireOwner()
+  const id = int(fd, 'id')
+  const arah = arahDari(fd.get('arah'))
+  if (!arah) return { err: 'Arah urutan tidak dikenal' }
+  const list = await db.servicePrice.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, sort: true } })
+  const ubah = geserUrutan(list, id, arah)
+  if (!ubah.length) return
+  await db.$transaction(ubah.map((u) => db.servicePrice.update({ where: { id: u.id }, data: { sort: u.sort } })))
+  await catat(s, 'urutkan', 'harga_jasa', { id, arah })
+  revalidatePath('/admin/harga-jasa')
 }
 
 export async function deleteService(fd: FormData) {

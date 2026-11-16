@@ -1,70 +1,168 @@
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { deleteRate, importRates, saveRate } from '../../../fitur-actions'
-import { CARRIERS, CARRIER_LABEL, SAMPLE_LABEL } from '@/lib/ongkir/types'
-import { inputCls } from '@/components/admin/form-cls'
-import { Card, labelCls } from '@/components/admin/simple-list'
-import { PageHeader } from '@/components/admin/ui'
+import { CARRIERS, CARRIER_LABEL, SAMPLE_LABEL, type Carrier } from '@/lib/ongkir/types'
+import { Badge, Empty, PageBody, PageHeader } from '@/components/admin/ui'
+import { DataTable, FilterChips, ListToolbar } from '@/components/admin/data-table'
+import { CheckField, FormActions, FormGrid, SelectField, TextAreaField, TextField } from '@/components/admin/field'
+import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
+
+type TarifRow = { id: number; carrier: string; city: string; perKg: number; minWeight: number; etaDays: string; note: string; isSample: boolean }
+
+const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
+const labelCarrier = (c: string) => CARRIER_LABEL[c as Carrier] ?? c
+const tgl = (d: Date) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })
+
+// Satu form untuk tambah dan ubah, dipakai di panel samping.
+function FormTarif({ r, kota }: { r?: TarifRow; kota?: string }) {
+  return (
+    <form action={saveRate}>
+      <input type="hidden" name="id" value={r?.id ?? 0} />
+      <FormGrid>
+        <SelectField label="Ekspedisi" name="carrier" defaultValue={r?.carrier ?? 'JNT_CARGO'}>
+          {CARRIERS.map((c) => <option key={c} value={c}>{CARRIER_LABEL[c]}</option>)}
+        </SelectField>
+        <TextField label="Kota tujuan" name="city" defaultValue={r?.city ?? kota ?? ''} required maxLength={60} autoComplete="off" />
+        <TextField label="Tarif per kg (Rp)" name="perKg" defaultValue={r?.perKg ?? ''} required inputMode="numeric" placeholder="4500" />
+        <TextField label="Berat minimum (kg)" name="minWeight" defaultValue={r?.minWeight ?? 10} inputMode="decimal" />
+        <TextField label="Estimasi hari" name="etaDays" defaultValue={r?.etaDays ?? ''} placeholder="2-3" maxLength={30} />
+        <TextField label="Catatan" name="note" defaultValue={r?.note ?? ''} maxLength={200} />
+        <CheckField
+          className="sm:col-span-2"
+          label="Tarif contoh"
+          name="isSample"
+          defaultChecked={r?.isSample ?? false}
+          hint={`Tampil dengan label "${SAMPLE_LABEL}" di kalkulator. Hilangkan centangnya setelah tarif dari agen masuk.`}
+        />
+      </FormGrid>
+      <FormActions>
+        <CloseButton />
+        <SubmitButton>{r ? 'Simpan perubahan' : 'Tambah tarif'}</SubmitButton>
+      </FormActions>
+    </form>
+  )
+}
+
+function FormTempel() {
+  return (
+    <form action={importRates}>
+      <FormGrid cols={1}>
+        <TextAreaField
+          label="Isi tarif, satu baris satu tarif"
+          name="paste"
+          rows={8}
+          required
+          placeholder={'JNT_CARGO, Malang, 4500, 10, 2-3, tarif agen Batu\nBARAKA, Malang, 4000, 10, 3-4,'}
+          hint="Urutan kolom: ekspedisi, kota, tarif per kg, berat minimum, estimasi hari, catatan. Pisahkan dengan koma, titik koma, atau tab. Kota yang sudah ada diperbarui."
+        />
+        <CheckField label="Tandai semua sebagai contoh" name="isSample" />
+      </FormGrid>
+      <FormActions>
+        <CloseButton />
+        <SubmitButton>Masukkan tarif</SubmitButton>
+      </FormActions>
+    </form>
+  )
+}
 
 // Tarif per kota. Angka dasar (asal kirim, kemasan, packing) ada di Pengaturan, tab Ongkir.
 export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/tarif'>) {
   await requireOwner()
-  const kota = String((await searchParams).kota ?? '').slice(0, 60)
-  const rates = await db.shippingRate.findMany({ orderBy: [{ city: 'asc' }, { carrier: 'asc' }] })
-  const form = (r?: (typeof rates)[number]) => (
-    <form action={saveRate} className="grid gap-2 md:grid-cols-[130px_1fr_110px_100px_100px_1fr_auto_auto]">
-      <input type="hidden" name="id" value={r?.id ?? 0} />
-      <label className={labelCls}>Ekspedisi
-        <select name="carrier" defaultValue={r?.carrier ?? 'JNT_CARGO'} className={inputCls}>
-          {CARRIERS.map((c) => <option key={c} value={c}>{CARRIER_LABEL[c]}</option>)}
-        </select>
-      </label>
-      <label className={labelCls}>Kota tujuan<input name="city" defaultValue={r?.city ?? kota} required className={inputCls} /></label>
-      <label className={labelCls}>Tarif/kg (Rp)<input name="perKg" defaultValue={r?.perKg} required inputMode="numeric" className={inputCls} /></label>
-      <label className={labelCls}>Min. kg<input name="minWeight" defaultValue={r?.minWeight ?? 10} inputMode="decimal" className={inputCls} /></label>
-      <label className={labelCls}>Estimasi hari<input name="etaDays" defaultValue={r?.etaDays} placeholder="2-3" className={inputCls} /></label>
-      <label className={labelCls}>Catatan<input name="note" defaultValue={r?.note} className={inputCls} /></label>
-      <label className="flex items-end gap-1 pb-2 text-xs"><input type="checkbox" name="isSample" defaultChecked={r?.isSample ?? false} />Contoh</label>
-      <button className="self-end adm-btn">Simpan</button>
-    </form>
+  const sp = await searchParams
+  const kota = String(sp.kota ?? '').trim().slice(0, 60)
+  const q = String(sp.q ?? '').trim().slice(0, 60)
+  const e = (CARRIERS as readonly string[]).includes(String(sp.e)) ? String(sp.e) : ''
+  const semua = await db.shippingRate.findMany({ orderBy: [{ city: 'asc' }, { carrier: 'asc' }] })
+  const list = semua.filter((r) => (!e || r.carrier === e) && (!q || r.city.toLowerCase().includes(q.toLowerCase())))
+  const href = (c: string) => {
+    const p = new URLSearchParams(Object.entries({ q, e: c }).filter(([, v]) => v))
+    return `/admin/ongkir/tarif${p.size ? `?${p}` : ''}`
+  }
+  const tambah = (
+    <Drawer trigger="+ Tambah tarif" triggerClassName="adm-btn" title="Tambah tarif" description="Satu tarif untuk satu ekspedisi dan satu kota." defaultOpen={Boolean(kota)}>
+      <FormTarif kota={kota} />
+    </Drawer>
   )
+  const tempel = (
+    <Drawer trigger="Tempel banyak tarif" triggerClassName="adm-btn-line" title="Tempel banyak tarif" description="Satu baris satu tarif. Baris yang tidak valid dilewati dan disebut setelah disimpan.">
+      <FormTempel />
+    </Drawer>
+  )
+
   return (
-    <div className="max-w-6xl space-y-4">
+    <PageBody>
       <PageHeader
         title="Tarif ongkir"
-        note={<>Isi dari daftar harga agen. Tarif yang dicentang Contoh tampil dengan label &quot;{SAMPLE_LABEL}&quot; di kalkulator. Hilangkan centangnya setelah tarif dari agen masuk.</>}
+        note={`Isi dari daftar harga agen. Tarif bertanda Contoh tampil dengan label "${SAMPLE_LABEL}" di kalkulator.`}
+        actions={
+          <>
+            {tempel}
+            {tambah}
+          </>
+        }
       />
-
-      <Card title="Tarif per kota">
-        <div className="space-y-4">
-          {rates.map((r) => (
-            <div key={`${r.id}-${r.updatedAt.getTime()}`} className="border-b border-neutral-100 pb-4">
-              {form(r)}
-              <div className="mt-1 flex items-center justify-between text-xs text-neutral-500">
-                <span>Diperbarui {r.updatedAt.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}{r.isSample ? ` · ${SAMPLE_LABEL}` : ''}</span>
-                <form action={deleteRate}>
-                  <input type="hidden" name="id" value={r.id} />
-                  <button className="font-semibold text-red-600">Hapus</button>
-                </form>
-              </div>
-            </div>
-          ))}
-          {!rates.length && <p className="text-sm text-neutral-500">Belum ada tarif.</p>}
-        </div>
-      </Card>
-
-      <section id="baru"><Card title="+ Tarif baru">{form()}</Card></section>
-
-      <Card title="Tempel banyak tarif sekaligus">
-        <form action={importRates} className="grid gap-3">
-          <label className={labelCls}>
-            Satu baris satu tarif: ekspedisi, kota, tarif per kg, berat minimum, estimasi hari, catatan (pisahkan dengan koma, titik koma, atau tab)
-            <textarea name="paste" rows={5} className={`${inputCls} font-mono`} placeholder={'JNT_CARGO, Malang, 4500, 10, 2-3, tarif agen Batu\nBARAKA, Malang, 4000, 10, 3-4,'} />
-          </label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isSample" />Tandai semua sebagai contoh</label>
-          <button className="w-fit adm-btn">Masukkan tarif</button>
-        </form>
-      </Card>
-    </div>
+      <ListToolbar
+        count={list.length}
+        total={q || e ? semua.length : undefined}
+        noun="tarif"
+        search={{ placeholder: 'Cari kota', label: 'Cari kota tujuan', value: q, keep: { e } }}
+      />
+      <FilterChips
+        label="Saring ekspedisi"
+        items={[{ href: href(''), label: 'Semua', active: !e }, ...CARRIERS.map((c) => ({ href: href(c), label: CARRIER_LABEL[c], active: e === c }))]}
+      />
+      <DataTable
+        caption="Daftar tarif ongkir"
+        rows={list}
+        rowKey={(r) => r.id}
+        columns={[
+          {
+            key: 'kota',
+            header: 'Kota',
+            mobile: 'title',
+            cell: (r) => (
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className="font-semibold text-ink">{r.city}</span>
+                {r.isSample && <Badge tone="outline">Contoh</Badge>}
+              </span>
+            ),
+          },
+          { key: 'ekspedisi', header: 'Ekspedisi', mobile: 'meta', cell: (r) => labelCarrier(r.carrier) },
+          { key: 'perkg', header: 'Tarif per kg', align: 'right', className: 'whitespace-nowrap', cell: (r) => rp(r.perKg) },
+          { key: 'min', header: 'Min. berat', align: 'right', className: 'whitespace-nowrap', cell: (r) => `${r.minWeight.toLocaleString('id-ID')} kg` },
+          { key: 'eta', header: 'Estimasi', cell: (r) => (r.etaDays ? `${r.etaDays} hari` : '-') },
+          { key: 'note', header: 'Catatan', cell: (r) => r.note || '-' },
+          { key: 'upd', header: 'Diperbarui', mobile: 'hide', className: 'whitespace-nowrap', cell: (r) => tgl(r.updatedAt) },
+        ]}
+        actions={(r) => {
+          const nama = `${labelCarrier(r.carrier)} ke ${r.city}`
+          return (
+            <>
+              <Drawer trigger="Ubah" triggerLabel={`Ubah tarif ${nama}`} title={`Ubah tarif ${nama}`}>
+                <FormTarif r={r} />
+              </Drawer>
+              <ConfirmDialog
+                triggerLabel={`Hapus tarif ${nama}`}
+                title={`Hapus tarif ${nama}?`}
+                message={
+                  <>
+                    <p>Tarif {rp(r.perKg)} per kg untuk {nama} akan dihapus dan tidak bisa dikembalikan.</p>
+                    <p className="text-mute">Kalkulator ongkir tidak lagi punya tarif {labelCarrier(r.carrier)} untuk {r.city} sampai kamu mengisinya lagi.</p>
+                  </>
+                }
+                confirm={{ action: deleteRate, fields: { id: r.id }, label: 'Hapus tarif' }}
+              />
+            </>
+          )
+        }}
+        empty={
+          q || e ? (
+            <Empty title="Tarif tidak ditemukan">Tidak ada tarif yang cocok dengan saringan ini. Ubah kata cari atau pilih Semua.</Empty>
+          ) : (
+            <Empty title="Belum ada tarif" action={tambah}>Tambah tarif pertama, atau tempel banyak baris sekaligus dari daftar harga agen.</Empty>
+          )
+        }
+      />
+    </PageBody>
   )
 }

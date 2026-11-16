@@ -1,9 +1,10 @@
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { importStock, saveStockRow, syncSheet, tetapkanCabang } from '../../fitur-actions'
-import { inputCls } from '@/components/admin/form-cls'
-import { Card, labelCls } from '@/components/admin/simple-list'
-import { Badge, Empty, PageHeader } from '@/components/admin/ui'
+import { Badge, Empty, PageBody, PageHeader, Section, SettingsGrid, StatCard } from '@/components/admin/ui'
+import { DataTable, FilterChips, ListToolbar } from '@/components/admin/data-table'
+import { CheckField, FormActions, FormGrid, SelectField, TextAreaField, TextField } from '@/components/admin/field'
+import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
 import { bandingCabang, namaPendek } from '@/lib/tire/cabang'
 
 type LastImport = {
@@ -28,9 +29,10 @@ type LastImport = {
 }
 
 const wib = (iso: string) => new Date(iso).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
-
 const GABUNGAN = '__gabungan'
 const rpAngka = (n: number | null) => (n === null ? 'kosong' : n.toLocaleString('id-ID'))
+const rp = (n: number | null) => (n === null ? 'kosong' : `Rp ${n.toLocaleString('id-ID')}`)
+const BATAS = 100
 
 export default async function StokBan({ searchParams }: PageProps<'/admin/stok-ban'>) {
   await requireOwner()
@@ -57,7 +59,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const [rows, count, rings, last, sheets, issues, perCabang] = await Promise.all([
     banding
       ? db.stockTire.findMany({ where: { ...where, cabangId: undefined }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: 1500 })
-      : db.stockTire.findMany({ where, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: 100 }),
+      : db.stockTire.findMany({ where, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }], take: BATAS }),
     db.stockTire.count({ where }),
     db.stockTire.groupBy({ by: ['ring'], where: { aktif: true }, _count: true, orderBy: { ring: 'asc' } }),
     db.setting.findUnique({ where: { key: 'stok.lastImport' } }),
@@ -78,17 +80,6 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
     return `/admin/stok-ban${p.size ? `?${p}` : ''}`
   }
   const back = params({})
-  const th = 'px-3 py-2 text-left text-xs font-semibold text-neutral-600'
-  const td = 'px-3 py-1.5 text-sm'
-  const chip = (on: boolean) => `rounded-full px-3 py-1.5 text-xs font-semibold ${on ? 'bg-ink text-white' : 'bg-white text-ink ring-1 ring-neutral-300'}`
-  const cell = 'w-full rounded border border-neutral-300 px-2 py-1 text-sm'
-  const pilihanTujuan = (
-    <>
-      <option value="">Tanpa cabang</option>
-      {branches.map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
-      <option value={GABUNGAN}>Sheet gabungan (kolom Cabang)</option>
-    </>
-  )
   const targets = [
     { value: '', label: 'Tanpa cabang', url: sheetUrl('stok.sheet') },
     ...branches.map((b) => ({ value: b.slug, label: namaPendek(b.name), url: sheetUrl(`stok.sheet.${b.slug}`) })),
@@ -96,211 +87,212 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   ]
   const grup = banding ? bandingCabang(rows) : []
   const kolomBanding: (number | null)[] = [...(tanpaCabang ? [null] : []), ...branches.map((b) => b.id)]
+  type Baris = (typeof rows)[number]
+  type Grup = (typeof grup)[number]
+  const tujuanImpor = li ? (li.gabungan ? `sheet gabungan (${(li.bagian ?? []).map((b) => `${namaCabang(b.cabangId)} ${b.total} baris`).join(', ')})` : namaCabang(li.cabangId)) : ''
+
   return (
-    <div className="max-w-6xl space-y-4">
+    <PageBody>
       <PageHeader
         title="Stok ban"
-        note="Stok dan harga ban dari pricelist toko. Dipakai chatbot dan kalkulator ongkir, tidak tampil di situs. Stok Batu dan Karanglo terpisah: tiap sinkron atau impor hanya mengganti stok cabang yang dipilih. Ban yang diubah manual dan dikunci tidak ditimpa."
+        note="Stok dan harga ban dari pricelist toko. Dipakai chatbot dan kalkulator ongkir, tidak tampil di situs. Tiap sinkron atau impor hanya mengganti stok cabang yang dipilih. Ban yang diubah manual dan dikunci tidak ditimpa."
       />
 
-      <Card title="Sinkron dari Google Sheets">
-        <div className="grid gap-2">
-          {targets.map((t) => (
-            <form key={t.value || 'tanpa'} action={syncSheet} className="grid items-center gap-2 md:grid-cols-[150px_1fr_auto]">
-              <input type="hidden" name="cabang" value={t.value} />
-              <span className="text-sm font-semibold text-ink">{t.label}</span>
-              <input name="url" defaultValue={t.url} aria-label={`Tautan spreadsheet ${t.label}`} placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" className={inputCls} />
-              <button className="adm-btn-line adm-btn-sm">Sinkron sekarang</button>
-            </form>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-neutral-500">
-          Satu tautan per cabang. Bagikan spreadsheet sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. Yang diambil adalah tab yang terbuka di tautan itu. Sheet gabungan untuk satu sheet berisi dua cabang dengan kolom &quot;Cabang&quot; (isi Batu atau Karanglo); baris yang cabangnya kosong dilewati dan dilaporkan.
-        </p>
-        {li && <p className="mt-2 text-xs text-neutral-600">Terakhir: {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, {li.gabungan ? 'sheet gabungan' : namaCabang(li.cabangId)}), {li.total} baris, {li.problemCount} bermasalah</p>}
-      </Card>
+      <SettingsGrid>
+        <Section id="sinkron" title="Sinkron dari Google Sheets" description="Satu tautan per cabang. Bagikan spreadsheet sebagai &quot;Siapa saja yang memiliki tautan dapat melihat&quot;. Yang diambil tab yang terbuka di tautan itu.">
+          <div className="space-y-3">
+            {targets.map((t) => (
+              <form key={t.value || 'tanpa'} action={syncSheet} className="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="cabang" value={t.value} />
+                <TextField className="min-w-0 flex-1 basis-60" id={`sheet-${t.value || 'tanpa'}`} label={t.label} name="url" defaultValue={t.url} placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" />
+                <SubmitButton className="adm-btn-line" pending="Menyinkron...">Sinkron</SubmitButton>
+              </form>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-mute">Sheet gabungan untuk satu sheet berisi dua cabang dengan kolom &quot;Cabang&quot; (isi Batu atau Karanglo). Baris yang cabangnya kosong dilewati dan dilaporkan.</p>
+        </Section>
 
-      <Card title="Impor dari berkas CSV">
-        <form action={importStock} encType="multipart/form-data" className="grid gap-3">
-          <label className={labelCls}>
-            Masuk ke
-            <select name="cabang" defaultValue="" className={`${inputCls} max-w-sm`}>{pilihanTujuan}</select>
-          </label>
-          <label className={labelCls}>
-            Berkas CSV
-            <input type="file" name="file" accept=".csv,text/csv,text/plain" className={inputCls} />
-          </label>
-          <label className={labelCls}>
-            Atau tempel isi CSV di sini
-            <textarea name="paste" rows={4} className={`${inputCls} font-mono`} placeholder=",Ukuran Ban,Merk,Harga Jual,Stok,Keterangan" />
-          </label>
-          <button className="w-fit adm-btn">Impor dan ganti stok cabang ini</button>
-        </form>
-      </Card>
-
-      {tanpaCabang > 0 && branches.length > 0 && (
-        <Card title={`Ban tanpa cabang (${tanpaCabang})`}>
-          <p className="mb-3 text-sm text-neutral-600">
-            Ban ini belum punya cabang, jadi dianggap stok bersama dan bot menjawabnya tanpa menanyakan cabang. Kalau sudah tahu milik cabang mana, tetapkan sekaligus di sini. Ban yang sudah ada di cabang tujuan dilewati dan tetap tanpa cabang.
-          </p>
-          <form action={tetapkanCabang} className="flex flex-wrap items-center gap-3">
-            <label className="text-sm">
-              Tetapkan semua ban tanpa cabang ke
-              <select name="cabang" required defaultValue="" className={`${inputCls} ml-2 inline-block w-auto`}>
-                <option value="" disabled>Pilih cabang</option>
-                {branches.map((b) => <option key={b.slug} value={b.slug}>{namaPendek(b.name)}</option>)}
-              </select>
-            </label>
-            <label className="text-xs"><input type="checkbox" name="yakin" required className="mr-1" />Yakin</label>
-            <button className="adm-btn-line adm-btn-sm">Tetapkan</button>
+        <Section id="impor" title="Impor dari berkas CSV" description="Berkas atau isi CSV pricelist. Stok cabang tujuan diganti dengan isi berkas.">
+          <form action={importStock}>
+            <FormGrid cols={1}>
+              <SelectField label="Masuk ke" name="cabang" id="impor-cabang" defaultValue="">
+                <option value="">Tanpa cabang</option>
+                {branches.map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
+                <option value={GABUNGAN}>Sheet gabungan (kolom Cabang)</option>
+              </SelectField>
+              <TextField label="Berkas CSV" name="file" type="file" accept=".csv,text/csv,text/plain" />
+              <TextAreaField label="Atau tempel isi CSV" name="paste" rows={3} className="font-mono" placeholder=",Ukuran Ban,Merk,Harga Jual,Stok,Keterangan" />
+            </FormGrid>
+            <FormActions><SubmitButton pending="Mengimpor...">Impor dan ganti stok</SubmitButton></FormActions>
           </form>
-        </Card>
-      )}
+        </Section>
 
-      {li && (
-        <Card title={`Hasil impor terakhir, ${wib(li.at)}`}>
-          <p className="mb-1 text-sm">
-            Tujuan: <b>{li.gabungan ? `sheet gabungan (${(li.bagian ?? []).map((b) => `${namaCabang(b.cabangId)} ${b.total} baris`).join(', ')})` : namaCabang(li.cabangId)}</b>
-          </p>
-          <p className="text-sm">
-            <b>{li.total}</b> baris masuk ({li.withPrice} dengan harga, {li.noPrice} tanpa harga). <b>{li.skipped}</b> baris dilewati. {li.problemCount} baris bermasalah.
-            {(li.manualKept ?? 0) + (li.manualOrphans ?? 0) + (li.manualOverwritten ?? 0) > 0 && (
-              <> Baris manual: {li.manualKept ?? 0} dipertahankan, {li.manualOrphans ?? 0} tidak ada lagi di sumber tapi disimpan, {li.manualOverwritten ?? 0} ditimpa.</>
-            )}
-            {li.deactivated !== undefined && (
-              <> Baru {li.created ?? 0}, hilang dari sumber {li.deactivated}, muncul lagi {li.reactivated ?? 0}, stok berubah {li.stockChanges ?? 0}.</>
-            )}
-          </p>
-          {li.problems.length > 0 && (
-            <div className="mt-3 overflow-x-auto">
-              <p className="mb-2 text-xs text-neutral-500">
-                Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga yang tidak terbaca diisi manual di tabel di bawah.
-              </p>
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-neutral-50">
-                  <tr>{['Baris', 'Kelompok', 'Ukuran', 'Merek', 'Harga (asli)', 'Stok (asli)', 'Masalah'].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {li.problems.map((p, i) => (
-                    <tr key={i} className="border-t border-neutral-100">
-                      <td className={td}>{p.line}</td>
-                      <td className={td}>{p.group}</td>
-                      <td className={td}>{p.size}</td>
-                      <td className={td}>{p.brand}</td>
-                      <td className={`${td} font-mono`}>{p.priceRaw || '(kosong)'}</td>
-                      <td className={`${td} font-mono`}>{p.stockRaw || '(kosong)'}</td>
-                      <td className={td}>{p.reason}{p.imported ? '' : ' (tidak masuk)'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {li.problemCount > li.problems.length && (
-                <p className="mt-2 text-xs text-neutral-500">Hanya {li.problems.length} dari {li.problemCount} baris yang ditampilkan.</p>
-              )}
+        {tanpaCabang > 0 && branches.length > 0 && (
+          <Section id="tanpa-cabang" title={`Ban tanpa cabang (${tanpaCabang})`} description="Belum punya cabang, jadi dianggap stok bersama dan bot menjawabnya tanpa menanyakan cabang. Kalau sudah tahu milik cabang mana, tetapkan sekaligus.">
+            <div className="flex flex-wrap gap-2">
+              {branches.map((b) => (
+                <ConfirmDialog
+                  key={b.slug}
+                  trigger={`Tetapkan ke ${namaPendek(b.name)}`}
+                  triggerClassName="adm-btn-line"
+                  title={`Tetapkan ${tanpaCabang} ban ke ${namaPendek(b.name)}?`}
+                  message={
+                    <>
+                      <p>Semua {tanpaCabang} baris tanpa cabang menjadi stok cabang {namaPendek(b.name)}. Bot lalu hanya menyebut stok ini untuk pelanggan cabang itu.</p>
+                      <p className="text-mute">Baris yang ukuran dan mereknya sudah ada di {namaPendek(b.name)} dilewati dan tetap tanpa cabang. Aksi ini tercatat di log aktivitas dan buku stok.</p>
+                    </>
+                  }
+                  alternative={{ action: tetapkanCabang, fields: { cabang: b.slug, yakin: 'on' }, label: `Tetapkan ke ${namaPendek(b.name)}` }}
+                />
+              ))}
             </div>
-          )}
-        </Card>
-      )}
+          </Section>
+        )}
 
-      <Card title={banding ? `Banding cabang (${grup.length} ukuran dan merek)` : `Isi stok (${count} baris${count > rows.length ? `, menampilkan ${rows.length}` : ''})`}>
-        <p className="mb-3 text-xs text-neutral-500">
-          {banding
-            ? 'Satu baris per ukuran dan merek, stok dan harga tiap cabang berdampingan. Tanda strip berarti cabang itu tidak punya baris tersebut. Ubah angkanya di tampilan biasa.'
-            : 'Ubah harga, potongan, stok, atau keterangan langsung di baris lalu tekan Simpan. Baris yang diubah diberi penanda "manual". Kalau dicentang Kunci, sinkron berikutnya tidak menimpa baris itu.'}
-        </p>
-        <form className="mb-3 flex flex-wrap items-center gap-2">
-          <input name="q" defaultValue={q} placeholder="Cari merek atau ukuran" className={`${inputCls} max-w-xs`} />
-          <select name="ring" defaultValue={ring || ''} className={`${inputCls} max-w-[140px]`}>
-            <option value="">Semua ring</option>
-            {rings.map((r) => <option key={r.ring} value={r.ring}>R{r.ring} ({r._count})</option>)}
-          </select>
-          <input type="hidden" name="f" value={f} />
-          <input type="hidden" name="cb" value={cb} />
-          {banding && <input type="hidden" name="view" value="banding" />}
-          <button className="adm-btn-line">Cari</button>
-          <a href={params({ f: '' })} className={chip(!f)}>Semua</a>
-          <a href={params({ f: 'masalah' })} className={chip(f === 'masalah')}>Harga bermasalah ({issues})</a>
-          <a href={params({ f: 'manual' })} className={chip(f === 'manual')}>Diubah manual</a>
-        </form>
-        <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Filter cabang">
-          <span className="text-xs font-semibold text-neutral-600">Cabang:</span>
-          <a href={params({ cb: '', view: '' })} className={chip(!cb && !banding)}>Semua</a>
-          <a href={params({ cb: 'tanpa', view: '' })} className={chip(cb === 'tanpa' && !banding)}>Tanpa cabang ({tanpaCabang})</a>
-          {branches.map((b) => (
-            <a key={b.slug} href={params({ cb: b.slug, view: '' })} className={chip(cb === b.slug && !banding)}>{namaPendek(b.name)} ({jumlahCabang(b.id)})</a>
-          ))}
-          <a href={params({ cb: '', view: 'banding' })} className={chip(banding)}>Banding cabang</a>
+        {li && (
+          <Section id="hasil" title="Hasil impor terakhir" description={`${wib(li.at)}, ${li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, ke ${tujuanImpor}.`} wide={!tanpaCabang}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Baris masuk" value={li.total} hint={`${li.withPrice} dengan harga`} />
+              <StatCard label="Tanpa harga" value={li.noPrice} />
+              <StatCard label="Dilewati" value={li.skipped} />
+              <StatCard label="Bermasalah" value={li.problemCount} warn={li.problemCount > 0} />
+            </div>
+            <p className="mt-3 text-sm text-mute">
+              {li.deactivated !== undefined && <>Baru {li.created ?? 0}, hilang dari sumber {li.deactivated}, muncul lagi {li.reactivated ?? 0}, stok berubah {li.stockChanges ?? 0}. </>}
+              {(li.manualKept ?? 0) + (li.manualOrphans ?? 0) + (li.manualOverwritten ?? 0) > 0 && <>Baris manual: {li.manualKept ?? 0} dipertahankan, {li.manualOrphans ?? 0} tidak ada lagi di sumber tapi disimpan, {li.manualOverwritten ?? 0} ditimpa.</>}
+            </p>
+            {li.problems.length > 0 && (
+              <details className="mt-3">
+                <summary className="flex min-h-10 cursor-pointer items-center text-sm font-semibold text-ink">Lihat {li.problems.length} baris bermasalah</summary>
+                <p className="mb-2 text-xs text-mute">Harga kosong berarti barang belum pernah dibeli toko, jadi bot menganggapnya tidak tersedia. Harga yang tidak terbaca diisi manual di tabel stok.</p>
+                <DataTable
+                  caption="Baris bermasalah dari impor terakhir"
+                  rows={li.problems.map((p, i) => ({ ...p, i }))}
+                  rowKey={(p) => p.i}
+                  columns={[
+                    { key: 'ukuran', header: 'Ukuran', cell: (p) => `${p.size} ${p.brand}` },
+                    { key: 'baris', header: 'Baris', cell: (p) => p.line },
+                    { key: 'harga', header: 'Harga (asli)', cell: (p) => <span className="font-mono">{p.priceRaw || '(kosong)'}</span> },
+                    { key: 'stok', header: 'Stok (asli)', mobile: 'hide', cell: (p) => <span className="font-mono">{p.stockRaw || '(kosong)'}</span> },
+                    { key: 'masalah', header: 'Masalah', cell: (p) => `${p.reason}${p.imported ? '' : ' (tidak masuk)'}` },
+                  ]}
+                />
+                {li.problemCount > li.problems.length && <p className="mt-2 text-xs text-mute">Hanya {li.problems.length} dari {li.problemCount} baris yang ditampilkan.</p>}
+              </details>
+            )}
+          </Section>
+        )}
+      </SettingsGrid>
+
+      <section aria-labelledby="isi-stok" className="space-y-3">
+        <h2 id="isi-stok" className="font-display text-lg font-extrabold text-ink">{banding ? 'Banding cabang' : 'Isi stok'}</h2>
+        <ListToolbar
+          count={banding ? Math.min(grup.length, 300) : rows.length}
+          total={banding ? grup.length : count}
+          noun={banding ? 'ukuran dan merek' : 'baris stok'}
+          search={{ placeholder: 'Cari merek atau ukuran', value: q, keep: { ring: ring || undefined, f, cb, view: banding ? 'banding' : undefined } }}
+        >
+          <form className="flex items-center gap-2">
+            {q && <input type="hidden" name="q" value={q} />}
+            {f && <input type="hidden" name="f" value={f} />}
+            {cb && <input type="hidden" name="cb" value={cb} />}
+            {banding && <input type="hidden" name="view" value="banding" />}
+            <label htmlFor="saring-ring" className="sr-only">Ring</label>
+            <select id="saring-ring" name="ring" defaultValue={ring || ''} className="min-h-10 rounded-lg border border-[#cfcfcf] bg-white px-3 text-sm">
+              <option value="">Semua ring</option>
+              {rings.map((r) => <option key={r.ring} value={r.ring}>R{r.ring} ({r._count})</option>)}
+            </select>
+            <button className="adm-btn-line adm-btn-sm">Terapkan</button>
+          </form>
+        </ListToolbar>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          <FilterChips
+            label="Saring cabang"
+            items={[
+              { href: params({ cb: '', view: '' }), label: 'Semua cabang', active: !cb && !banding },
+              { href: params({ cb: 'tanpa', view: '' }), label: 'Tanpa cabang', active: cb === 'tanpa' && !banding, count: tanpaCabang },
+              ...branches.map((b) => ({ href: params({ cb: b.slug, view: '' }), label: namaPendek(b.name), active: cb === b.slug && !banding, count: jumlahCabang(b.id) })),
+              { href: params({ cb: '', view: 'banding' }), label: 'Banding cabang', active: banding },
+            ]}
+          />
+          <FilterChips
+            label="Saring masalah"
+            items={[
+              { href: params({ f: '' }), label: 'Semua', active: !f },
+              { href: params({ f: 'masalah' }), label: 'Harga bermasalah', active: f === 'masalah', count: issues },
+              { href: params({ f: 'manual' }), label: 'Diubah manual', active: f === 'manual' },
+            ]}
+          />
         </div>
+        <p className="text-xs text-mute">
+          {banding
+            ? 'Satu baris per ukuran dan merek, stok dan harga setelah potongan tiap cabang berdampingan. Tanda strip berarti cabang itu tidak punya baris tersebut. Ubah angkanya di tampilan biasa.'
+            : 'Ubah harga, potongan, stok, atau keterangan lewat tombol Ubah. Baris yang diubah diberi penanda "manual". Kalau dikunci, sinkron berikutnya tidak menimpa baris itu.'}
+        </p>
         {banding ? (
-          grup.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    <th className={th} rowSpan={2}>Ukuran</th>
-                    <th className={th} rowSpan={2}>Merek</th>
-                    {kolomBanding.map((id) => <th key={id ?? 'tanpa'} className={`${th} border-l border-neutral-200 text-center`} colSpan={2}>{id === null ? 'Tanpa cabang' : namaCabang(id)}</th>)}
-                  </tr>
-                  <tr>
-                    {kolomBanding.map((id) => [
-                      <th key={`s${id}`} className={`${th} border-l border-neutral-200`}>Stok</th>,
-                      <th key={`h${id}`} className={th}>Harga</th>,
-                    ])}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grup.slice(0, 300).map((g) => (
-                    <tr key={g.kode} className="border-t border-neutral-100">
-                      <td className={td}>{g.contoh.sizeRaw}</td>
-                      <td className={td}>{g.contoh.brand}</td>
-                      {kolomBanding.map((id) => {
-                        const x = g.isi.get(id)
-                        return [
-                          <td key={`s${id}`} className={`${td} border-l border-neutral-100 ${x && x.stock === 0 ? 'text-neutral-400' : ''}`}>{x ? x.stock : '-'}</td>,
-                          <td key={`h${id}`} className={td}>{x ? rpAngka(x.price === null ? null : x.price - x.discount) : '-'}</td>,
-                        ]
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {grup.length > 300 && <p className="mt-2 text-xs text-neutral-500">Menampilkan 300 dari {grup.length}. Persempit dengan pencarian atau ring.</p>}
-            </div>
-          ) : (
-            <Empty>Tidak ada baris yang cocok. Impor pricelist per cabang dulu atau ubah pencarian.</Empty>
-          )
+          <DataTable<Grup>
+            caption="Banding stok antar cabang"
+            rows={grup.slice(0, 300)}
+            rowKey={(g) => g.kode}
+            columns={[
+              { key: 'ukuran', header: 'Ukuran', cell: (g) => `${g.contoh.sizeRaw} ${g.contoh.brand}` },
+              ...kolomBanding.map((id) => ({
+                key: `c${id ?? 'tanpa'}`,
+                header: id === null ? 'Tanpa cabang' : namaCabang(id),
+                cell: (g: Grup) => {
+                  const x = g.isi.get(id)
+                  return x ? <span className={x.stock === 0 ? 'text-mute' : ''}>stok {x.stock}, Rp {rpAngka(x.price === null ? null : x.price - x.discount)}</span> : '-'
+                },
+              })),
+            ]}
+            empty={<Empty title="Tidak ada baris yang cocok">Impor pricelist per cabang dulu atau ubah pencarian.</Empty>}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[960px] space-y-1">
-              <div className="grid grid-cols-[50px_120px_90px_1fr_110px_100px_70px_1fr_60px_70px] gap-2 px-1">
-                {['Ring', 'Ukuran', 'Cabang', 'Merek', 'Harga asli', 'Potongan', 'Stok', 'Keterangan', 'Kunci', ''].map((h) => <span key={h} className="text-xs font-semibold text-neutral-600">{h}</span>)}
-              </div>
-              {rows.map((t) => (
-                <form key={`${t.id}-${t.manualAt?.getTime() ?? 0}`} action={saveStockRow} className={`grid grid-cols-[50px_120px_90px_1fr_110px_100px_70px_1fr_60px_70px] items-center gap-2 border-t border-neutral-100 px-1 py-1 ${t.priceIssue ? 'bg-neutral-50' : ''}`}>
+          <DataTable<Baris>
+            caption="Isi stok ban"
+            rows={rows}
+            rowKey={(t) => `${t.id}-${t.manualAt?.getTime() ?? 0}`}
+            columns={[
+              {
+                key: 'ban',
+                header: 'Ukuran dan merek',
+                cell: (t) => (
+                  <span className="block">
+                    <span className="font-semibold text-ink">{t.sizeRaw}</span> {t.brand}
+                    {t.manual && <span className="ml-1.5"><Badge>manual</Badge></span>}
+                    {t.priceIssue === 'kosong' && <span className="block text-xs font-normal text-mute">harga kosong: belum pernah dibeli</span>}
+                    {t.priceIssue.startsWith('format') && <span className="block text-xs font-semibold text-red-700">harga janggal ({t.priceIssue.replace('format janggal: ', '')}), isi manual</span>}
+                  </span>
+                ),
+              },
+              { key: 'ring', header: 'Ring', className: 'w-16', cell: (t) => `R${t.ring}` },
+              { key: 'cabang', header: 'Cabang', cell: (t) => (t.cabangId === null ? <Badge tone="outline">tanpa</Badge> : <Badge tone="light">{namaCabang(t.cabangId)}</Badge>) },
+              { key: 'harga', header: 'Harga', align: 'right', cell: (t) => rp(t.price) },
+              { key: 'potongan', header: 'Potongan', align: 'right', mobile: 'hide', cell: (t) => (t.discount ? rpAngka(t.discount) : '-') },
+              { key: 'stok', header: 'Stok', align: 'right', cell: (t) => t.stock },
+              { key: 'ket', header: 'Keterangan', mobile: 'hide', cell: (t) => <span className="line-clamp-2 text-mute">{t.note || '-'}</span> },
+            ]}
+            actions={(t) => (
+              <Drawer trigger="Ubah" triggerLabel={`Ubah ${t.sizeRaw} ${t.brand}`} title={`Ubah ${t.sizeRaw} ${t.brand}`} description={`Ring ${t.ring}, ${t.cabangId === null ? 'tanpa cabang' : `cabang ${namaCabang(t.cabangId)}`}. Perubahan stok tercatat di buku stok sebagai koreksi.`}>
+                <form action={saveStockRow}>
                   <input type="hidden" name="id" value={t.id} />
                   <input type="hidden" name="back" value={back} />
-                  <span className="text-sm">R{t.ring}</span>
-                  <span className="text-sm">{t.sizeRaw}</span>
-                  <span>{t.cabangId === null ? <Badge tone="outline">tanpa</Badge> : <Badge tone="light">{namaCabang(t.cabangId)}</Badge>}</span>
-                  <span className="text-sm">
-                    {t.brand}
-                    {t.manual && <span className="ml-1 rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold text-white">manual</span>}
-                    {t.priceIssue === 'kosong' && <span className="block text-xs text-neutral-500">harga kosong: belum pernah dibeli</span>}
-                    {t.priceIssue.startsWith('format') && <span className="block text-xs font-semibold text-red-600">harga janggal ({t.priceIssue.replace('format janggal: ', '')}), isi manual</span>}
-                  </span>
-                  <input name="price" defaultValue={t.price ?? ''} inputMode="numeric" placeholder="kosong" className={cell} aria-label="Harga asli" />
-                  <input name="discount" defaultValue={t.discount || ''} inputMode="numeric" placeholder="0" className={cell} aria-label="Potongan" />
-                  <input name="stock" defaultValue={t.stock} inputMode="numeric" className={cell} aria-label="Stok" />
-                  <input name="note" defaultValue={t.note} className={cell} aria-label="Keterangan" />
-                  <label className="flex items-center gap-1 text-xs"><input type="checkbox" name="lock" defaultChecked={t.manual ? t.lockManual : true} />Kunci</label>
-                  <button className="adm-btn-line adm-btn-sm">Simpan</button>
+                  <FormGrid>
+                    <TextField label="Harga asli (Rp)" name="price" defaultValue={t.price ?? ''} inputMode="numeric" placeholder="kosong" hint="Kosongkan kalau belum ada harga." />
+                    <TextField label="Potongan (Rp)" name="discount" defaultValue={t.discount || ''} inputMode="numeric" placeholder="0" />
+                    <TextField label="Stok" name="stock" defaultValue={t.stock} inputMode="numeric" required />
+                    <TextField label="Keterangan" name="note" defaultValue={t.note} maxLength={200} />
+                    <CheckField className="sm:col-span-2" label="Kunci baris ini" name="lock" defaultChecked={t.manual ? t.lockManual : true} hint="Sinkron dan impor berikutnya tidak menimpa harga, potongan, stok, dan keterangan baris ini." />
+                  </FormGrid>
+                  <FormActions><CloseButton /><SubmitButton>Simpan baris</SubmitButton></FormActions>
                 </form>
-              ))}
-              {!rows.length && <Empty>Tidak ada baris. Impor pricelist dulu atau ubah pencarian.</Empty>}
-            </div>
-          </div>
+              </Drawer>
+            )}
+            empty={<Empty title="Tidak ada baris stok">Impor pricelist dulu atau ubah pencarian dan saringan.</Empty>}
+          />
         )}
-      </Card>
-    </div>
+        {banding && grup.length > 300 && <p className="text-xs text-mute">Menampilkan 300 dari {grup.length}. Persempit dengan pencarian atau ring.</p>}
+      </section>
+    </PageBody>
   )
 }
