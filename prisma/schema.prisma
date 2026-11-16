@@ -30,16 +30,20 @@ model User {
   passwordHash String
   role         String  @default("BRANCH_ADMIN") // OWNER | BRANCH_ADMIN
   branchId     Int?
+  aktif        Boolean @default(true) @map("aktif") // false: tidak bisa login dan sesi lamanya tidak berlaku
   branch       Branch? @relation(fields: [branchId], references: [id])
 }
 
 model Category {
-  id       Int       @id @default(autoincrement())
-  slug     String    @unique
-  name     String
-  image    String    @default("")
-  sort     Int       @default(0)
-  products Product[]
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  name      String
+  image     String    @default("")
+  sort      Int       @default(0)
+  tipe      String    @default("barang") @map("tipe") // barang | jasa
+  pakaiStok Boolean   @default(true) @map("pakai_stok")
+  aktif     Boolean   @default(true) @map("aktif")
+  products  Product[]
 }
 
 model Brand {
@@ -65,6 +69,10 @@ model Product {
   brandId     Int?
   brand       Brand?    @relation(fields: [brandId], references: [id])
   listings    Listing[]
+  kode        String?   @unique @map("kode") // kode produk gaya BejoStock; kosong: slug dipakai sebagai cadangan
+  ukuran      String?   @map("ukuran")
+  hargaAcuan  Int?      @map("harga_acuan")
+  barcode     String?   @map("barcode")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -91,21 +99,25 @@ model Setting {
 
 // Stok ban hasil impor pricelist (data internal, tidak tampil di toko).
 model StockTire {
-  id         Int      @id @default(autoincrement())
-  groupName  String   @default("") // judul kelompok di pricelist, mis. "R13 (Muatan + MT)"
-  ring       Int      @default(0)
+  id         Int       @id @default(autoincrement())
+  groupName  String    @default("") // judul kelompok di pricelist, mis. "R13 (Muatan + MT)"
+  ring       Int       @default(0)
   sizeRaw    String
   sizeNorm   String // untuk pencarian, mis. "185/65R15"
-  brand      String   @default("") // merek dan model apa adanya dari pricelist
+  brand      String    @default("") // merek dan model apa adanya dari pricelist
   price      Int? // null kalau kosong atau formatnya janggal
-  stock      Int      @default(0)
-  note       String   @default("")
-  discount   Int      @default(0) // potongan dari keterangan "disc <angka>"; price tetap harga asli
-  priceIssue String   @default("") // alasan harga kosong atau janggal, dari impor
-  manual     Boolean  @default(false) // diubah manual di tabel stok
-  lockManual Boolean  @default(true) // true: sinkron berikutnya tidak menimpa baris ini
+  stock      Int       @default(0)
+  note       String    @default("")
+  discount   Int       @default(0) // potongan dari keterangan "disc <angka>"; price tetap harga asli
+  priceIssue String    @default("") // alasan harga kosong atau janggal, dari impor
+  manual     Boolean   @default(false) // diubah manual di tabel stok
+  lockManual Boolean   @default(true) // true: sinkron berikutnya tidak menimpa baris ini
   manualAt   DateTime?
-  importedAt DateTime @default(now())
+  importedAt DateTime  @default(now())
+  // Kode stabil "ukuran|merek" (src/lib/stok/kode.ts). Kosong hanya sebelum scripts/isi-kode-stok.ts
+  // atau impor pertama sesudah migrasi. SQLite mengizinkan banyak NULL pada indeks unik.
+  kode       String?   @unique @map("kode")
+  aktif      Boolean   @default(true) @map("aktif") // false: hilang dari sumber pricelist, diabaikan semua pembaca
 
   @@index([sizeNorm])
   @@index([ring])
@@ -134,37 +146,37 @@ model BotProcessed {
 
 // Log uji dan log balasan worker.
 model BotLog {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  source    String // UJI | WA_KERING | WA
-  sender    String   @default("")
-  input     String
-  reply     String
-  handoff   Boolean  @default(false)
-  sent      Boolean  @default(false)
-  reason    String   @default("")
+  id             Int      @id @default(autoincrement())
+  createdAt      DateTime @default(now())
+  source         String // UJI | WA_KERING | WA
+  sender         String   @default("")
+  input          String
+  reply          String
+  handoff        Boolean  @default(false)
+  sent           Boolean  @default(false)
+  reason         String   @default("")
   conversationId Int?
 }
 
 // Percakapan chatbot per pelanggan. Status: BARU, DIJAWAB_BOT, DISERAHKAN, SELESAI_ADA, SELESAI_TIDAK_ADA.
 model BotConversation {
-  id             Int       @id @default(autoincrement())
-  channel        String    @default("WA")
-  chatId         String // id chat WAHA, dipakai untuk membalas
-  customer       String    @default("") // nomor pelanggan (angka saja)
-  branchSlug     String    @default("")
-  status         String    @default("BARU")
-  question       String    @default("") // pesan terakhir yang memicu status
-  sizes          String    @default("") // ukuran yang ditanya, dipisah koma
-  result         String    @default("") // ringkasan hasil pencarian
-  mutedUntil     DateTime? // bot diam di chat ini sampai waktu ini
-  closingPending Boolean   @default(false) // penutup "tidak tersedia" belum terkirim
+  id               Int       @id @default(autoincrement())
+  channel          String    @default("WA")
+  chatId           String // id chat WAHA, dipakai untuk membalas
+  customer         String    @default("") // nomor pelanggan (angka saja)
+  branchSlug       String    @default("")
+  status           String    @default("BARU")
+  question         String    @default("") // pesan terakhir yang memicu status
+  sizes            String    @default("") // ukuran yang ditanya, dipisah koma
+  result           String    @default("") // ringkasan hasil pencarian
+  mutedUntil       DateTime? // bot diam di chat ini sampai waktu ini
+  closingPending   Boolean   @default(false) // penutup "tidak tersedia" belum terkirim
   lastOutOfHoursAt DateTime?
-  awaitingBranch Boolean  @default(false) // bot sedang menunggu jawaban 1 atau 2 untuk cabang
-  pendingAction  String   @default("") // serah | ganti, tindakan yang menunggu jawaban cabang
-  pendingText    String   @default("") // pesan asal yang menunggu jawaban cabang
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  awaitingBranch   Boolean   @default(false) // bot sedang menunggu jawaban 1 atau 2 untuk cabang
+  pendingAction    String    @default("") // serah | ganti, tindakan yang menunggu jawaban cabang
+  pendingText      String    @default("") // pesan asal yang menunggu jawaban cabang
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([chatId, status])
   @@index([status])
@@ -172,20 +184,20 @@ model BotConversation {
 
 // Harga jasa (spooring, balance, nitrogen, dan lain-lain). Tidak tampil di situs publik.
 model ServicePrice {
-  id          Int     @id @default(autoincrement())
+  id          Int    @id @default(autoincrement())
   groupName   String // mis. "Spooring", dipakai untuk mengelompokkan
   name        String // nama baris, mis. "Spooring"
-  variant     String  @default("") // mis. "R12 sampai R15"
+  variant     String @default("") // mis. "R12 sampai R15"
   ringMin     Int?
   ringMax     Int?
   minDiameter Int? // mis. 31 untuk "ban 31 ke atas"
   price       Int? // null kalau belum diisi
-  unit        String  @default("") // mis. "per roda"
-  altLabel    String  @default("") // mis. "paket"
+  unit        String @default("") // mis. "per roda"
+  altLabel    String @default("") // mis. "paket"
   altPrice    Int?
-  note        String  @default("")
-  keywords    String  @default("") // kata kunci pencarian, dipisah koma
-  sort        Int     @default(0)
+  note        String @default("")
+  keywords    String @default("") // kata kunci pencarian, dipisah koma
+  sort        Int    @default(0)
 }
 
 // Cache hasil pencarian lokasi (OpenStreetMap atau penyedia lain).
@@ -213,4 +225,50 @@ model WaClick {
   count  Int    @default(0)
 
   @@id([day, branch])
+}
+
+// ---- Penyelarasan dengan BejoStock (nama tabel dan kolom mengikuti ERD Asah) ----
+
+// Buku stok: satu baris untuk tiap perubahan stok. Ditulis hanya lewat src/lib/stok.
+// tipe: jual | masuk | opname | transfer | void | impor | koreksi (divalidasi di kode).
+// cabang_id sengaja tanpa relasi supaya riwayat tetap ada walau cabang dihapus.
+model BukuStok {
+  id         Int      @id @default(autoincrement())
+  tipe       String
+  perubahan  Int
+  saldoAkhir Int      @map("saldo_akhir")
+  refId      String?  @map("ref_id")
+  batchId    Int?     @map("batch_id")
+  cabangId   Int?     @map("cabang_id") // null untuk stok ban (StockTire belum per cabang)
+  kodeProduk String   @map("kode_produk") // kode StockTire, atau kode Product (slug kalau kode kosong)
+  waktu      DateTime @default(now())
+  pengguna   String? // id pengguna sebagai teks, kosong untuk proses otomatis
+
+  @@index([kodeProduk])
+  @@index([waktu])
+  @@map("buku_stok")
+}
+
+// Jejak aksi admin yang mengubah data. data berisi ringkasan kecil dalam JSON, bukan seluruh isi.
+model LogAktivitas {
+  id       Int      @id @default(autoincrement())
+  pengguna String?
+  aksi     String
+  entitas  String
+  data     String   @default("{}")
+  waktu    DateTime @default(now())
+
+  @@index([waktu])
+  @@map("log_aktivitas")
+}
+
+// Hari libur dan promo. tanggal berupa teks YYYY-MM-DD (waktu Jakarta), sama seperti WaClick.day.
+model Kalender {
+  id         Int    @id @default(autoincrement())
+  tanggal    String
+  jenis      String // libur | promo | lainnya
+  keterangan String @default("")
+
+  @@index([tanggal])
+  @@map("kalender")
 }

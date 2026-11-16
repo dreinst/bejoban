@@ -12,7 +12,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "bot:wa": "tsx scripts/bot-wa.ts",
-    "seed:lokal": "tsx scripts/seed-lokal.ts"
+    "seed:lokal": "tsx scripts/seed-lokal.ts",
+    "isi:kode": "tsx scripts/isi-kode-stok.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
