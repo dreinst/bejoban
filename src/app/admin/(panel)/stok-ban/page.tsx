@@ -8,6 +8,7 @@ import { BerkasInput } from '@/components/admin/berkas-input'
 import { waktuWib } from '@/lib/format'
 import { CheckField, FormActions, FormGrid, SelectField, TextAreaField, TextField } from '@/components/admin/field'
 import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
+import { SaringHp } from '@/components/admin/saring-hp'
 import { bandingCabang, namaPendek } from '@/lib/tire/cabang'
 
 type LastImport = {
@@ -35,7 +36,7 @@ const wib = (iso: string) => waktuWib(iso)
 const GABUNGAN = '__gabungan'
 const rpAngka = (n: number | null) => (n === null ? 'kosong' : n.toLocaleString('id-ID'))
 const rp = (n: number | null) => (n === null ? 'kosong' : `Rp ${n.toLocaleString('id-ID')}`)
-const BATAS = 100
+const BATAS = 50
 
 export default async function StokBan({ searchParams }: PageProps<'/admin/stok-ban'>) {
   await requireOwner()
@@ -233,7 +234,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
           noun={banding ? 'ukuran dan merek' : 'baris stok'}
           search={{ placeholder: 'Cari merek atau ukuran', value: q, keep: { ring: ring || undefined, f, cb, view: banding ? 'banding' : undefined } }}
         >
-          <form className="flex items-center gap-2">
+          <form className="flex items-center gap-2 max-md:hidden">
             {q && <input type="hidden" name="q" value={q} />}
             {f && <input type="hidden" name="f" value={f} />}
             {cb && <input type="hidden" name="cb" value={cb} />}
@@ -246,8 +247,33 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             <button className="adm-btn-line adm-btn-sm">Terapkan</button>
           </form>
         </ListToolbar>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          <FilterChips
+        <SaringHp
+          kelompok={[
+            { label: 'Ring', options: [{ href: params({ ring: '' }), label: 'Semua', active: !ring }, ...rings.map((r) => ({ href: params({ ring: String(r.ring) }), label: `R${r.ring} (${r._count})`, active: ring === r.ring }))] },
+            {
+              label: 'Cabang',
+              options: [
+                { href: params({ cb: '', view: '' }), label: 'Semua', active: !cb && !banding },
+                { href: params({ cb: 'tanpa', view: '' }), label: `Tanpa cabang (${tanpaCabang})`, active: cb === 'tanpa' && !banding },
+                ...branches.map((b) => ({ href: params({ cb: b.slug, view: '' }), label: `${namaPendek(b.name)} (${jumlahCabang(b.id)})`, active: cb === b.slug && !banding })),
+                { href: params({ cb: '', view: 'banding' }), label: 'Banding cabang', active: banding },
+              ],
+            },
+            {
+              label: 'Keadaan',
+              options: [
+                { href: params({ f: '' }), label: 'Semua', active: !f },
+                { href: params({ f: 'masalah' }), label: `Harga bermasalah (${issues})`, active: f === 'masalah' },
+                { href: params({ f: 'manual' }), label: 'Diubah manual', active: f === 'manual' },
+                { href: params({ f: 'habis' }), label: `Stok habis (${habis})`, active: f === 'habis' },
+              ],
+            },
+          ]}
+        />
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2 max-md:hidden">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-mute">Cabang</span>
+            <FilterChips
             label="Saring cabang"
             items={[
               { href: params({ cb: '', view: '' }), label: 'Semua cabang', active: !cb && !banding },
@@ -256,15 +282,19 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               { href: params({ cb: '', view: 'banding' }), label: 'Banding cabang', active: banding },
             ]}
           />
-          <FilterChips
-            label="Saring masalah"
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-mute">Keadaan</span>
+            <FilterChips
+            label="Saring keadaan"
             items={[
-              { href: params({ f: '' }), label: 'Semua', active: !f },
+              { href: params({ f: '' }), label: 'Semua keadaan', active: !f },
               { href: params({ f: 'masalah' }), label: 'Harga bermasalah', active: f === 'masalah', count: issues },
               { href: params({ f: 'manual' }), label: 'Diubah manual', active: f === 'manual' },
               { href: params({ f: 'habis' }), label: 'Stok habis', active: f === 'habis', count: habis },
             ]}
           />
+          </div>
         </div>
         <p className="text-xs text-mute">
           {banding
@@ -310,9 +340,11 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               ...(kolomCabang
                 ? [{ key: 'cabang', header: 'Cabang', cell: (t: Baris) => (t.cabangId === null ? <Badge tone="outline">tanpa cabang</Badge> : <Badge tone="light">{namaCabang(t.cabangId)}</Badge>) }]
                 : []),
-              { key: 'harga', header: 'Harga', align: 'right', cell: (t) => rp(t.price) },
+              { key: 'harga', header: 'Harga', align: 'right', mobile: 'hide', cell: (t) => rp(t.price) },
               { key: 'potongan', header: 'Potongan', align: 'right', mobile: 'hide', cell: (t) => (t.discount ? rpAngka(t.discount) : '-') },
-              { key: 'stok', header: 'Stok', align: 'right', cell: (t) => (t.stock === 0 ? <Badge tone="outline">Habis</Badge> : t.stock) },
+              { key: 'stok', header: 'Stok', align: 'right', mobile: 'hide', cell: (t) => (t.stock === 0 ? <Badge tone="outline">Habis</Badge> : t.stock) },
+              // Di HP harga dan stok jadi satu baris keterangan.
+              { key: 'ringkas', header: 'Ringkas', hanyaHp: true, mobileLabel: false, cell: (t) => `${rp(t.price)} · ${t.stock === 0 ? 'stok habis' : `stok ${t.stock}`}` },
               { key: 'ket', header: 'Keterangan', mobile: 'hide', cell: (t) => <span className="line-clamp-2 text-mute">{t.note || '-'}</span> },
             ]}
             actions={(t) => (
