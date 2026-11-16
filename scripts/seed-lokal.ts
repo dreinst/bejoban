@@ -6,8 +6,8 @@
 //
 // Format seed.json (semua bagian opsional):
 //   brands:   [{ name, byOrder?, sort?, logo? }]          merek resmi untuk menu Merek dan beranda, mis.
-//             [{ "name": "Dunlop", "byOrder": false, "sort": 5, "logo": "dunlop.svg" }]. Nama dicocokkan tanpa
-//             membedakan huruf besar kecil: yang belum ada dibuat, yang sudah ada diperbarui byOrder dan sort-nya.
+//             [{ "name": "Dunlop", "byOrder": false, "sort": 5, "logo": "dunlop.svg" }]. byOrder dan sort hanya dipakai untuk merek baru. Nama dicocokkan tanpa
+//             membedakan huruf besar kecil: yang belum ada dibuat, yang sudah ada hanya diperbarui logonya.
 //             Merek lain tidak disembunyikan atau dihapus. logo = nama berkas di folder ini (SVG atau PNG
 //             transparan, preset "brand"). Logo diisi kalau Brand.logo masih kosong atau masih sama dengan logo
 //             dari seed sebelumnya (jadi berkas seed yang diganti ikut terpasang). Logo yang sudah diganti admin
@@ -104,7 +104,9 @@ async function main() {
         if (bebas) jejak[kunci] = url
       }
       if (cocok) {
-        await db.brand.update({ where: { id: cocok.id }, data })
+        // Merek yang sudah ada: hanya logo yang diperbarui. Urutan, status by order, dan aktif milik admin tidak ditimpa.
+        const { logo } = data
+        if (logo) await db.brand.update({ where: { id: cocok.id }, data: { logo } })
         merekDiperbarui++
       } else {
         ada.push(await db.brand.create({ data: { name, ...data }, select: { id: true, name: true, logo: true } }))
