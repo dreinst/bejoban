@@ -1,7 +1,8 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Check, CircleAlert, X } from 'lucide-react'
+import { galatSudahDiPanel } from './panel-simpan'
 import { TOAST_EVENT, type ToastKind } from './toast-bus'
 
 type Item = { id: number; msg: string; kind: ToastKind }
@@ -13,6 +14,7 @@ let seq = 0
 // Pesan berhasil hilang sendiri setelah 4 detik (berhenti selama disorot); pesan galat tetap sampai ditutup.
 export function Toast() {
   const sp = useSearchParams()
+  const path = usePathname()
   const ok = sp.get('ok')
   const err = sp.get('err') || (sp.get('e') === 'akses' ? AKSES : null)
   const [items, setItems] = useState<Item[]>([])
@@ -20,7 +22,8 @@ export function Toast() {
   const [lalu, setLalu] = useState('\u0000')
   if (kunci !== lalu) {
     setLalu(kunci)
-    if (ok || err) setItems((l) => [...l.slice(-2), { id: ++seq, msg: (err || ok)!, kind: err ? 'err' : 'ok' }])
+    // Galat dari panel samping tampil di dalam panel, bukan sebagai toast.
+    if ((ok || err) && !(err && galatSudahDiPanel(path, err))) setItems((l) => [...l.slice(-2), { id: ++seq, msg: (err || ok)!, kind: err ? 'err' : 'ok' }])
   }
 
   useEffect(() => {

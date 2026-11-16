@@ -1,15 +1,17 @@
 'use client'
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useFormStatus } from 'react-dom'
 import { X } from 'lucide-react'
+import { catatKirim, hapusCatatan, lanjutkanPanel, pulihkan, type Isian } from './panel-simpan'
 
 // Panel samping (Drawer) dan dialog konfirmasi (ConfirmDialog) di atas elemen <dialog> modal:
 // fokus terkunci di dalamnya, Escape atau klik di luar menutup, lalu fokus kembali ke tombol pemicu.
 // Isi hanya dipasang saat terbuka, jadi tiap baris tabel boleh punya Drawer sendiri tanpa menggandakan form.
-// Setelah aksi server berhasil (alamat mendapat ?ok=), panel yang terbuka menutup sendiri.
-// Kalau aksi gagal (?err=), panel tetap terbuka dan galatnya tampil di dalam panel.
+// Setelah aksi server berhasil (alamat mendapat ?ok=), panel menutup dan toast sukses muncul.
+// Kalau simpan ditolak (?err=), halaman dipasang ulang oleh Next, jadi panel samping dibuka lagi dari catatan
+// di panel-simpan.ts: isian yang sudah diketik diisi ulang dan galatnya tampil di dalam panel, dekat tombol simpan.
 
 const Ctx = createContext<{ close: () => void } | null>(null)
 const diam = () => () => {}
@@ -28,32 +30,38 @@ type Base = {
 }
 
 function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, description, children, defaultOpen = false }: Base & { variant: 'drawer' | 'modal' }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const drawer = variant === 'drawer'
+  const sp = useSearchParams()
+  const path = usePathname()
+  const ok = sp.get('ok')
+  const err = sp.get('err')
+  // Panel yang tadi gagal disimpan dibuka lagi bersama isian dan galatnya.
+  const [lanjut] = useState(() => (drawer ? lanjutkanPanel(path, title, ok, err) : null))
+  const [open, setOpen] = useState(defaultOpen || !!lanjut)
+  const [galat, setGalat] = useState<string | null>(lanjut?.err ?? null)
+  const sisaIsian = useRef<Isian | null>(lanjut?.isian ?? null)
   const diKlien = useDiKlien()
-  const [terkirim, setTerkirim] = useState(false)
   const btn = useRef<HTMLButtonElement>(null)
   const dlg = useRef<HTMLDialogElement>(null)
   const pernah = useRef(false)
   const titleId = useId()
   const descId = useId()
-  const sp = useSearchParams()
-  const ok = sp.get('ok')
-  const err = sp.get('err')
 
   // Tutup sendiri saat aksi berhasil. Pola "simpan nilai sebelumnya" dari dokumentasi React, tanpa efek.
   const [okLalu, setOkLalu] = useState(ok)
   if (ok !== okLalu) {
     setOkLalu(ok)
-    if (ok && open) {
-      setOpen(false)
-      setTerkirim(false)
-    }
+    if (ok && open) setOpen(false)
   }
 
   useEffect(() => {
     const d = dlg.current
     if (open && diKlien && d) {
       if (!d.open) d.showModal()
+      if (sisaIsian.current) {
+        pulihkan(d, sisaIsian.current)
+        sisaIsian.current = null
+      }
       const pertama = d.querySelector<HTMLElement>('[autofocus], [data-autofocus], input:not([type=hidden]):not([disabled]), select, textarea, [data-body] button, [data-body] a')
       ;(pertama ?? d.querySelector<HTMLElement>('[data-close]'))?.focus()
       pernah.current = true
@@ -64,9 +72,9 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
 
   const close = () => {
     setOpen(false)
-    setTerkirim(false)
+    setGalat(null)
+    if (drawer) hapusCatatan()
   }
-  const drawer = variant === 'drawer'
   return (
     <>
       <button ref={btn} type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={triggerLabel} className={triggerClassName ?? 'adm-btn-line adm-btn-sm'}>
@@ -88,7 +96,11 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
             onClick={(e) => {
               if (e.target === e.currentTarget) close()
             }}
-            onSubmit={() => setTerkirim(true)}
+            onSubmit={(e) => {
+              if (!drawer || !(e.target instanceof HTMLFormElement)) return
+              catatKirim(path, title, e.target)
+              setGalat(null)
+            }}
           >
             <Ctx.Provider value={{ close }}>
               <div className={`flex flex-col ${drawer ? 'h-full' : 'max-h-[calc(100dvh-2rem)]'}`}>
@@ -102,11 +114,13 @@ function Overlay({ variant, trigger, triggerClassName, triggerLabel, title, desc
                   </button>
                 </header>
                 <div data-body className="min-h-0 flex-1 overflow-y-auto p-5">
-                  {terkirim && err && (
-                    <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">{err}</p>
-                  )}
                   {children}
                 </div>
+                {galat && (
+                  <p role="alert" className="shrink-0 border-t border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-800">
+                    {galat}
+                  </p>
+                )}
               </div>
             </Ctx.Provider>
           </dialog>,
