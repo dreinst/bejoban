@@ -63,7 +63,7 @@ export default async function Dashboard() {
           {li ? (
             <>
               <p className="font-display text-xl font-extrabold text-ink">{waktuWib(li.at)}</p>
-              <p className="mt-1 text-sm text-mute">{li.source === 'sheet' ? 'Google Sheets' : 'Berkas CSV'}, {li.total} ban, {li.problemCount} baris bermasalah saat impor.</p>
+              <p className="mt-1 text-sm text-mute">{li.source === 'sheet' ? 'Google Sheets' : 'Berkas pricelist'}, {li.total} ban, {li.problemCount} baris bermasalah saat impor.</p>
             </>
           ) : (
             <p className="text-sm text-mute">Belum pernah sinkron. Buka Stok ban untuk mengisi.</p>

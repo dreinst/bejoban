@@ -6,12 +6,12 @@ import { Badge, Empty, PageBody, PageHeader } from '@/components/admin/ui'
 import { DataTable, FilterChips, ListToolbar } from '@/components/admin/data-table'
 import { CheckField, FormActions, FormGrid, SelectField, TextAreaField, TextField } from '@/components/admin/field'
 import { CloseButton, ConfirmDialog, Drawer, SubmitButton } from '@/components/admin/overlay'
+import { waktuWib } from '@/lib/format'
 
 type TarifRow = { id: number; carrier: string; city: string; perKg: number; minWeight: number; etaDays: string; note: string; isSample: boolean }
 
 const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
 const labelCarrier = (c: string) => CARRIER_LABEL[c as Carrier] ?? c
-const tgl = (d: Date) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })
 
 // Satu form untuk tambah dan ubah, dipakai di panel samping.
 function FormTarif({ r, kota }: { r?: TarifRow; kota?: string }) {
@@ -133,7 +133,7 @@ export default async function Tarif({ searchParams }: PageProps<'/admin/ongkir/t
           { key: 'min', header: 'Min. berat', align: 'right', className: 'whitespace-nowrap', cell: (r) => `${r.minWeight.toLocaleString('id-ID')} kg` },
           { key: 'eta', header: 'Estimasi', cell: (r) => (r.etaDays ? `${r.etaDays} hari` : '-') },
           { key: 'note', header: 'Catatan', cell: (r) => r.note || '-' },
-          { key: 'upd', header: 'Diperbarui', mobile: 'hide', className: 'whitespace-nowrap', cell: (r) => tgl(r.updatedAt) },
+          { key: 'upd', header: 'Diperbarui', mobile: 'hide', className: 'whitespace-nowrap', cell: (r) => waktuWib(r.updatedAt) },
         ]}
         actions={(r) => {
           const nama = `${labelCarrier(r.carrier)} ke ${r.city}`

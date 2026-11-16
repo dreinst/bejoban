@@ -24,7 +24,7 @@ export default async function Konten() {
   const tersimpan = SECTIONS.filter((s) => s.hidden)
   return (
     <PageBody>
-      <PageHeader title="Tampilan beranda" note="Bagian di tabel ini berurutan seperti di beranda, dari atas ke bawah. Urutannya tetap dan tidak bisa digeser. Yang bisa diubah adalah isi tiap bagian." />
+      <PageHeader title="Tampilan beranda" note="Bagian di tabel ini berurutan seperti di beranda dan urutannya tetap. Yang bisa diubah adalah isi tiap bagian." />
       <ListToolbar count={tampil.length} noun="bagian beranda" />
       {tabel('Daftar bagian beranda', tampil)}
       {tersimpan.length > 0 && (

@@ -59,7 +59,7 @@ export default async function Cabang() {
     const b = list[0]
     return (
       <PageBody width="form">
-        <PageHeader title="Data cabang saya" note="Alamat, jam buka, WhatsApp, dan foto yang tampil di situs." />
+        <PageHeader title="Cabang" note="Data cabang kamu: alamat, jam buka, WhatsApp, dan foto yang tampil di situs." />
         {b ? (
           <div className="adm-card p-5">
             <FormPulih nama="cabang">

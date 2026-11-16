@@ -194,7 +194,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
 
       {li && (
         <p className="text-sm text-mute">
-          Pricelist terakhir diperbarui {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas CSV'}, {tujuanImpor}).{' '}
+          Pricelist terakhir diperbarui {wib(li.at)} ({li.source === 'sheet' ? 'Google Sheets' : 'berkas'}, {tujuanImpor}).{' '}
           {li.problemCount > 0 && <Link href={params({ f: 'masalah' })} className="font-semibold text-ink underline underline-offset-2">{li.problemCount} baris bermasalah</Link>}
         </p>
       )}

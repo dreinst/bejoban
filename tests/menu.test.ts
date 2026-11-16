@@ -97,7 +97,7 @@ test('kunci tab unik di dalam tiap menu dan tiap tab punya alamat', () => {
 test('Pengaturan hanya berisi Cabang dan Pengguna, pengaturan bot dan ongkir pindah ke menu masing-masing', () => {
   assert.deepEqual(owner.find((m) => m.key === 'pengaturan')!.tabs.map((t) => t.key), ['cabang', 'pengguna'])
   assert.deepEqual(owner.find((m) => m.key === 'chatbot')!.tabs.map((t) => t.label), ['Percakapan', 'Kotak uji', 'Templat pesan', 'Pengaturan bot'])
-  assert.deepEqual(owner.find((m) => m.key === 'ongkir')!.tabs.map((t) => t.label), ['Hitung', 'Tarif', 'Pengaturan'])
+  assert.deepEqual(owner.find((m) => m.key === 'ongkir')!.tabs.map((t) => t.label), ['Hitung ongkir', 'Tarif', 'Pengaturan ongkir'])
   const semua = ADMIN_MENU.flatMap((m) => m.tabs).filter((t) => t.key.startsWith('pengaturan-'))
   assert.ok(semua.every((t) => t.owner))
 })

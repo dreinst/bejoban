@@ -44,7 +44,7 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
     <PageBody>
       <PageHeader
         title="Percakapan"
-        note="Bot menjawab dari data stok dan harga jasa. Kalau datanya tidak ada atau pesannya tidak dikenali, percakapan diserahkan ke admin. Tandai selesai setelah pelanggan dibalas."
+        note="Bot menjawab dari data stok dan harga jasa, dan yang tidak bisa dijawab diserahkan ke admin. Tandai selesai setelah pelanggan dibalas."
       />
       <ListToolbar
         count={filtered}

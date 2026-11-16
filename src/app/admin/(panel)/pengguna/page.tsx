@@ -1,3 +1,4 @@
+import { branchLabel } from '@/lib/situs'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { deleteUser, resetUserPassword, saveUser } from '../../actions'
@@ -16,7 +17,7 @@ function FormPengguna({ u, cabang, sendiri }: { u?: Pengguna; cabang: Cabang[]; 
       <input type="hidden" name="id" value={u?.id ?? 0} />
       <input type="hidden" name="aktif_form" value="1" />
       <FormGrid cols={1}>
-        <TextField label="Username" name="username" defaultValue={u?.username} required maxLength={40} autoComplete="off" hint="Huruf kecil, angka, titik, dan garis bawah." />
+        <TextField label="Nama pengguna" name="username" defaultValue={u?.username} required maxLength={40} autoComplete="off" hint="Huruf kecil, angka, titik, dan garis bawah." />
         <TextField label="Nama tampilan" name="name" defaultValue={u?.name} maxLength={60} autoComplete="off" />
         <SelectField label="Peran" name="role" defaultValue={u?.role ?? 'BRANCH_ADMIN'}>
           <option value="OWNER">Owner (semua akses)</option>
@@ -24,7 +25,7 @@ function FormPengguna({ u, cabang, sendiri }: { u?: Pengguna; cabang: Cabang[]; 
         </SelectField>
         <SelectField label="Cabang" name="branchId" defaultValue={u?.branchId ?? ''} hint="Wajib untuk admin cabang. Owner tidak perlu.">
           <option value="">(tidak ada)</option>
-          {cabang.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          {cabang.map((b) => <option key={b.id} value={b.id}>{branchLabel(b.name)}</option>)}
         </SelectField>
         {!u && <TextField label="Kata sandi" name="password" type="password" required minLength={8} maxLength={200} autoComplete="new-password" hint="Minimal 8 karakter." />}
         <CheckField label="Akun aktif" name="aktif" defaultChecked={u?.aktif ?? true} disabled={sendiri} hint={sendiri ? 'Akun sendiri tidak bisa dinonaktifkan.' : 'Kalau dimatikan, pengguna tidak bisa masuk.'} />
@@ -72,7 +73,7 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
     <PageBody>
       <PageHeader
         title="Pengguna"
-        note="Owner mengatur semuanya. Admin cabang melihat Ringkasan, Produk situs, Perlu dicek, Percakapan chatbot, dan Hitung ongkir untuk cabangnya, serta bisa mengubah data cabangnya sendiri."
+        note="Owner mengatur semuanya. Admin cabang hanya mengurus data, stok, dan percakapan cabangnya."
         actions={tambah()}
       />
       <ListToolbar
@@ -87,10 +88,10 @@ export default async function Pengguna({ searchParams }: PageProps<'/admin/pengg
         rowKey={(u) => u.id}
         muted={(u) => !u.aktif}
         columns={[
-          { key: 'username', header: 'Username', cell: (u) => <span className="font-semibold text-ink">{u.username}{u.id === s.uid && <span className="ml-1.5 text-xs font-normal text-mute">(kamu)</span>}</span> },
+          { key: 'username', header: 'Nama pengguna', cell: (u) => <span className="font-semibold text-ink">{u.username}{u.id === s.uid && <span className="ml-1.5 text-xs font-normal text-mute">(kamu)</span>}</span> },
           { key: 'nama', header: 'Nama', cell: (u) => u.name || '-' },
           { key: 'peran', header: 'Peran', cell: (u) => (u.role === 'OWNER' ? 'Owner' : 'Admin cabang') },
-          { key: 'cabang', header: 'Cabang', cell: (u) => u.branch?.name ?? '-' },
+          { key: 'cabang', header: 'Cabang', cell: (u) => u.branch ? branchLabel(u.branch.name) : '-' },
           { key: 'status', header: 'Status', cell: (u) => <Badge tone={u.aktif ? 'dark' : 'outline'}>{u.aktif ? 'Aktif' : 'Nonaktif'}</Badge> },
         ]}
         actions={(u) => (

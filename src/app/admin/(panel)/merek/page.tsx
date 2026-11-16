@@ -58,7 +58,7 @@ export default async function Merek({ searchParams }: PageProps<'/admin/merek'>)
     <PageBody>
       <PageHeader
         title="Merek"
-        note="Urutan di tabel sama dengan urutan merek di beranda. Merek tanpa logo tampil sebagai nama. Merek yang dinonaktifkan tidak tampil di situs."
+        note="Urutan di tabel sama dengan urutan merek di beranda. Merek tanpa logo tampil sebagai nama, dan yang dinonaktifkan tidak tampil di situs."
         actions={tambah()}
       />
       <ListToolbar

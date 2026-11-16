@@ -77,7 +77,7 @@ export default async function HargaJasa({ searchParams }: PageProps<'/admin/harg
     <PageBody>
       <PageHeader
         title="Harga jasa"
-        note="Dipakai chatbot untuk menjawab harga jasa lewat WhatsApp. Jasa yang tidak ada di sini atau harganya kosong diserahkan ke admin. Harga jasa tidak tampil di situs."
+        note="Dipakai chatbot untuk menjawab harga jasa lewat WhatsApp, dan jasa yang tidak ada atau harganya kosong diserahkan ke admin. Harga jasa tidak tampil di situs."
         actions={tambah}
       />
       <ListToolbar

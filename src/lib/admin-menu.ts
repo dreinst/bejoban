@@ -59,9 +59,9 @@ export const ADMIN_MENU: AdminMenu[] = [
     label: 'Ongkir',
     href: '/admin/ongkir',
     tabs: [
-      { key: 'hitung', label: 'Hitung', href: '/admin/ongkir' },
+      { key: 'hitung', label: 'Hitung ongkir', href: '/admin/ongkir' },
       { key: 'tarif', label: 'Tarif', href: '/admin/ongkir/tarif', owner: true },
-      { key: 'pengaturan-ongkir', label: 'Pengaturan', href: '/admin/ongkir/pengaturan', owner: true },
+      { key: 'pengaturan-ongkir', label: 'Pengaturan ongkir', href: '/admin/ongkir/pengaturan', owner: true },
     ],
   },
   {
