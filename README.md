@@ -1,6 +1,8 @@
 # Bejo Ban
 
-Web toko Bejo Ban (Authorized Hankook & Michelin Dealer, cabang Batu dan Karanglo). Tata letak toko mengikuti otomax.store. Pesanan dikirim ke WhatsApp cabang, pembayaran online menyusul.
+Web toko Bejo Ban (Authorized Hankook & Michelin Dealer, cabang Batu dan Karanglo), tayang di https://bejoban.com. Situs publiknya tidak menampilkan harga dan mengarahkan pengunjung ke WhatsApp cabang. Halaman admin dipakai untuk stok ban, estimasi ongkir, dan chatbot stok.
+
+Yang sudah selesai dan yang belum dicatat di [docs/STATUS.md](docs/STATUS.md).
 
 Dibangun dengan Next.js 16, Prisma 7 (SQLite untuk lokal), Tailwind 4, dan sharp untuk memproses foto.
 
@@ -19,7 +21,7 @@ Database dan foto yang diunggah tersimpan di folder `data/` (tidak ikut git).
 
 ## Struktur
 
-- `src/app/(shop)`: halaman toko (beranda, produk, detail, keranjang, galeri, kalkulator ban)
+- `src/app/(shop)`: halaman toko (beranda, produk, detail, galeri, kalkulator ban)
 - `src/app/admin`: halaman admin dan server action
 - `src/lib/content.ts`: daftar bagian halaman depan yang bisa diedit dari admin
 - `src/lib/images-presets.ts`: ukuran foto per jenis
