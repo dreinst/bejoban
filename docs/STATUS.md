@@ -1,13 +1,14 @@
 # Status pekerjaan Bejo Ban
 
-Keadaan per 17 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
+Keadaan per 18 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
 
 Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tagihan tidak ditulis di sini. Semuanya dicatat di luar repo, di `~/ndru/bejoban-aset/CATATAN-PRIBADI.md` pada mesin pengembang.
 
 ## Keadaan sekarang
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`.
-- `npm test` lulus 139 tes. `npm run lint` dan `npm run typecheck` bersih.
+- Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026).
+- `npm test` lulus 139 tes. `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (semuanya belum punya cabang), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -66,6 +67,16 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - Semua halaman admin diaudit tiga peninjau terpisah, lalu diperbaiki dalam lima tahap.
 - Sesudah itu satu peninjau lain menguji klik 15 alur di desktop 1440 px dan HP 390 px. Dua alur gagal dan sudah diperbaiki.
 
+### Uji pada salinan data produksi
+
+Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa login ke situs produksi.
+
+- Semua halaman admin dibuka dengan tiga akun di 1440 px dan 390 px, 260 bukaan, tanpa galat dan tanpa luapan mendatar. Tamu dialihkan ke halaman login. Admin cabang ditolak dari halaman khusus owner.
+- 35 form disimpan tanpa mengubah isian (23 form pengaturan, 7 panel Ubah, 5 form produk). Semuanya berhasil dan tampilan publik tetap sama.
+- Pricelist yang sama diimpor ulang lewat panel "Perbarui dari pricelist". 325 baris masuk, tidak ada harga atau stok yang berubah.
+- Admin cabang berhasil mengunggah foto cabangnya. Jenis unggahan lain ditolak.
+- Naik versi 18 November 2026 (Next.js 16.3.6 ke 16.4.6, Prisma 7.10.0 ke 7.10.1) dibandingkan dengan versi sebelumnya pada data yang sama. Halaman admin, tampilan publik, dan jawaban API stok, ekspor, media, serta unggah tidak berbeda. Satu hal yang berubah: jawaban route handler yang bisa dimampatkan (ikon, manifest, teks) sekarang dikirim dengan gzip.
+
 ## Yang belum
 
 ### Menunggu jawaban toko
@@ -86,6 +97,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - Kelanjutan rancangan BejoStock: kasir, pindah dari SQLite ke MySQL, penyatuan stok ban dan produk situs, serta aturan diskon. Daftar lengkapnya ada di bagian "Yang sengaja ditunda" di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
 - Kalender libur dan promo. Halamannya ada di `/admin/kalender` tetapi disembunyikan dari menu, karena datanya belum dipakai bot maupun situs.
 - Kolom batas minimum stok.
+- Bawaan kotak "Kunci baris ini" di panel Ubah stok ban. Sekarang kotak itu tercentang dari awal, jadi menekan Simpan tanpa mengubah apa pun tetap mengunci baris dari sinkron dan impor berikutnya.
 - Urusan server: waktu reboot untuk memasang kernel baru, deploy otomatis, cadangan ke luar server, dan kanal notifikasi pemantau.
 
 ### Pekerjaan teknis yang belum dikerjakan
@@ -95,13 +107,13 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - `robots.txt`, `sitemap.xml`, dan penanda noindex untuk halaman admin.
 - Dockerfile dan berkas Compose baru ada di server. Keduanya belum masuk repo.
 - Pemeriksaan otomatis (lint, typecheck, tes) saat push belum ada.
+- `npm audit` tanpa `--omit=dev` masih melaporkan `picomatch`, paket yang hanya dipakai alat lint. Versi perbaikannya belum ada.
 
 ### Belum diuji
 
-- Halaman admin di produksi setelah login. Yang diuji adalah kode yang sama di lokal.
+- Halaman admin di produksi setelah login. Yang diuji adalah kode yang sama pada salinan data produksi di lokal.
 - HP sungguhan. Uji HP memakai emulasi browser 390 px.
-- Impor dan sinkron pricelist sesudah keduanya pindah ke panel "Perbarui dari pricelist".
-- Unggah foto cabang sebagai admin cabang.
+- Sinkron pricelist dari Google Sheets. Alamat sheet belum tersimpan di produksi, jadi yang teruji baru impor CSV.
 - Tab Percakapan dengan data nyata, karena bot belum tersambung.
 - Keadaan kosong tab Perlu dicek.
 
@@ -120,7 +132,12 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 ## Cara rilis
 
-Belum ada deploy otomatis. Urutan yang dipakai sejauh ini:
+Belum ada deploy otomatis. Sebelum mulai, periksa dua hal di folder sumber:
+
+- `npm audit --omit=dev` tidak melaporkan temuan tinggi atau kritis.
+- `src/generated` dibuat dari skema dan versi Prisma yang sekarang. Kalau ragu, jalankan `npx prisma generate` (lihat Jebakan).
+
+Urutan yang dipakai sejauh ini:
 
 1. Di server, jalankan skrip cadangan `/usr/local/bin/bejoban-backup.sh` dan arsipkan folder kode lama.
 2. Salin kode dari `main` ke `/opt/bejoban/app` dengan `rsync --delete`. Kecualikan `node_modules`, `.next`, `data`, `.env`, `.git`, `Dockerfile`, `.dockerignore`, `tsconfig.tsbuildinfo`, dan `next-env.d.ts`.
@@ -133,7 +150,8 @@ Migrasi baru diuji dulu pada salinan database produksi sebelum dirilis.
 
 - `npm run seed:lokal` menghapus semua harga jasa lalu membuatnya ulang dari `seed.json`. Skrip itu juga menimpa alamat dan foto cabang, serta nama, spesifikasi, dan foto produk yang ada di berkas. Di produksi `seed.json` sengaja hanya berisi bagian merek dan dua teks beranda. Versi lengkapnya disimpan sebagai `seed-lengkap.json` di folder yang sama. Jangan menjalankan seed lengkap di produksi.
 - Seed tidak mengubah urutan dan status by order merek yang sudah ada. Urutan merek di produksi disetel langsung di database.
-- `src/generated` (hasil `prisma generate`) diabaikan git tetapi ikut tersalin oleh rsync. Kalau folder sumber memuat hasil dari skema lama, hasil itu menimpa Prisma Client yang dibuat saat build image. Jalankan `npx prisma generate` di folder sumber sebelum menyalin.
+- `src/generated` (hasil `prisma generate`) diabaikan git tetapi ikut tersalin oleh rsync. Kalau folder sumber memuat hasil dari skema lama, hasil itu menimpa Prisma Client yang dibuat saat build image. Jalankan `npx prisma generate` di folder sumber sebelum menyalin. Hal yang sama berlaku sesudah menaikkan versi Prisma dengan `npm install <paket>`, karena perintah itu tidak menjalankan `postinstall`.
+- `npx prisma db seed` selalu menulis ulang `data/CREDENTIALS-LOKAL.txt` di folder tempat ia dijalankan, walaupun `DATABASE_URL` menunjuk ke database lain. Kalau perlu menguji seed ke database sementara, jalankan dari salinan folder supaya catatan akun lokal tidak tertimpa.
 - `SITE_URL` wajib terisi di `.env` server. Kalau kosong, tautan pendek dan gambar pratinjau memakai alamat dari header permintaan atau `localhost`.
 - Versi Next.js di repo ini punya perubahan yang tidak ada di versi lama. Baca panduannya di `node_modules/next/dist/docs/` sebelum menulis kode (lihat `AGENTS.md`).
 - Auditor tampilan tidak tahu aturan bisnis toko. Usulnya dicek dulu ke aturan di bagian keputusan sebelum diterapkan.

@@ -16,13 +16,13 @@
     "isi:kode": "tsx scripts/isi-kode-stok.ts"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.4",
     "jose": "^6.2.12",
     "lucide-react": "^1.48.0",
-    "next": "16.3.6",
+    "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
@@ -34,8 +34,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.6",
-    "prisma": "^7.10.0",
+    "eslint-config-next": "16.4.6",
+    "prisma": "^7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
@@ -43,8 +43,8 @@
   "allowScripts": {
     "better-sqlite3@12.11.1": true,
     "esbuild@0.28.2": true,
-    "prisma@7.10.0": true,
     "unrs-resolver@1.12.2": true,
-    "@prisma/engines@7.10.0": true
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true
   }
 }
