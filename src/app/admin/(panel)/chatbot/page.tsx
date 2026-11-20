@@ -17,14 +17,14 @@ export default async function Chatbot({ searchParams }: PageProps<'/admin/chatbo
   const owner = s.role === 'OWNER'
   const sp = await searchParams
   const status = STATUSES.find((x) => x === sp.status) ?? null
-  const branches = await db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } })
+  const branches = await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true } })
   const milik = owner ? null : (branches.find((b) => b.id === s.branchId)?.slug ?? '-')
   const cabang = owner ? String(sp.cabang ?? '') : milik!
   // Admin cabang tanpa cabang tidak boleh melihat percakapan "belum diketahui" milik orang lain: daftarnya kosong.
   const tanpaCabang = !owner && milik === '-'
   const filterCabang = tanpaCabang ? { id: -1 } : cabang ? { branchSlug: cabang === '-' ? '' : cabang } : {}
   const q = String(Array.isArray(sp.q) ? sp.q[0] : (sp.q ?? '')).trim().slice(0, 80)
-  const cari = q ? { OR: [{ customer: { contains: q.replace(/\D/g, '').replace(/^0/, '') || q } }, { question: { contains: q } }, { sizes: { contains: q } }] } : {}
+  const cari = q ? { OR: [{ customer: { contains: q.replace(/\D/g, '').replace(/^0/, '') || q, mode: 'insensitive' as const } }, { question: { contains: q, mode: 'insensitive' as const } }, { sizes: { contains: q, mode: 'insensitive' as const } }] } : {}
   const where = { ...(status && { status }), ...filterCabang, ...cari }
   const hal = Math.max(1, Math.floor(Number(String(Array.isArray(sp.hal) ? sp.hal[0] : (sp.hal ?? '1'))) || 1))
   const [convs, filtered, counts] = await Promise.all([

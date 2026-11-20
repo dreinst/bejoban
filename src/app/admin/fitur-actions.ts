@@ -67,7 +67,7 @@ async function jalankanImpor(r: ParseResult, source: ImportSource, tujuan: Tujua
   const aksi = source === 'sheet' ? 'sinkron' : 'impor'
   if (tujuan.jenis === 'gabungan') {
     if (!r.adaKolomCabang) go(STOK_PAGE, 'Sumber ini tidak punya kolom "Cabang" di baris judul. Pilih cabangnya, atau tambahkan kolom Cabang.', 'err')
-    const branches = await db.branch.findMany({ select: { id: true, slug: true, name: true } })
+    const branches = await db.branch.findMany({ select: { id: true, slug: true, name: true }, orderBy: { id: 'asc' } })
     const { bagian, masalah } = pisahPerCabang(r, branches)
     if (!bagian.length) go(STOK_PAGE, `Tidak ada baris dengan cabang yang dikenali (${masalah.length} baris dilewati). Isi kolom Cabang dengan Batu atau Karanglo.`, 'err')
     const list: RingkasanImpor[] = []
@@ -264,7 +264,7 @@ export async function saveShipSettings(fd: FormData) {
   if (ubah('asal')) {
     // Titik toko ditempel sebagai tautan Google Maps atau dua angka koordinat. Kosong berarti titik lama dipertahankan.
     origins = { ...old.origins }
-    for (const b of await db.branch.findMany({ select: { slug: true, name: true } })) {
+    for (const b of await db.branch.findMany({ select: { slug: true, name: true }, orderBy: { id: 'asc' } })) {
       const isi = str(fd, `titik_${b.slug}`, 600)
       if (!isi) continue
       const t = bacaTitik(isi)
@@ -466,7 +466,7 @@ export async function saveBotAdmins(fd: FormData) {
   const cur = await loadBotSettings()
   const adminNumbers: Record<string, string> = {}
   const branchAliases: Record<string, string[]> = {}
-  for (const b of await db.branch.findMany({ select: { slug: true, name: true } })) {
+  for (const b of await db.branch.findMany({ select: { slug: true, name: true }, orderBy: { id: 'asc' } })) {
     branchAliases[b.slug] = str(fd, `alias_${b.slug}`, 200).toLowerCase().split(/[,;\n]/).map((x) => x.trim()).filter((x) => /^[a-z0-9 ]{3,30}$/.test(x))
     const raw = str(fd, `admin_${b.slug}`, 30)
     if (!raw) continue

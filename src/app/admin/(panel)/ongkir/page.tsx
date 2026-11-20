@@ -28,8 +28,8 @@ export default async function Ongkir({ searchParams }: PageProps<'/admin/ongkir'
   const [settings, cities, sizes, branches] = await Promise.all([
     loadShippingSettings(),
     dbRateSource.listCities(),
-    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring', 'cabangId'], where: { aktif: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }] }),
-    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } }),
+    db.stockTire.groupBy({ by: ['sizeNorm', 'sizeRaw', 'ring', 'cabangId'], where: { aktif: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { sizeRaw: 'asc' }, { cabangId: { sort: 'asc', nulls: 'first' } }] }),
+    db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true } }),
   ])
   // Ukuran per cabang asal: baris cabang itu ditambah baris tanpa cabang (slug kosong) selama masih ada.
   const slugOf = (id: number | null) => (id === null ? '' : (branches.find((b) => b.id === id)?.slug ?? `#${id}`))

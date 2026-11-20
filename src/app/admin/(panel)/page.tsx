@@ -47,7 +47,7 @@ export default async function Dashboard() {
   if (owner) {
     const [klik, branches, last] = await Promise.all([
       db.waClick.groupBy({ by: ['branch'], where: { day: { gte: sevenDaysAgo() } }, _sum: { count: true } }),
-      db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
+      db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { slug: true, name: true } }),
       db.setting.findUnique({ where: { key: 'stok.lastImport' } }),
     ])
     const li = last ? (JSON.parse(last.value) as { at: string; source?: string; total: number; problemCount: number }) : null

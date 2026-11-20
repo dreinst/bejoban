@@ -11,7 +11,7 @@ const KINDS: Kind[] = ['umum', 'produk']
 // Tautan pendek /wa/<cabang>: alihkan ke wa.me dengan nomor utama dan kalimat pembuka cabang.
 // Hanya hitungan klik per cabang per hari yang disimpan, tanpa data pribadi.
 export async function waRedirect(slug: string | null, q: URLSearchParams): Promise<string | null> {
-  const [row, branches] = await Promise.all([db.setting.findUnique({ where: { key: 'situs' } }), db.branch.findMany({ orderBy: { sort: 'asc' } })])
+  const [row, branches] = await Promise.all([db.setting.findUnique({ where: { key: 'situs' } }), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] })])
   const s = mergeSitus(row ? JSON.parse(row.value) : null)
   const branch = slug ? branches.find((b) => b.slug === slug) : null
   if (slug && !branch) return null

@@ -18,7 +18,7 @@ const ringkas = (t: string) => renderTemplate(t, SAMPLE_VARS).replace(/\s*\n\s*/
 
 export default async function TemplatChatbot() {
   await requireOwner()
-  const [templates, sosmed, branches, origin] = await Promise.all([loadTemplates(), loadSosmed(), db.branch.findMany({ orderBy: { sort: 'asc' } }), alamatSitus()])
+  const [templates, sosmed, branches, origin] = await Promise.all([loadTemplates(), loadSosmed(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] }), alamatSitus()])
   // Teks sosial media memakai tautan pendek situs, jadi yang disalin sudah berisi alamat sungguhan.
   const tautanWa = daftarTautanWa(branches, origin)
   const kelompok: { id: string; judul: string; note: string; keys: TemplateKey[] }[] = [

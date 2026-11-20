@@ -47,7 +47,7 @@ async function jalankanLangkah<T>(l: Langkah): Promise<T> {
 }
 
 const labelChat = async (chatId: string, branchSlug: string): Promise<void> => {
-  cabangCache ??= await db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } })
+  cabangCache ??= await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { slug: true, name: true } })
   const tujuan = cabangCache.find((b) => b.slug === branchSlug)
   if (!tujuan) return
   const nama = namaPendek(tujuan.name)

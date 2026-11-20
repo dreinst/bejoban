@@ -1,6 +1,6 @@
 // Tetapkan semua baris stok ban tanpa cabang ke satu cabang. Dipakai owner setelah tahu pricelist lama milik cabang mana.
 import { db } from '../db'
-import { isiKodeKosong } from './ubah'
+import { isiKodeKosong, kunciSusunanStok } from './ubah'
 
 // Baris tanpa cabang yang kodenya sudah dimiliki cabang tujuan dilewati (tetap tanpa cabang), supaya tidak bentrok.
 // Buku stok tetap seimbang per kode dan cabang: sisa stok dicatat keluar dari "tanpa cabang" dan masuk ke cabang
@@ -9,7 +9,10 @@ export async function tetapkanTanpaCabang(cabangId: number, pengguna: string | n
   return db.$transaction(
     async (tx) => {
       if (!(await tx.branch.findUnique({ where: { id: cabangId }, select: { id: true } }))) throw new Error('Cabang tidak ditemukan')
+      await kunciSusunanStok(tx)
       await isiKodeKosong(tx)
+      // Kunci baris tanpa cabang supaya stoknya tidak berubah di tengah jalan (saldonya dicatat di buku stok).
+      await tx.$executeRaw`SELECT "id" FROM "StockTire" WHERE "cabang_id" IS NULL ORDER BY "id" FOR UPDATE`
       const tanpa = await tx.stockTire.findMany({ where: { cabangId: null }, select: { id: true, kode: true, stock: true }, orderBy: { id: 'asc' } })
       const sudah = new Set((await tx.stockTire.findMany({ where: { cabangId }, select: { kode: true } })).map((r) => r.kode))
       const pindah = tanpa.filter((r) => !sudah.has(r.kode))

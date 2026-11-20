@@ -15,7 +15,7 @@ import { SubmitButton } from '@/components/admin/overlay'
 // Nilai yang diubah di tempat lain (nomor WhatsApp utama dan nomor cabang) hanya dibaca di sini, dengan tautan ke tempat ubahnya.
 export default async function PengaturanWhatsapp() {
   await requireOwner()
-  const [s, situs, branches] = await Promise.all([loadBotSettings(), getSitus(), db.branch.findMany({ orderBy: { sort: 'asc' } })])
+  const [s, situs, branches] = await Promise.all([loadBotSettings(), getSitus(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] })])
   const tersambung = ['WAHA_URL', 'WAHA_API_KEY', 'WAHA_SESSION'].every((k) => !!process.env[k])
   const kirim = process.env.BOT_SEND === '1'
   const mainNumber = situs.mainWhatsapp || null

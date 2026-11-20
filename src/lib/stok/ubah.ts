@@ -21,10 +21,21 @@ export type UbahStokInput = PerubahanStok & {
 
 export type HasilUbahStok = { perubahan: number; saldoAkhir: number; dicatat: boolean; kodeProduk: string }
 
+// Kunci proses yang mengubah susunan baris stok ban (impor, tetapkan cabang, isi kode kosong), berlaku sampai
+// transaksi selesai. Di SQLite semua penulisan berjalan satu per satu. Di PostgreSQL dua impor bisa berjalan
+// bersamaan dan saling bentrok di indeks unik kode, jadi proses ini diantrekan. Kunci ini selalu diambil
+// sebelum kunci baris, supaya tidak terjadi saling tunggu.
+export const KUNCI_SUSUNAN_STOK = 4207001
+export const kunciSusunanStok = (tx: Tx) => tx.$executeRaw`SELECT pg_advisory_xact_lock(${KUNCI_SUSUNAN_STOK})`
+
 // Isi kode StockTire yang masih kosong (urut id). Kode yang sudah ada tidak diubah. Aman diulang.
 // Kode unik per cabang, jadi baris dikelompokkan per cabang_id (null juga satu kelompok).
 export async function isiKodeKosong(tx: Tx) {
-  const kosong = await tx.stockTire.findMany({ where: { kode: null }, orderBy: { id: 'asc' }, select: { id: true, sizeNorm: true, brand: true, cabangId: true } })
+  const cariKosong = () => tx.stockTire.findMany({ where: { kode: null }, orderBy: { id: 'asc' }, select: { id: true, sizeNorm: true, brand: true, cabangId: true } })
+  if (!(await cariKosong()).length) return { diisi: 0, kembar: [] as { id: number; kode: string }[] }
+  // Ada yang kosong: antre dulu, lalu baca ulang karena transaksi lain mungkin baru saja mengisinya.
+  await kunciSusunanStok(tx)
+  const kosong = await cariKosong()
   if (!kosong.length) return { diisi: 0, kembar: [] as { id: number; kode: string }[] }
   const kembar: { id: number; kode: string }[] = []
   for (const cabangId of new Set(kosong.map((r) => r.cabangId))) {
@@ -40,6 +51,9 @@ export async function isiKodeKosong(tx: Tx) {
 }
 
 // Saldo dibaca dari nilai terbaru di dalam transaksi. Tidak ada perubahan: tidak dicatat.
+// Baris stok dikunci (SELECT ... FOR UPDATE) sebelum saldonya dibaca. Dengan isolasi Read Committed di PostgreSQL,
+// tanpa kunci ini dua transaksi bisa membaca saldo yang sama dan salah satu perubahan hilang. Transaksi kedua
+// menunggu sampai transaksi pertama selesai, lalu membaca saldo yang sudah diperbarui.
 export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahStok> {
   const t = p.target
   let saldoLama: number
@@ -57,15 +71,21 @@ export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahSto
       row = (await cari())!
     }
     const id = row.id
-    saldoLama = row.stock
-    kodeProduk = row.kode!
-    cabangId = row.cabangId
+    const [kunci] = await tx.$queryRaw<{ stock: number; kode: string | null; cabangId: number | null }[]>`
+      SELECT "stock", "kode", "cabang_id" AS "cabangId" FROM "StockTire" WHERE "id" = ${id} FOR UPDATE`
+    if (!kunci) throw new GalatStok('Baris stok ban tidak ditemukan')
+    saldoLama = kunci.stock
+    kodeProduk = kunci.kode ?? row.kode!
+    cabangId = kunci.cabangId
     simpan = (n) => tx.stockTire.update({ where: { id }, data: { stock: n } })
   } else {
     const where = { productId_branchId: { productId: t.productId, branchId: t.branchId } }
     const l = await tx.listing.findUnique({ where, select: { stock: true, product: { select: { kode: true, slug: true } } } })
     if (!l) throw new GalatStok('Produk ini belum terdaftar di cabang tersebut')
-    saldoLama = l.stock
+    const [kunci] = await tx.$queryRaw<{ stock: number }[]>`
+      SELECT "stock" FROM "Listing" WHERE "productId" = ${t.productId} AND "branchId" = ${t.branchId} FOR UPDATE`
+    if (!kunci) throw new GalatStok('Produk ini belum terdaftar di cabang tersebut')
+    saldoLama = kunci.stock
     kodeProduk = l.product.kode || l.product.slug
     cabangId = t.branchId
     simpan = (n) => tx.listing.update({ where, data: { stock: n } })
@@ -108,7 +128,7 @@ export function hapusListing(p: { productId: number; branchId: number; pengguna?
 export function hapusProduk(p: { productId: number; pengguna?: string | null }) {
   const { productId } = p
   return db.$transaction(async (tx) => {
-    for (const l of await tx.listing.findMany({ where: { productId }, select: { branchId: true } }))
+    for (const l of await tx.listing.findMany({ where: { productId }, select: { branchId: true }, orderBy: { branchId: 'asc' } }))
       await ubahStokTx(tx, { target: { jenis: 'listing', productId, branchId: l.branchId }, setKe: 0, tipe: 'koreksi', pengguna: p.pengguna, refId: `produk:${productId}` })
     const { count } = await tx.product.deleteMany({ where: { id: productId } })
     return count > 0

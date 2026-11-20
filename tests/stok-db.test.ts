@@ -1,16 +1,11 @@
 // Tes yang menyentuh database: impor upsert stok ban dan fungsi ubah stok.
-// Memakai file SQLite sementara sendiri, jadi data/bejoban.db tidak tersentuh. Semua data di sini karangan (contoh).
+// Memakai basis data PostgreSQL sementara sendiri (tests/db-uji.ts), jadi basis data dev tidak tersentuh. Semua data di sini karangan (contoh).
 import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { siapkanDbUji } from './db-uji'
 import type { ParsedTire, ParseResult } from '../src/lib/tire/pricelist'
 
-const dir = mkdtempSync(join(tmpdir(), 'bejoban-uji-stok-'))
-// Harus diset sebelum modul db diimpor (impor dinamis di bawah).
-process.env.DATABASE_URL = `file:${join(dir, 'uji.db')}`
+let dbUji: Awaited<ReturnType<typeof siapkanDbUji>> | undefined
 
 type Mod = {
   db: typeof import('../src/lib/db').db
@@ -23,7 +18,7 @@ type Mod = {
 let m: Mod
 
 before(async () => {
-  execFileSync('npx', ['prisma', 'migrate', 'deploy'], { env: process.env, stdio: 'pipe' })
+  dbUji = await siapkanDbUji('stok')
   const [{ db }, { applyImport }, ubah, { GalatStok }] = await Promise.all([
     import('../src/lib/db'),
     import('../src/lib/tire/import'),
@@ -35,7 +30,7 @@ before(async () => {
 
 after(async () => {
   await m?.db.$disconnect()
-  rmSync(dir, { recursive: true, force: true })
+  await dbUji?.hapus()
 })
 
 const ban = (sizeNorm: string, brand: string, stock: number, price: number | null = 500000): ParsedTire => ({
@@ -156,4 +151,42 @@ test('ubah stok: tolak negatif dan transaksi dibatalkan utuh', async () => {
 test('ubah stok ban: tipe tidak dikenal ditolak', async () => {
   const a = await m.db.stockTire.findFirstOrThrow()
   await assert.rejects(m.ubahStok({ target: { jenis: 'stok_ban', id: a.id }, setKe: 3, tipe: 'hilang' }), /Tipe buku stok tidak dikenal/)
+})
+
+// PostgreSQL menjalankan transaksi bersamaan (Read Committed). Tanpa kunci baris di ubahStokTx,
+// beberapa perubahan akan membaca saldo yang sama dan sebagian hilang.
+test('ubah stok bersamaan pada baris yang sama: tidak ada perubahan yang hilang', async () => {
+  const N = 12
+  const a = await m.db.stockTire.findFirstOrThrow({ where: { kode: '205/65R15|merek contoh c' } })
+  await m.ubahStok({ target: { jenis: 'stok_ban', id: a.id }, setKe: 100, tipe: 'koreksi' })
+  const sebelum = await m.db.bukuStok.count({ where: { kodeProduk: a.kode! } })
+  const hasilBan = await Promise.all(Array.from({ length: N }, () => m.ubahStok({ target: { jenis: 'stok_ban', id: a.id }, delta: -1, tipe: 'jual' })))
+  assert.equal((await m.db.stockTire.findUniqueOrThrow({ where: { id: a.id } })).stock, 100 - N)
+  const buku = await m.db.bukuStok.findMany({ where: { kodeProduk: a.kode! }, orderBy: { id: 'asc' }, skip: sebelum })
+  assert.equal(buku.length, N)
+  assert.deepEqual(buku.map((b) => b.saldoAkhir), Array.from({ length: N }, (_, i) => 99 - i), 'saldo akhir tiap baris buku stok berurutan tanpa kembar')
+  assert.deepEqual(hasilBan.map((h) => h.saldoAkhir).sort((x, y) => y - x), buku.map((b) => b.saldoAkhir))
+
+  // Listing: tambah dan kurang bersamaan, saldo akhir sama dengan jumlah semua perubahan.
+  const branch = await m.db.branch.create({ data: { slug: 'cabang-bersamaan', name: 'Cabang Contoh Bersamaan' } })
+  const product = await m.db.product.create({ data: { slug: 'produk-bersamaan', name: 'Produk Contoh Bersamaan', isSample: true } })
+  await m.simpanListing({ productId: product.id, branchId: branch.id, data: { price: 0, comparePrice: 0, available: true, flashSale: false }, stok: 50 })
+  const target = { jenis: 'listing' as const, productId: product.id, branchId: branch.id }
+  const delta = Array.from({ length: N }, (_, i) => (i % 3 === 0 ? 2 : -1))
+  await Promise.all(delta.map((d) => m.ubahStok({ target, delta: d, tipe: d > 0 ? 'masuk' : 'jual' })))
+  const akhir = 50 + delta.reduce((x, y) => x + y, 0)
+  assert.equal((await m.db.listing.findUniqueOrThrow({ where: { productId_branchId: { productId: product.id, branchId: branch.id } } })).stock, akhir)
+  const bukuL = await m.db.bukuStok.findMany({ where: { kodeProduk: 'produk-bersamaan' }, orderBy: { id: 'asc' } })
+  assert.equal(bukuL.length, N + 1)
+  assert.equal(bukuL.reduce((x, b) => x + b.perubahan, 0), akhir, 'jumlah perubahan di buku stok sama dengan saldo')
+  assert.equal(bukuL.at(-1)?.saldoAkhir, akhir)
+  for (const [i, b] of bukuL.entries()) if (i > 0) assert.equal(b.saldoAkhir, bukuL[i - 1].saldoAkhir + b.perubahan, 'tiap baris menyambung dari saldo baris sebelumnya')
+})
+
+test('dua impor bersamaan ke cabang yang sama diantrekan, tidak bentrok di kode unik', async () => {
+  const D = ban('215/60R16', 'Merek Contoh D', 3)
+  const E = ban('225/55R17', 'Merek Contoh E', 1)
+  const [s1, s2] = await Promise.all([m.applyImport(hasil([A, B1, B2, C, D, E]), 'berkas'), m.applyImport(hasil([A, B1, B2, C, D, E]), 'berkas')])
+  assert.equal(s1.created + s2.created, 2)
+  assert.equal(await m.db.stockTire.count({ where: { kode: { in: ['215/60R16|merek contoh d', '225/55R17|merek contoh e'] } } }), 2)
 })

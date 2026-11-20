@@ -36,11 +36,11 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
   // Bawaan hanya produk yang tampil di situs. Yang disembunyikan (mis. produk contoh) dilihat lewat chip tersendiri.
   const where = {
     active: f !== SEMBUNYI,
-    ...(q && { name: { contains: q } }),
+    ...(q && { name: { contains: q, mode: 'insensitive' as const } }),
     ...(f === 'tanpa-foto' && { images: '[]' }),
     ...(f === 'stok0' && { listings: { some: { branchId, available: true, stock: 0 } } }),
   }
-  const [products, total, nSembunyi] = await Promise.all([
+  const [urutDb, total, nSembunyi] = await Promise.all([
     db.product.findMany({
       where,
       orderBy: [{ category: { sort: 'asc' } }, { name: 'asc' }],
@@ -49,6 +49,9 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
     db.product.count({ where: { active: f !== SEMBUNYI } }),
     db.product.count({ where: { active: false } }),
   ])
+  // Produk tanpa kategori tetap di depan seperti di SQLite. PostgreSQL menaruh NULL di belakang untuk urutan naik,
+  // dan Prisma tidak mengizinkan pilihan nulls pada kolom relasi yang wajib. Urutan dalam tiap kelompok tidak berubah.
+  const products = urutDb.toSorted((a, b) => Number(b.categoryId === null) - Number(a.categoryId === null))
   const url = (patch: Record<string, string>) => {
     const p = new URLSearchParams(Object.entries({ cabang: owner ? String(branchId) : '', q, f, ...patch }).filter(([, v]) => v))
     return `/admin/harga${p.size ? `?${p}` : ''}`

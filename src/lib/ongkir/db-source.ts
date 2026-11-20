@@ -18,7 +18,7 @@ export const dbRateSource: RateSource = {
   id: 'tabel-admin',
   label: 'Tabel tarif isian admin',
   async getRate(carrier, city) {
-    const rows = await db.shippingRate.findMany({ where: { carrier } })
+    const rows = await db.shippingRate.findMany({ where: { carrier }, orderBy: { id: 'asc' } })
     const want = normCity(city)
     const hit = rows.find((r) => normCity(r.city) === want)
     return hit ? toRate(hit) : null

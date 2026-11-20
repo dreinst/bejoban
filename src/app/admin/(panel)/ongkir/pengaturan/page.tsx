@@ -11,7 +11,7 @@ import { SubmitButton } from '@/components/admin/overlay'
 // Angka dasar kalkulator ongkir. Tiap bagian punya form dan tombol simpan sendiri (lihat saveShipSettings).
 export default async function PengaturanOngkir() {
   await requireOwner()
-  const [s, branches] = await Promise.all([loadShippingSettings(), db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } })])
+  const [s, branches] = await Promise.all([loadShippingSettings(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { slug: true, name: true } })])
   const bagian = (b: string) => <input type="hidden" name="bagian" value={b} />
   const ring = Array.from({ length: 8 }, (_, i) => 12 + i)
   const kolom = [

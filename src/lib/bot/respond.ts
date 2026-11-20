@@ -16,11 +16,11 @@ export const loadSosmed = async (): Promise<Sosmed> => mergeSosmed(await read('b
 export async function loadContext(settings?: BotSettings): Promise<{ ctx: BotContext; tires: Tire[]; settings: BotSettings }> {
   const s = settings ?? (await loadBotSettings())
   const [branches, rows, services, templates, byOrder] = await Promise.all([
-    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } }),
-    db.stockTire.findMany({ where: { aktif: true }, select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true, cabangId: true } }),
-    db.servicePrice.findMany({ orderBy: { sort: 'asc' } }),
+    db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true } }),
+    db.stockTire.findMany({ where: { aktif: true }, orderBy: { id: 'asc' }, select: { id: true, ring: true, sizeRaw: true, sizeNorm: true, brand: true, price: true, discount: true, stock: true, note: true, cabangId: true } }),
+    db.servicePrice.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] }),
     loadTemplates(),
-    db.brand.findMany({ where: { byOrder: true, aktif: true }, select: { name: true } }),
+    db.brand.findMany({ where: { byOrder: true, aktif: true }, orderBy: { id: 'asc' }, select: { name: true } }),
   ])
   // Mesin jawab memakai slug cabang. Cabang yang sudah tidak ada tetap dianggap bercabang (tidak pernah cocok).
   const slug = (id: number | null) => (id === null ? null : (branches.find((b) => b.id === id)?.slug ?? `cabang-${id}`))

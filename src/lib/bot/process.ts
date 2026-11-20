@@ -148,7 +148,7 @@ export async function processChat(chatId: string, messages: Msg[], o: Opts) {
 // Kirim penutup "tidak tersedia" untuk percakapan yang baru ditandai admin.
 export async function flushClosings(o: Opts) {
   const now = o.now ?? new Date()
-  const pending = await db.botConversation.findMany({ where: { status: 'SELESAI_TIDAK_ADA', closingPending: true } })
+  const pending = await db.botConversation.findMany({ where: { status: 'SELESAI_TIDAK_ADA', closingPending: true }, orderBy: { id: 'asc' } })
   if (!pending.length) return
   const { ctx, settings } = await loadContext()
   for (const c of pending) {
@@ -170,7 +170,7 @@ export { isClosed }
 export async function flushAwaiting(o: Opts) {
   const now = o.now ?? new Date()
   const { ctx, tires, settings } = await loadContext()
-  const waiting = await db.botConversation.findMany({ where: { awaitingBranch: true, status: { notIn: ['SELESAI_ADA', 'SELESAI_TIDAK_ADA'] } } })
+  const waiting = await db.botConversation.findMany({ where: { awaitingBranch: true, status: { notIn: ['SELESAI_ADA', 'SELESAI_TIDAK_ADA'] } }, orderBy: { id: 'asc' } })
   for (const c of waiting) {
     if (now.getTime() - c.updatedAt.getTime() < settings.branchWaitMin * 60_000) continue
     const sentToday = await db.botLog.count({ where: { sent: true, createdAt: { gte: startOfTodayJakarta(now) } } })

@@ -19,7 +19,7 @@ function clickSince(days: number) {
 
 export default async function Situs() {
   await requireOwner()
-  const [s, branches, origin] = await Promise.all([getSitus(), db.branch.findMany({ orderBy: { sort: 'asc' } }), alamatSitus()])
+  const [s, branches, origin] = await Promise.all([getSitus(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] }), alamatSitus()])
   const clicks = await db.waClick.findMany({ where: { day: { gte: clickSince(14) } }, orderBy: { day: 'desc' } })
   const days = [...new Set(clicks.map((c) => c.day))]
   const links = [

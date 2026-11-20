@@ -44,7 +44,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const q = String(sp.q ?? '').trim().slice(0, 60)
   const ring = Number(sp.ring) || 0
   const f = ['masalah', 'manual', 'habis'].includes(String(sp.f)) ? String(sp.f) : ''
-  const branches = await db.branch.findMany({ orderBy: { sort: 'asc' }, select: { id: true, slug: true, name: true } })
+  const branches = await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true } })
   // Filter cabang: kosong = semua, "tanpa" = baris tanpa cabang, atau slug cabang.
   const cbRaw = String(sp.cb ?? '')
   const cbBranch = branches.find((b) => b.slug === cbRaw) ?? null
@@ -58,7 +58,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
     ...(f === 'habis' && { stock: 0 }),
     ...(cb === 'tanpa' && { cabangId: null }),
     ...(cbBranch && { cabangId: cbBranch.id }),
-    ...(q && { OR: [{ brand: { contains: q } }, { sizeRaw: { contains: q } }, { sizeNorm: { contains: q.replace(/\s/g, '') } }] }),
+    ...(q && { OR: [{ brand: { contains: q, mode: 'insensitive' as const } }, { sizeRaw: { contains: q, mode: 'insensitive' as const } }, { sizeNorm: { contains: q.replace(/\s/g, ''), mode: 'insensitive' as const } }] }),
   }
   const count = await db.stockTire.count({ where })
   const halaman = Math.min(Math.max(1, Math.floor(Number(sp.hal)) || 1), Math.max(1, Math.ceil(count / BATAS)))

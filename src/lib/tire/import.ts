@@ -1,5 +1,5 @@
 import { db } from '../db'
-import { isiKodeKosong, ubahStokTx } from '../stok/ubah'
+import { isiKodeKosong, kunciSusunanStok, ubahStokTx } from '../stok/ubah'
 import { mergeManual, type ManualRow, type ParseResult } from './pricelist'
 
 export type ImportSource = 'berkas' | 'sheet'
@@ -17,8 +17,10 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
   const refId = `impor:${source}:${cabangId ?? 'tanpa'}:${now.toISOString()}`
   const hasil = await db.$transaction(
     async (tx) => {
+      // Impor lain (atau tetapkan cabang) yang sedang berjalan ditunggu dulu sampai selesai.
+      await kunciSusunanStok(tx)
       const isi = await isiKodeKosong(tx)
-      const lama = await tx.stockTire.findMany({ where: { cabangId } })
+      const lama = await tx.stockTire.findMany({ where: { cabangId }, orderBy: { id: 'asc' } })
       const byKode = new Map(lama.map((o) => [o.kode!, o]))
       const manual: ManualRow[] = lama
         .filter((o) => o.manual)

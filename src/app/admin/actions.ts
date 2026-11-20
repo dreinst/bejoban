@@ -61,7 +61,7 @@ export async function saveProduct(fd: FormData) {
   if (akses === 'penuh' && !name) gagal(balik, 'Nama produk wajib diisi')
 
   // Periksa semua harga dulu supaya tidak ada yang tersimpan setengah.
-  const branches = await db.branch.findMany()
+  const branches = await db.branch.findMany({ orderBy: { id: 'asc' } })
   const rencana: { branchId: number; listing: { price: number; comparePrice: number; available: boolean; flashSale: boolean } }[] = []
   for (const b of branches) {
     if (!canEditBranch(s, b.id) || !fd.has(`b${b.id}_price`)) continue

@@ -6,7 +6,7 @@ import type { Prisma } from '@/generated/prisma/client'
 
 export const BRANCH_COOKIE = 'bejo_branch'
 
-export const getBranches = () => db.branch.findMany({ orderBy: { sort: 'asc' } })
+export const getBranches = () => db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] })
 
 export async function currentBranch() {
   const branches = await getBranches()
@@ -39,14 +39,14 @@ export async function listProducts(branchId: number, f: Filter = {}, opts: { tak
       ...(f.ids && { id: { in: f.ids } }),
       ...(f.category && { category: { slug: f.category } }),
       ...(f.brand && { brand: { name: f.brand } }),
-      ...(f.fitment && { fitment: { contains: f.fitment } }),
+      ...(f.fitment && { fitment: { contains: f.fitment, mode: 'insensitive' } }),
       ...(f.q && {
         OR: [
-          { name: { contains: f.q } },
-          { spec: { contains: f.q } },
-          { fitment: { contains: f.q } },
-          { brand: { name: { contains: f.q } } },
-          { category: { name: { contains: f.q } } },
+          { name: { contains: f.q, mode: 'insensitive' } },
+          { spec: { contains: f.q, mode: 'insensitive' } },
+          { fitment: { contains: f.q, mode: 'insensitive' } },
+          { brand: { name: { contains: f.q, mode: 'insensitive' } } },
+          { category: { name: { contains: f.q, mode: 'insensitive' } } },
         ],
       }),
     },

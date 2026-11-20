@@ -14,7 +14,7 @@ export default async function UjiChatbot({ searchParams }: PageProps<'/admin/cha
   const [logs, current, branches] = await Promise.all([
     db.botLog.findMany({ where: { source: 'UJI' }, orderBy: { id: 'desc' }, take: 8 }),
     logId ? db.botLog.findUnique({ where: { id: logId } }) : null,
-    db.branch.findMany({ orderBy: { sort: 'asc' }, select: { slug: true, name: true } }),
+    db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { slug: true, name: true } }),
   ])
   const [custReply, adminPart] = (current?.reply ?? '').split('\n\n[Ringkasan ke admin')
   const label = 'mb-1 text-xs font-semibold text-neutral-700'

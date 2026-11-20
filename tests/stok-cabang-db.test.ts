@@ -1,17 +1,11 @@
-// Tes database untuk stok ban per cabang. Memakai file SQLite sementara sendiri, data/bejoban.db tidak tersentuh.
+// Tes database untuk stok ban per cabang. Memakai basis data PostgreSQL sementara sendiri (tests/db-uji.ts), basis data dev tidak tersentuh.
 // Semua data di sini karangan (contoh).
 import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { siapkanDbUji } from './db-uji'
 import type { ParsedTire, ParseResult } from '../src/lib/tire/pricelist'
 
-const dir = mkdtempSync(join(tmpdir(), 'bejoban-uji-cabang-'))
-// Harus diset sebelum modul db diimpor (impor dinamis di bawah).
-process.env.DATABASE_URL = `file:${join(dir, 'uji.db')}`
-
+let dbUji: Awaited<ReturnType<typeof siapkanDbUji>> | undefined
 
 type Mod = {
   db: typeof import('../src/lib/db').db
@@ -24,7 +18,7 @@ let batu: number
 let karanglo: number
 
 before(async () => {
-  execFileSync('npx', ['prisma', 'migrate', 'deploy'], { env: process.env, stdio: 'pipe' })
+  dbUji = await siapkanDbUji('cabang')
   const [{ db }, { applyImport }, { tetapkanTanpaCabang }, { ubahStok }] = await Promise.all([
     import('../src/lib/db'),
     import('../src/lib/tire/import'),
@@ -38,7 +32,7 @@ before(async () => {
 
 after(async () => {
   await m?.db.$disconnect()
-  rmSync(dir, { recursive: true, force: true })
+  await dbUji?.hapus()
 })
 
 const baris = (kode: string, cabangId: number | null) => ({ sizeRaw: '185/65R15', sizeNorm: '185/65R15', brand: 'Merek Contoh', kode, cabangId })

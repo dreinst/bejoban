@@ -37,7 +37,7 @@ function Section({ id, bg, children }: { id?: string; bg: string; children: Reac
 export default async function Home() {
   const [c, { branch }] = await Promise.all([getContent(), currentBranch()])
   const [branches, brandRows] = await Promise.all([
-    db.branch.findMany({ orderBy: { sort: 'asc' } }),
+    db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] }),
     db.brand.findMany({ where: { aktif: true }, orderBy: [{ sort: 'asc' }, { name: 'asc' }], select: { id: true, name: true, logo: true, byOrder: true } }),
   ])
   const ids: number[] = c.newest.products ?? []

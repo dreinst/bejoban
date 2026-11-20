@@ -1,14 +1,14 @@
 # Status pekerjaan Bejo Ban
 
-Keadaan per 18 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
+Keadaan per 20 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
 
 Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tagihan tidak ditulis di sini. Semuanya dicatat di luar repo, di `~/ndru/bejoban-aset/CATATAN-PRIBADI.md` pada mesin pengembang.
 
 ## Keadaan sekarang
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`.
-- Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026).
-- `npm test` lulus 139 tes. `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
+- `npm test` lulus 141 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (semuanya belum punya cabang), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -59,7 +59,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 ### Server
 
 - Satu VPS menjalankan Docker Compose berisi aplikasi Next.js dan Caddy. HTTPS diurus Caddy, dan `www` dialihkan ke domain utama.
-- Database SQLite dan foto unggahan ada di volume terpisah dari image. Cadangan harian disimpan 14 hari di server.
+- Database PostgreSQL berjalan di container sendiri, dan foto unggahan ada di volume terpisah dari image. Cadangan harian disimpan 14 hari di server.
 - Memori container dibatasi. Akses SSH hanya dengan kunci, ditambah firewall dan fail2ban.
 
 ### Pemeriksaan tampilan admin
@@ -76,6 +76,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 - Pricelist yang sama diimpor ulang lewat panel "Perbarui dari pricelist". 325 baris masuk, tidak ada harga atau stok yang berubah.
 - Admin cabang berhasil mengunggah foto cabangnya. Jenis unggahan lain ditolak.
 - Naik versi 18 November 2026 (Next.js 16.3.6 ke 16.4.6, Prisma 7.10.0 ke 7.10.1) dibandingkan dengan versi sebelumnya pada data yang sama. Halaman admin, tampilan publik, dan jawaban API stok, ekspor, media, serta unggah tidak berbeda. Satu hal yang berubah: jawaban route handler yang bisa dimampatkan (ikon, manifest, teks) sekarang dikirim dengan gzip.
+- Pindah ke PostgreSQL 20 November 2026 dibandingkan dengan versi SQLite pada data yang sama. Teks 54 alamat publik, admin, dan API serta jawaban 10 pesan uji chatbot sama persis. Rinciannya di [POSTGRES.md](POSTGRES.md).
 
 ## Yang belum
 
@@ -94,7 +95,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 ### Menunggu keputusan pemilik proyek
 
 - Nomor WhatsApp Business utama dan nomor admin tiap cabang. Tanpa ini bot tidak bisa disambungkan.
-- Kelanjutan rancangan BejoStock: kasir, pindah dari SQLite ke MySQL, penyatuan stok ban dan produk situs, serta aturan diskon. Daftar lengkapnya ada di bagian "Yang sengaja ditunda" di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
+- Kelanjutan rancangan BejoStock: kasir, penyatuan stok ban dan produk situs, serta aturan diskon. Pindah basis data sudah diputuskan ke PostgreSQL (20 November 2026), bukan MySQL. Daftar lengkapnya ada di bagian "Yang sengaja ditunda" di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
 - Kalender libur dan promo. Halamannya ada di `/admin/kalender` tetapi disembunyikan dari menu, karena datanya belum dipakai bot maupun situs.
 - Kolom batas minimum stok.
 - Bawaan kotak "Kunci baris ini" di panel Ubah stok ban. Sekarang kotak itu tercentang dari awal, jadi menekan Simpan tanpa mengubah apa pun tetap mengunci baris dari sinkron dan impor berikutnya.
