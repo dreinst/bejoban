@@ -1,5 +1,8 @@
 import { db } from '../db'
-import { isiKodeKosong, kunciSusunanStok, ubahStokTx } from '../stok/ubah'
+import { isiKodeKosong, kunciSusunanStok, modeCabangTx, ubahStokTx } from '../stok/ubah'
+import { GalatStok } from '../stok/logika'
+
+export const PESAN_IMPOR_KASIR = 'Cabang ini memakai mode kasir, jadi stoknya tidak bisa diganti dari pricelist atau Google Sheets. Stok berubah lewat transaksi kasir dan koreksi owner.'
 import { mergeManual, type ManualRow, type ParseResult } from './pricelist'
 
 export type ImportSource = 'berkas' | 'sheet'
@@ -19,6 +22,8 @@ export async function applyImport(r: ParseResult, source: ImportSource, pengguna
     async (tx) => {
       // Impor lain (atau tetapkan cabang) yang sedang berjalan ditunggu dulu sampai selesai.
       await kunciSusunanStok(tx)
+      // Pengaktifan kasir juga mengambil kunci di atas, jadi mode yang dibaca di sini tidak berubah sampai impor selesai.
+      if ((await modeCabangTx(tx, cabangId)) === 'kasir') throw new GalatStok(PESAN_IMPOR_KASIR)
       const isi = await isiKodeKosong(tx)
       const lama = await tx.stockTire.findMany({ where: { cabangId }, orderBy: { id: 'asc' } })
       const byKode = new Map(lama.map((o) => [o.kode!, o]))

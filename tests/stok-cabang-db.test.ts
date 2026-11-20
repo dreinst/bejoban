@@ -110,7 +110,7 @@ test('tetapkan semua baris tanpa cabang: kode yang sudah ada di cabang tujuan di
   const sebelumKrg = await potret()
   // Tanpa cabang: A, B, C. Karanglo sudah punya A dan B (B nonaktif), jadi hanya C yang pindah.
   const h = await m.tetapkanTanpaCabang(karanglo, '1')
-  assert.deepEqual(h, { dipindah: 1, dilewati: 2 })
+  assert.deepEqual(h, { dipindah: 1, dilewati: 2, batch: 0 })
   const c = await m.db.stockTire.findFirstOrThrow({ where: { kode: '205/65R15|merek contoh c', cabangId: karanglo } })
   assert.equal(c.stock, 6)
   assert.equal(await m.db.stockTire.count({ where: { cabangId: null } }), 2)
@@ -119,6 +119,6 @@ test('tetapkan semua baris tanpa cabang: kode yang sudah ada di cabang tujuan di
   const buku = await m.db.bukuStok.findMany({ where: { kodeProduk: '205/65R15|merek contoh c', refId: { startsWith: 'tetapkan_cabang:' } }, orderBy: { id: 'asc' } })
   assert.deepEqual(buku.map((b) => [b.cabangId, b.perubahan, b.saldoAkhir]), [[null, -6, 0], [karanglo, 6, 6]])
   // Diulang: tidak ada yang bisa dipindah lagi.
-  assert.deepEqual(await m.tetapkanTanpaCabang(karanglo), { dipindah: 0, dilewati: 2 })
+  assert.deepEqual(await m.tetapkanTanpaCabang(karanglo), { dipindah: 0, dilewati: 2, batch: 0 })
   await assert.rejects(m.tetapkanTanpaCabang(999), /Cabang tidak ditemukan/)
 })

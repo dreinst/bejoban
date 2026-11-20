@@ -4,6 +4,7 @@ import type { Prisma } from '@/generated/prisma/client'
 import { db } from '../db'
 import { bentukKode, kodeKembar } from './kode'
 import { GalatStok, hitungSaldo, type PerubahanStok } from './logika'
+import { keputusanPeringatan } from '../kasir/logika'
 
 export type Tx = Prisma.TransactionClient
 
@@ -17,9 +18,42 @@ export type UbahStokInput = PerubahanStok & {
   refId?: string | null
   batchId?: number | null
   pengguna?: string | null
+  // true hanya dari src/lib/kasir. Baris milik cabang bermode kasir hanya boleh berubah lewat jalur itu,
+  // supaya stok baris selalu sama dengan jumlah sisa batch.
+  jalurKasir?: boolean
 }
 
-export type HasilUbahStok = { perubahan: number; saldoAkhir: number; dicatat: boolean; kodeProduk: string }
+export type HasilUbahStok = {
+  perubahan: number
+  saldoAkhir: number
+  dicatat: boolean
+  kodeProduk: string
+  cabangId: number | null
+  peringatan: 'buat' | 'tutup' | 'tetap'
+}
+
+export const PESAN_MODE_KASIR = 'Stok cabang ini diatur lewat Kasir. Owner bisa mengoreksinya di Kasir, Pengaturan kasir.'
+
+// Mode stok cabang (sheet atau kasir). Dibaca sesudah baris stok dikunci, jadi perubahan mode yang sedang berjalan
+// sudah selesai saat nilainya dibaca (pengaktifan kasir mengunci baris yang sama).
+export async function modeCabangTx(tx: Tx, cabangId: number | null) {
+  if (cabangId === null) return 'sheet'
+  const [b] = await tx.$queryRaw<{ mode: string }[]>`SELECT "mode_stok" AS "mode" FROM "Branch" WHERE "id" = ${cabangId}`
+  return b?.mode ?? 'sheet'
+}
+
+// Peringatan stok menipis sesudah stok baris berubah atau batas minimumnya diganti (docs/KASIR.md, bagian peringatan).
+export async function cekPeringatanTx(
+  tx: Tx,
+  p: { sumber: 'ban' | 'produk'; barisId: number; kodeProduk: string; cabangId: number | null; stok: number; batas: number | null },
+) {
+  const aktif = await tx.peringatanStok.findFirst({ where: { sumber: p.sumber, barisId: p.barisId, status: 'aktif' }, select: { id: true } })
+  const k = keputusanPeringatan(p.stok, p.batas, !!aktif)
+  if (k === 'buat')
+    await tx.peringatanStok.create({ data: { sumber: p.sumber, barisId: p.barisId, kodeProduk: p.kodeProduk, cabangId: p.cabangId, jumlahSaatItu: p.stok, batasMinimum: p.batas! } })
+  if (k === 'tutup' && aktif) await tx.peringatanStok.update({ where: { id: aktif.id }, data: { status: 'ditutup', ditutup: new Date() } })
+  return k
+}
 
 // Kunci proses yang mengubah susunan baris stok ban (impor, tetapkan cabang, isi kode kosong), berlaku sampai
 // transaksi selesai. Di SQLite semua penulisan berjalan satu per satu. Di PostgreSQL dua impor bisa berjalan
@@ -59,6 +93,8 @@ export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahSto
   let saldoLama: number
   let kodeProduk: string
   let cabangId: number | null
+  let barisId: number
+  let batas: number | null
   let simpan: (n: number) => Promise<unknown>
   if (t.jenis === 'stok_ban') {
     const sel = { id: true, stock: true, kode: true, cabangId: true } as const
@@ -71,32 +107,38 @@ export async function ubahStokTx(tx: Tx, p: UbahStokInput): Promise<HasilUbahSto
       row = (await cari())!
     }
     const id = row.id
-    const [kunci] = await tx.$queryRaw<{ stock: number; kode: string | null; cabangId: number | null }[]>`
-      SELECT "stock", "kode", "cabang_id" AS "cabangId" FROM "StockTire" WHERE "id" = ${id} FOR UPDATE`
+    const [kunci] = await tx.$queryRaw<{ stock: number; kode: string | null; cabangId: number | null; batas: number | null }[]>`
+      SELECT "stock", "kode", "cabang_id" AS "cabangId", "batas_minimum" AS "batas" FROM "StockTire" WHERE "id" = ${id} FOR UPDATE`
     if (!kunci) throw new GalatStok('Baris stok ban tidak ditemukan')
     saldoLama = kunci.stock
     kodeProduk = kunci.kode ?? row.kode!
     cabangId = kunci.cabangId
+    barisId = id
+    batas = kunci.batas
     simpan = (n) => tx.stockTire.update({ where: { id }, data: { stock: n } })
   } else {
     const where = { productId_branchId: { productId: t.productId, branchId: t.branchId } }
-    const l = await tx.listing.findUnique({ where, select: { stock: true, product: { select: { kode: true, slug: true } } } })
+    const l = await tx.listing.findUnique({ where, select: { id: true, stock: true, product: { select: { kode: true, slug: true } } } })
     if (!l) throw new GalatStok('Produk ini belum terdaftar di cabang tersebut')
-    const [kunci] = await tx.$queryRaw<{ stock: number }[]>`
-      SELECT "stock" FROM "Listing" WHERE "productId" = ${t.productId} AND "branchId" = ${t.branchId} FOR UPDATE`
+    const [kunci] = await tx.$queryRaw<{ stock: number; batas: number | null }[]>`
+      SELECT "stock", "batas_minimum" AS "batas" FROM "Listing" WHERE "productId" = ${t.productId} AND "branchId" = ${t.branchId} FOR UPDATE`
     if (!kunci) throw new GalatStok('Produk ini belum terdaftar di cabang tersebut')
     saldoLama = kunci.stock
     kodeProduk = l.product.kode || l.product.slug
     cabangId = t.branchId
+    barisId = l.id
+    batas = kunci.batas
     simpan = (n) => tx.listing.update({ where, data: { stock: n } })
   }
   const { perubahan, saldoAkhir } = hitungSaldo(saldoLama, p)
-  if (perubahan === 0) return { perubahan, saldoAkhir, dicatat: false, kodeProduk }
+  if (perubahan === 0) return { perubahan, saldoAkhir, dicatat: false, kodeProduk, cabangId, peringatan: 'tetap' }
+  if (!p.jalurKasir && (await modeCabangTx(tx, cabangId)) === 'kasir') throw new GalatStok(PESAN_MODE_KASIR)
   await simpan(saldoAkhir)
   await tx.bukuStok.create({
     data: { tipe: p.tipe, perubahan, saldoAkhir, refId: p.refId ?? null, batchId: p.batchId ?? null, cabangId, kodeProduk, pengguna: p.pengguna ?? null },
   })
-  return { perubahan, saldoAkhir, dicatat: true, kodeProduk }
+  const peringatan = await cekPeringatanTx(tx, { sumber: t.jenis === 'stok_ban' ? 'ban' : 'produk', barisId, kodeProduk, cabangId, stok: saldoAkhir, batas })
+  return { perubahan, saldoAkhir, dicatat: true, kodeProduk, cabangId, peringatan }
 }
 
 export const ubahStok = (p: UbahStokInput) => db.$transaction((tx) => ubahStokTx(tx, p))
@@ -104,10 +146,19 @@ export const ubahStok = (p: UbahStokInput) => db.$transaction((tx) => ubahStokTx
 type DataListing = { price: number; comparePrice: number; available: boolean; flashSale: boolean }
 
 // Simpan harga dan status listing, lalu setel stoknya lewat buku stok (tipe koreksi). Satu transaksi.
+// Cabang bermode kasir: harga dan stok diatur lewat kasir, jadi keduanya diabaikan dan hanya harga coret,
+// Dijual, dan promo kilat yang disimpan. Listing baru di cabang itu mulai dengan harga 0 dan stok 0.
 export function simpanListing(p: { productId: number; branchId: number; data: DataListing; stok: number; pengguna?: string | null; refId?: string | null }) {
   const { productId, branchId } = p
   return db.$transaction(async (tx) => {
-    await tx.listing.upsert({ where: { productId_branchId: { productId, branchId } }, create: { productId, branchId, ...p.data }, update: p.data })
+    const where = { productId_branchId: { productId, branchId } }
+    if ((await modeCabangTx(tx, branchId)) === 'kasir') {
+      const { price: _harga, ...lain } = p.data
+      void _harga
+      await tx.listing.upsert({ where, create: { productId, branchId, ...lain, price: 0 }, update: lain })
+      return { perubahan: 0, saldoAkhir: 0, dicatat: false, kodeProduk: '', cabangId: branchId, peringatan: 'tetap' as const }
+    }
+    await tx.listing.upsert({ where, create: { productId, branchId, ...p.data }, update: p.data })
     return ubahStokTx(tx, { target: { jenis: 'listing', productId, branchId }, setKe: p.stok, tipe: 'koreksi', pengguna: p.pengguna, refId: p.refId })
   })
 }

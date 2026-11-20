@@ -1,15 +1,18 @@
 // Tetapkan semua baris stok ban tanpa cabang ke satu cabang. Dipakai owner setelah tahu pricelist lama milik cabang mana.
 import { db } from '../db'
 import { isiKodeKosong, kunciSusunanStok } from './ubah'
+import { buatBatchAwalTx, kunciBarisTx, kunciCabangTx } from '../kasir/stok'
 
 // Baris tanpa cabang yang kodenya sudah dimiliki cabang tujuan dilewati (tetap tanpa cabang), supaya tidak bentrok.
 // Buku stok tetap seimbang per kode dan cabang: sisa stok dicatat keluar dari "tanpa cabang" dan masuk ke cabang
 // tujuan (dua baris tipe koreksi dengan ref_id yang sama). Stok di baris itu sendiri tidak berubah.
+// Kalau cabang tujuan bermode kasir, tiap baris yang pindah dan berstok mendapat batch awal seperti saat kasir diaktifkan.
 export async function tetapkanTanpaCabang(cabangId: number, pengguna: string | null = null) {
   return db.$transaction(
     async (tx) => {
       if (!(await tx.branch.findUnique({ where: { id: cabangId }, select: { id: true } }))) throw new Error('Cabang tidak ditemukan')
       await kunciSusunanStok(tx)
+      const cabang = await kunciCabangTx(tx, cabangId)
       await isiKodeKosong(tx)
       // Kunci baris tanpa cabang supaya stoknya tidak berubah di tengah jalan (saldonya dicatat di buku stok).
       await tx.$executeRaw`SELECT "id" FROM "StockTire" WHERE "cabang_id" IS NULL ORDER BY "id" FOR UPDATE`
@@ -22,7 +25,12 @@ export async function tetapkanTanpaCabang(cabangId: number, pengguna: string | n
         await tx.bukuStok.create({ data: { tipe: 'koreksi', perubahan: -r.stock, saldoAkhir: 0, cabangId: null, kodeProduk: r.kode!, refId, pengguna } })
         await tx.bukuStok.create({ data: { tipe: 'koreksi', perubahan: r.stock, saldoAkhir: r.stock, cabangId, kodeProduk: r.kode!, refId, pengguna } })
       }
-      return { dipindah: pindah.length, dilewati: tanpa.length - pindah.length }
+      let batch = 0
+      if (cabang.mode === 'kasir') {
+        const waktu = new Date()
+        for (const r of pindah) if (await buatBatchAwalTx(tx, await kunciBarisTx(tx, 'ban', r.id), pengguna, waktu)) batch++
+      }
+      return { dipindah: pindah.length, dilewati: tanpa.length - pindah.length, batch }
     },
     { timeout: 60_000, maxWait: 10_000 },
   )

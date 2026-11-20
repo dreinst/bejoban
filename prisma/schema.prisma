@@ -8,19 +8,23 @@ datasource db {
 }
 
 model Branch {
-  id        Int       @id @default(autoincrement())
-  slug      String    @unique
-  name      String
-  instagram String    @default("")
-  whatsapp  String    @default("")
-  address   String    @default("")
-  hours     String    @default("08.00 sampai 17.00")
-  mapsUrl   String    @default("")
-  photo     String    @default("")
-  services  String    @default("")
-  sort      Int       @default(0)
-  listings  Listing[]
-  users     User[]
+  id              Int       @id @default(autoincrement())
+  slug            String    @unique
+  name            String
+  instagram       String    @default("")
+  whatsapp        String    @default("")
+  address         String    @default("")
+  hours           String    @default("08.00 sampai 17.00")
+  mapsUrl         String    @default("")
+  photo           String    @default("")
+  services        String    @default("")
+  sort            Int       @default(0)
+  listings        Listing[]
+  users           User[]
+  // Kasir (docs/KASIR.md). kode_nota: awalan nomor transaksi, mis. BTU. mode_stok: sheet (bawaan) atau kasir.
+  kodeNota        String?   @unique @map("kode_nota")
+  modeStok        String    @default("sheet") @map("mode_stok")
+  kasirAktifSejak DateTime? @map("kasir_aktif_sejak")
 }
 
 model User {
@@ -90,6 +94,7 @@ model Listing {
   stock        Int     @default(0)
   available    Boolean @default(true)
   flashSale    Boolean @default(false)
+  batasMinimum Int?    @map("batas_minimum") // kosong: tanpa peringatan stok menipis. Diatur owner.
 
   @@unique([productId, branchId])
 }
@@ -101,28 +106,29 @@ model Setting {
 
 // Stok ban hasil impor pricelist (data internal, tidak tampil di toko).
 model StockTire {
-  id         Int       @id @default(autoincrement())
-  groupName  String    @default("") // judul kelompok di pricelist, mis. "R13 (Muatan + MT)"
-  ring       Int       @default(0)
-  sizeRaw    String
-  sizeNorm   String // untuk pencarian, mis. "185/65R15"
-  brand      String    @default("") // merek dan model apa adanya dari pricelist
-  price      Int? // null kalau kosong atau formatnya janggal
-  stock      Int       @default(0)
-  note       String    @default("")
-  discount   Int       @default(0) // potongan dari keterangan "disc <angka>"; price tetap harga asli
-  priceIssue String    @default("") // alasan harga kosong atau janggal, dari impor
-  manual     Boolean   @default(false) // diubah manual di tabel stok
-  lockManual Boolean   @default(true) // true: sinkron berikutnya tidak menimpa baris ini
-  manualAt   DateTime?
-  importedAt DateTime  @default(now())
+  id           Int       @id @default(autoincrement())
+  groupName    String    @default("") // judul kelompok di pricelist, mis. "R13 (Muatan + MT)"
+  ring         Int       @default(0)
+  sizeRaw      String
+  sizeNorm     String // untuk pencarian, mis. "185/65R15"
+  brand        String    @default("") // merek dan model apa adanya dari pricelist
+  price        Int? // null kalau kosong atau formatnya janggal
+  stock        Int       @default(0)
+  note         String    @default("")
+  discount     Int       @default(0) // potongan dari keterangan "disc <angka>"; price tetap harga asli
+  priceIssue   String    @default("") // alasan harga kosong atau janggal, dari impor
+  manual       Boolean   @default(false) // diubah manual di tabel stok
+  lockManual   Boolean   @default(true) // true: sinkron berikutnya tidak menimpa baris ini
+  manualAt     DateTime?
+  importedAt   DateTime  @default(now())
   // Kode stabil "ukuran|merek" (src/lib/stok/kode.ts). Kosong hanya sebelum scripts/isi-kode-stok.ts
   // atau impor pertama sesudah migrasi. PostgreSQL mengizinkan banyak NULL pada indeks unik.
-  kode       String?   @map("kode")
-  aktif      Boolean   @default(true) @map("aktif") // false: hilang dari sumber pricelist, diabaikan semua pembaca
+  kode         String?   @map("kode")
+  aktif        Boolean   @default(true) @map("aktif") // false: hilang dari sumber pricelist, diabaikan semua pembaca
   // Cabang pemilik baris stok. null: baris lama yang belum ditetapkan cabangnya (dianggap stok bersama).
   // Sengaja tanpa relasi (seperti buku_stok.cabang_id) supaya migrasinya cukup ADD COLUMN tanpa membangun ulang tabel.
-  cabangId   Int?      @map("cabang_id")
+  cabangId     Int?      @map("cabang_id")
+  batasMinimum Int?      @map("batas_minimum") // kosong: tanpa peringatan stok menipis. Diatur owner.
 
   // Kode unik per cabang. Untuk baris tanpa cabang (cabang_id NULL) PostgreSQL menganggap NULL selalu berbeda,
   // jadi migrasi dasar 20261120000000_postgres_dasar menambah indeks unik parsial StockTire_kode_tanpa_cabang_key
@@ -281,4 +287,151 @@ model Kalender {
 
   @@index([tanggal])
   @@map("kalender")
+}
+
+// ---- Kasir v1 (docs/KASIR.md). Nama tabel dan kolom mengikuti ERD BejoStock, bedanya dicatat di dokumen itu. ----
+// Uang dalam rupiah bulat (Int). cabang_id dan pengguna_id sengaja tanpa relasi, sama seperti buku_stok,
+// supaya riwayat tetap ada walau akun dihapus. nama_kasir menyimpan salinan nama saat transaksi.
+
+// Kepala transaksi kasir. status: selesai | void. channel: toko | whatsapp. metode_bayar: tunai | qris | debit.
+model Transaksi {
+  id             Int               @id @default(autoincrement())
+  nomor          String            @unique
+  cabangId       Int               @map("cabang_id")
+  penggunaId     Int               @map("pengguna_id")
+  namaKasir      String            @default("") @map("nama_kasir")
+  channel        String
+  metodeBayar    String            @map("metode_bayar")
+  subtotal       Int
+  diskon         Int               @default(0)
+  alasanDiskon   String            @default("") @map("alasan_diskon")
+  total          Int
+  dibayar        Int?
+  kembalian      Int?
+  status         String            @default("selesai")
+  alasanVoid     String?           @map("alasan_void")
+  divoidOleh     Int?              @map("divoid_oleh")
+  waktuVoid      DateTime?         @map("waktu_void")
+  idempotencyKey String            @unique @map("idempotency_key")
+  waktuTransaksi DateTime          @default(now()) @map("waktu_transaksi")
+  detail         DetailTransaksi[]
+
+  @@index([cabangId, waktuTransaksi])
+  @@index([waktuTransaksi])
+  @@map("transaksi")
+}
+
+// Baris nota, satu per batch. sumber: ban | produk | jasa. baris_id: id StockTire (ban) atau Listing (produk), kosong untuk jasa.
+// subtotal = jumlah x harga_satuan (sebelum diskon). diskon: bagian diskon nota untuk baris ini.
+model DetailTransaksi {
+  id               Int        @id @default(autoincrement())
+  transaksiId      Int        @map("transaksi_id")
+  transaksi        Transaksi  @relation(fields: [transaksiId], references: [id], onDelete: Cascade)
+  sumber           String
+  kodeProduk       String     @map("kode_produk")
+  barisId          Int?       @map("baris_id")
+  nama             String
+  jumlah           Int
+  hargaSatuan      Int        @map("harga_satuan")
+  hargaAsli        Int        @map("harga_asli")
+  diskon           Int        @default(0)
+  subtotal         Int
+  batchId          Int?       @map("batch_id")
+  batch            BatchStok? @relation(fields: [batchId], references: [id])
+  pengajuanHargaId Int?       @map("pengajuan_harga_id")
+
+  @@index([transaksiId])
+  @@index([batchId])
+  @@map("detail_transaksi")
+}
+
+// Batch stok per baris stok cabang. Penjualan mengambil batch tertua yang masih bersisa (tanggal_masuk, lalu id).
+// jenis: awal (saat kasir diaktifkan) | koreksi | masuk dan opname (bagian 2).
+model BatchStok {
+  id                  Int               @id @default(autoincrement())
+  sumber              String
+  kodeProduk          String            @map("kode_produk")
+  barisId             Int               @map("baris_id")
+  cabangId            Int               @map("cabang_id")
+  jenis               String
+  detailBarangMasukId Int?              @map("detail_barang_masuk_id")
+  hargaBeli           Int?              @map("harga_beli")
+  hargaJual           Int               @map("harga_jual")
+  jumlahAwal          Int               @map("jumlah_awal")
+  sisa                Int
+  tanggalMasuk        DateTime          @default(now()) @map("tanggal_masuk")
+  detail              DetailTransaksi[]
+
+  @@index([sumber, barisId, tanggalMasuk])
+  @@index([cabangId])
+  @@map("batch_stok")
+}
+
+// Pengajuan harga. tipe: diskon (diskon nota dari admin) | restock (bagian 2).
+// status: menunggu | disetujui | ditolak | batal (transaksinya di-void sebelum ditinjau).
+model PengajuanHarga {
+  id                Int       @id @default(autoincrement())
+  tipe              String
+  cabangId          Int       @map("cabang_id")
+  sumber            String?
+  kodeProduk        String?   @map("kode_produk")
+  pengajuId         Int       @map("pengaju_id")
+  hargaLama         Int       @map("harga_lama")
+  hargaBaru         Int       @map("harga_baru")
+  alasan            String    @default("")
+  status            String    @default("menunggu")
+  penyetujuId       Int?      @map("penyetuju_id")
+  diputuskan        DateTime?
+  batchId           Int?      @map("batch_id")
+  detailTransaksiId Int?      @map("detail_transaksi_id")
+  transaksiId       Int?      @map("transaksi_id")
+  dibuat            DateTime  @default(now())
+
+  @@index([status, dibuat])
+  @@index([transaksiId])
+  @@map("pengajuan_harga")
+}
+
+// Riwayat harga jual batch. harga_lama kosong untuk harga pertama.
+model RiwayatHarga {
+  id           Int      @id @default(autoincrement())
+  sumber       String
+  kodeProduk   String   @map("kode_produk")
+  cabangId     Int      @map("cabang_id")
+  batchId      Int?     @map("batch_id")
+  hargaLama    Int?     @map("harga_lama")
+  harga        Int
+  pengguna     String?
+  berlakuMulai DateTime @default(now()) @map("berlaku_mulai")
+
+  @@index([sumber, kodeProduk, cabangId])
+  @@map("riwayat_harga")
+}
+
+// Peringatan stok menipis per baris stok (pengganti stok_cabang_id di ERD). status: aktif | ditutup.
+model PeringatanStok {
+  id            Int       @id @default(autoincrement())
+  sumber        String
+  barisId       Int       @map("baris_id")
+  kodeProduk    String    @map("kode_produk")
+  cabangId      Int?      @map("cabang_id")
+  jumlahSaatItu Int       @map("jumlah_saat_itu")
+  batasMinimum  Int       @map("batas_minimum")
+  status        String    @default("aktif")
+  dibuat        DateTime  @default(now())
+  ditutup       DateTime?
+
+  @@index([status])
+  @@index([sumber, barisId, status])
+  @@map("peringatan_stok")
+}
+
+// Penghitung nomor transaksi per cabang per hari WIB (tanggal: YYMMDD). Dinaikkan dengan satu UPSERT supaya aman bersamaan.
+model PenghitungNota {
+  cabangId Int    @map("cabang_id")
+  tanggal  String
+  nomor    Int    @default(0)
+
+  @@id([cabangId, tanggal])
+  @@map("penghitung_nota")
 }
