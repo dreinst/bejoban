@@ -6,7 +6,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 ## Keadaan sekarang
 
-- Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`.
+- Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
 - `npm test` lulus 141 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
@@ -140,12 +140,12 @@ Belum ada deploy otomatis. Sebelum mulai, periksa dua hal di folder sumber:
 
 Urutan yang dipakai sejauh ini:
 
-1. Di server, jalankan skrip cadangan `/usr/local/bin/bejoban-backup.sh` dan arsipkan folder kode lama.
+1. Di server, jalankan skrip cadangan `/usr/local/bin/bejoban-backup.sh` (sejak 20 November 2026 berisi `pg_dump` basis data dan foto unggahan) dan arsipkan folder kode lama.
 2. Salin kode dari `main` ke `/opt/bejoban/app` dengan `rsync --delete`. Kecualikan `node_modules`, `.next`, `data`, `.env`, `.git`, `Dockerfile`, `.dockerignore`, `tsconfig.tsbuildinfo`, dan `next-env.d.ts`.
-3. Jalankan `docker compose build app`, lalu `docker compose up -d app`. Container menjalankan `prisma migrate deploy` setiap kali mulai.
+3. Jalankan `docker compose build app`, lalu `docker compose up -d app`. Container menjalankan `prisma migrate deploy` ke PostgreSQL setiap kali mulai. Build image memakai PostgreSQL sementara di dalam langkah build (berisi seed, lalu dibuang), karena prerender membaca database. Basis data produksi tidak dihubungi saat build. Build bisa dilakukan sebelum app dihentikan, karena container yang sedang jalan tetap memakai image lama.
 4. Periksa `/`, `/produk`, dan `/admin/login`, lalu baca log container. Untuk tautan WhatsApp pakai alamat cabang yang tidak ada, misalnya `/wa/cek`, yang harus menjawab 404. Alamat cabang asli jangan dipakai untuk uji karena kliknya ikut terhitung.
 
-Migrasi baru diuji dulu pada salinan database produksi sebelum dirilis.
+Migrasi baru diuji dulu pada salinan database produksi sebelum dirilis. Pada 20 November 2026 `npm ci` di dalam build sekali melewati paket biner `lightningcss` untuk Linux tanpa galat, sehingga `next build` gagal. Dockerfile di server sekarang memeriksa paket biner itu bisa dimuat sesudah `npm ci`.
 
 ## Jebakan
 
