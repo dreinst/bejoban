@@ -51,7 +51,7 @@ export default async function PengaturanKasir({ searchParams }: PageProps<'/admi
 
   return (
     <PageBody>
-      <PageHeader title="Pengaturan kasir" note="Kasir diaktifkan per cabang. Sesudah aktif, stok cabang itu hanya berubah lewat transaksi kasir, void, dan koreksi owner." />
+      <PageHeader title="Pengaturan kasir" note="Kasir diaktifkan per cabang. Sesudah aktif, stok cabang itu hanya berubah lewat transaksi kasir, void, barang masuk, opname, dan koreksi owner." />
 
       <div className="grid gap-5 lg:grid-cols-2">
         {branches.map((b, i) => {
@@ -73,7 +73,7 @@ export default async function PengaturanKasir({ searchParams }: PageProps<'/admi
                     <li>
                       {c!.banStok + c!.produkStok > 0
                         ? `${[c!.banStok ? `${c!.banStok} baris ban` : '', c!.produkStok ? `${c!.produkStok} produk situs` : ''].filter(Boolean).join(' dan ')} yang berstok akan mendapat batch awal dengan stok dan harga sekarang.`
-                        : 'Belum ada ban atau produk situs berstok di cabang ini. Stok bisa ditambah lewat koreksi sesudah kasir aktif.'}
+                        : 'Belum ada ban atau produk situs berstok di cabang ini. Sesudah kasir aktif, barang yang datang dicatat lewat Barang masuk.'}
                     </li>
                     {c!.hargaNol > 0 && <li>{c!.hargaNol} ban berstok belum punya harga, jadi belum bisa dijual sampai harga batch-nya diatur.</li>}
                     {c!.tanpaCabang > 0 && (

@@ -16,7 +16,7 @@ test('sidebar paling banyak tujuh menu, owner melihat semuanya dalam urutan yang
 
 test('admin cabang hanya mendapat lima menu tanpa item owner', () => {
   assert.deepEqual(cabang.map((m) => m.label), ['Ringkasan', 'Kasir', 'Stok dan harga', 'Chatbot', 'Ongkir'])
-  assert.deepEqual(cabang.find((m) => m.key === 'kasir')!.tabs.map((t) => t.key), ['transaksi-baru', 'riwayat'])
+  assert.deepEqual(cabang.find((m) => m.key === 'kasir')!.tabs.map((t) => t.key), ['transaksi-baru', 'riwayat', 'barang-masuk', 'opname'])
   const tabs = cabang.flatMap((m) => m.tabs)
   assert.ok(tabs.every((t) => !t.owner))
   assert.deepEqual(cabang.find((m) => m.key === 'stok-harga')!.tabs.map((t) => t.key), ['produk-situs', 'perlu-dicek'])
@@ -32,7 +32,14 @@ test('tiap alamat baru memetakan ke menu dan tab yang benar (owner)', () => {
     '/admin': 'ringkasan/-',
     '/admin/kasir': 'kasir/transaksi-baru',
     '/admin/kasir/riwayat': 'kasir/riwayat',
-    '/admin/kasir/diskon': 'kasir/tinjau-diskon',
+    '/admin/kasir/pengajuan': 'kasir/tinjau-pengajuan',
+    '/admin/kasir/masuk': 'kasir/barang-masuk',
+    '/admin/kasir/masuk/baru': 'kasir/barang-masuk',
+    '/admin/kasir/masuk/12': 'kasir/barang-masuk',
+    '/admin/kasir/opname': 'kasir/opname',
+    '/admin/kasir/opname/3': 'kasir/opname',
+    '/admin/kasir/dashboard': 'kasir/dashboard-kasir',
+    '/admin/kasir/rekap': 'kasir/rekap-kasir',
     '/admin/kasir/pengaturan': 'kasir/pengaturan-kasir',
     '/admin/kasir/barang': 'kasir/pengaturan-kasir',
     '/admin/stok-ban': 'stok-harga/stok-ban',

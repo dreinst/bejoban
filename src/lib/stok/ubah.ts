@@ -32,7 +32,7 @@ export type HasilUbahStok = {
   peringatan: 'buat' | 'tutup' | 'tetap'
 }
 
-export const PESAN_MODE_KASIR = 'Stok cabang ini diatur lewat Kasir. Owner bisa mengoreksinya di Kasir, Pengaturan kasir.'
+export const PESAN_MODE_KASIR = 'Stok cabang ini diatur lewat Kasir. Barang datang dicatat di Kasir, Barang masuk. Selisih hitung lewat Opname.'
 
 // Mode stok cabang (sheet atau kasir). Dibaca sesudah baris stok dikunci, jadi perubahan mode yang sedang berjalan
 // sudah selesai saat nilainya dibaca (pengaktifan kasir mengunci baris yang sama).

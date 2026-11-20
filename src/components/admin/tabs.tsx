@@ -60,7 +60,7 @@ export function AdminTabs({ menu, badges = {} }: { menu: AdminMenu[]; badges?: R
                   {n > 0 && (
                     <span className="rounded-full bg-ink px-1.5 py-px text-[11px] font-bold leading-4 text-white">
                       {n > 99 ? '99+' : n}
-                      <span className="sr-only">{t.key === 'tinjau-diskon' ? ' menunggu tinjauan' : ' perlu dicek'}</span>
+                      <span className="sr-only">{t.key === 'tinjau-pengajuan' ? ' menunggu tinjauan' : ' perlu dicek'}</span>
                     </span>
                   )}
                 </Link>

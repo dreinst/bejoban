@@ -83,14 +83,14 @@ export default async function BarangKasir({ searchParams }: PageProps<'/admin/ka
                 </Modal>
               ) : null
             }
-            empty={<p className="py-4 text-sm text-mute">Belum ada batch. Stok baris ini 0 saat kasir diaktifkan. Tambah stok lewat koreksi.</p>}
+            empty={<p className="py-4 text-sm text-mute">Belum ada batch. Stok baris ini 0 saat kasir diaktifkan. Barang yang datang dicatat lewat Barang masuk.</p>}
           />
         </Section>
       )}
 
       <SettingsGrid>
         {kasir && (
-          <Section id="koreksi" title="Koreksi stok" description="Untuk selisih hitung atau barang datang sebelum fitur barang masuk tersedia. Pengurangan memakai urutan batch. Penambahan membuat batch baru.">
+          <Section id="koreksi" title="Koreksi stok" description="Untuk membetulkan selisih di luar opname. Barang yang datang dicatat lewat Barang masuk. Pengurangan memakai urutan batch. Penambahan membuat batch baru.">
             <form action={koreksiStokAksi}>
               <input type="hidden" name="sumber" value={sumber} />
               <input type="hidden" name="id" value={id} />

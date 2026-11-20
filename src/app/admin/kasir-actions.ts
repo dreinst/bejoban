@@ -8,6 +8,8 @@ import { GalatKasir } from '@/lib/kasir/logika'
 import { aktifkanKasir, aturBatasMinimum, koreksiStok, ubahHargaBatch, type SumberStok } from '@/lib/kasir/stok'
 import { bacaInputJual, GalatStokKurang, jual, putuskanPengajuan, voidTransaksi, type StokLain } from '@/lib/kasir/transaksi'
 import { siarkan } from '@/lib/kasir/siaran'
+import { bacaInputBarangMasuk, catatBarangMasuk, putuskanRestock } from '@/lib/kasir/masuk'
+import { finalkanOpname, hapusBarisOpname, hapusOpname, isiBarisOpname, mulaiOpname, ubahStatusOpname } from '@/lib/kasir/opname'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
 const angka = (fd: FormData, k: string) => {
@@ -51,14 +53,16 @@ export async function voidKasir(fd: FormData) {
   }
 }
 
+const PENGAJUAN = '/admin/kasir/pengajuan'
+
 export async function putuskanDiskon(fd: FormData) {
   const s = await requireOwner()
   const keputusan = str(fd, 'keputusan', 12) === 'ditolak' ? 'ditolak' : 'disetujui'
   try {
     const h = await putuskanPengajuan(s, { id: Number(str(fd, 'id', 12)) || 0, keputusan })
-    go('/admin/kasir/diskon', `Diskon ${h.nomor} ${keputusan}`)
+    go(PENGAJUAN, `Diskon ${h.nomor} ${keputusan}`)
   } catch (e) {
-    if (e instanceof GalatKasir) go('/admin/kasir/diskon', e.message, 'err')
+    if (e instanceof GalatKasir) go(PENGAJUAN, e.message, 'err')
     throw e
   }
 }
@@ -132,6 +136,128 @@ export async function aturBatasAksi(fd: FormData) {
     go(balik, batas === null ? `Batas minimum ${h.nama} dihapus` : `Batas minimum ${h.nama} menjadi ${batas}${h.peringatan === 'buat' ? '. Stoknya sudah di batas, peringatan dibuat.' : ''}`)
   } catch (e) {
     if (e instanceof GalatKasir) go(balik, e.message, 'err')
+    throw e
+  }
+}
+
+/* ---------- Bagian 2: barang masuk, harga restock, opname ---------- */
+
+export type HasilSimpan = { ok: true; id: number; nomor: string } | { ok: false; pesan: string }
+
+// Dipanggil formulir barang masuk. Harga lama dan pengajuan ditentukan di server.
+export async function catatBarangMasukAksi(raw: unknown): Promise<HasilSimpan> {
+  const s = await requireUser()
+  try {
+    const h = await catatBarangMasuk(s, bacaInputBarangMasuk(raw))
+    revalidatePath('/admin', 'layout')
+    return { ok: true, id: h.id, nomor: h.nomor }
+  } catch (e) {
+    if (e instanceof GalatKasir) return { ok: false, pesan: e.message }
+    console.error('catatBarangMasuk gagal', e)
+    return { ok: false, pesan: 'Barang masuk gagal disimpan. Stok tidak berubah. Coba lagi.' }
+  }
+}
+
+export async function putuskanRestockAksi(fd: FormData) {
+  const s = await requireOwner()
+  const keputusan = str(fd, 'keputusan', 12) === 'ditolak' ? 'ditolak' : 'disetujui'
+  try {
+    const h = await putuskanRestock(s, { id: Number(str(fd, 'id', 12)) || 0, keputusan })
+    go(PENGAJUAN, keputusan === 'disetujui' ? `Harga ${h.nama} menjadi Rp ${h.hargaBaru.toLocaleString('id-ID')}` : `Usulan harga ${h.nama} ditolak, harga lama tetap`)
+  } catch (e) {
+    if (e instanceof GalatKasir) go(PENGAJUAN, e.message, 'err')
+    throw e
+  }
+}
+
+const OPNAME = '/admin/kasir/opname'
+const opnameUrl = (id: number) => `${OPNAME}/${id}`
+
+export async function mulaiOpnameAksi(fd: FormData) {
+  const s = await requireUser()
+  const cabangId = s.role === 'OWNER' ? Number(str(fd, 'cabang', 12)) || 0 : (s.branchId ?? 0)
+  let id = 0
+  try {
+    id = (await mulaiOpname(s, { cabangId, catatan: str(fd, 'catatan', 300) })).id
+  } catch (e) {
+    if (e instanceof GalatKasir) go(OPNAME, e.message, 'err')
+    throw e
+  }
+  go(opnameUrl(id), 'Opname dimulai. Hitung barangnya lalu isi stok fisik.')
+}
+
+export type HasilBarisOpname = { ok: true; pesan: string } | { ok: false; pesan: string }
+
+// Dipanggil formulir baris opname (tanpa pindah halaman, supaya pencarian tetap terbuka).
+export async function isiBarisOpnameAksi(raw: unknown): Promise<HasilBarisOpname> {
+  const s = await requireUser()
+  const o = (raw ?? {}) as Record<string, unknown>
+  const fisik = typeof o.stokFisik === 'string' && /^\d{1,6}$/.test(o.stokFisik) ? Number(o.stokFisik) : NaN
+  try {
+    const h = await isiBarisOpname(s, {
+      opnameId: Number(o.opnameId) || 0,
+      sumber: o.sumber === 'produk' ? 'produk' : 'ban',
+      barisId: Number(o.barisId) || 0,
+      stokFisik: fisik,
+      alasan: typeof o.alasan === 'string' ? o.alasan : '',
+    })
+    revalidatePath(opnameUrl(Number(o.opnameId) || 0))
+    return { ok: true, pesan: `${h.nama} tersimpan: sistem ${h.stokSistem}, selisih ${h.selisih > 0 ? '+' : ''}${h.selisih}` }
+  } catch (e) {
+    if (e instanceof GalatKasir) return { ok: false, pesan: e.message }
+    console.error('isiBarisOpname gagal', e)
+    return { ok: false, pesan: 'Baris gagal disimpan. Coba lagi.' }
+  }
+}
+
+const idOpname = (fd: FormData) => Number(str(fd, 'opname', 12)) || 0
+
+export async function hapusBarisOpnameAksi(fd: FormData) {
+  const s = await requireUser()
+  const opnameId = idOpname(fd)
+  try {
+    await hapusBarisOpname(s, { opnameId, detailId: Number(str(fd, 'baris', 12)) || 0 })
+    go(opnameUrl(opnameId), 'Baris dihapus')
+  } catch (e) {
+    if (e instanceof GalatKasir) go(opnameUrl(opnameId), e.message, 'err')
+    throw e
+  }
+}
+
+export async function statusOpnameAksi(fd: FormData) {
+  const s = await requireUser()
+  const id = idOpname(fd)
+  const ke = str(fd, 'ke', 10) === 'draft' ? 'draft' : 'review'
+  try {
+    const o = await ubahStatusOpname(s, { id, ke })
+    siarkan({ jenis: 'pengajuan', cabangId: o.cabangId, hanyaOwner: true, ...(ke === 'review' && { pesan: 'Opname baru menunggu tinjauan' }) })
+    go(opnameUrl(id), ke === 'review' ? 'Opname dikirim ke owner untuk ditinjau' : 'Opname dikembalikan ke draft')
+  } catch (e) {
+    if (e instanceof GalatKasir) go(opnameUrl(id), e.message, 'err')
+    throw e
+  }
+}
+
+export async function hapusOpnameAksi(fd: FormData) {
+  const s = await requireUser()
+  const id = idOpname(fd)
+  try {
+    await hapusOpname(s, id)
+  } catch (e) {
+    if (e instanceof GalatKasir) go(opnameUrl(id), e.message, 'err')
+    throw e
+  }
+  go(OPNAME, 'Draft opname dihapus')
+}
+
+export async function finalkanOpnameAksi(fd: FormData) {
+  const s = await requireOwner()
+  const id = idOpname(fd)
+  try {
+    const h = await finalkanOpname(s, id)
+    go(opnameUrl(id), `Opname final. ${h.berubah} dari ${h.baris} baris mengubah stok.`)
+  } catch (e) {
+    if (e instanceof GalatKasir) go(opnameUrl(id), e.message, 'err')
     throw e
   }
 }

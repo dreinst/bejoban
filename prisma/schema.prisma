@@ -435,3 +435,92 @@ model PenghitungNota {
   @@id([cabangId, tanggal])
   @@map("penghitung_nota")
 }
+
+// Kasir bagian 2 (docs/KASIR.md): barang masuk, opname. Nama tabel dan kolom mengikuti ERD Asah.
+// cabang_id dan pengguna_id sengaja tanpa relasi, sama seperti tabel kasir bagian 1.
+model BarangMasuk {
+  id              Int                 @id @default(autoincrement())
+  nomorPenerimaan String              @unique @map("nomor_penerimaan")
+  cabangId        Int                 @map("cabang_id")
+  pemasok         String
+  jenisPemasok    String              @map("jenis_pemasok") // distributor atau rekanan
+  tanggalPesan    DateTime?           @map("tanggal_pesan") // pukul 00.00 WIB tanggal itu
+  tanggalTerima   DateTime            @map("tanggal_terima") // pukul 00.00 WIB tanggal itu
+  penggunaId      Int                 @map("pengguna_id")
+  namaPengguna    String              @map("nama_pengguna")
+  catatan         String              @default("")
+  idempotencyKey  String              @unique @map("idempotency_key")
+  dibuat          DateTime            @default(now())
+  detail          DetailBarangMasuk[]
+
+  @@index([cabangId, tanggalTerima])
+  @@index([tanggalTerima])
+  @@map("barang_masuk")
+}
+
+model DetailBarangMasuk {
+  id               Int         @id @default(autoincrement())
+  barangMasukId    Int         @map("barang_masuk_id")
+  barangMasuk      BarangMasuk @relation(fields: [barangMasukId], references: [id])
+  sumber           String // ban atau produk
+  kodeProduk       String      @map("kode_produk")
+  barisId          Int         @map("baris_id")
+  cabangId         Int         @map("cabang_id")
+  nama             String
+  jumlah           Int
+  hargaBeli        Int?        @map("harga_beli")
+  hargaJual        Int         @map("harga_jual") // harga jual yang diisi pencatat (usulan)
+  hargaLama        Int         @map("harga_lama") // harga batch terdepan saat dicatat
+  batchId          Int?        @map("batch_id")
+  pengajuanHargaId Int?        @map("pengajuan_harga_id")
+
+  @@index([barangMasukId])
+  @@index([sumber, barisId])
+  @@map("detail_barang_masuk")
+}
+
+model PenghitungPenerimaan {
+  cabangId Int    @map("cabang_id")
+  tanggal  String
+  nomor    Int    @default(0)
+
+  @@id([cabangId, tanggal])
+  @@map("penghitung_penerimaan")
+}
+
+model StokOpname {
+  id            Int            @id @default(autoincrement())
+  cabangId      Int            @map("cabang_id")
+  penginputId   Int            @map("penginput_id")
+  namaPenginput String         @map("nama_penginput")
+  status        String         @default("draft") // draft, review, final
+  tanggal       DateTime       @default(now())
+  catatan       String         @default("")
+  dikirim       DateTime? // masuk review
+  finalisatorId Int?           @map("finalisator_id")
+  difinalkan    DateTime?
+  detail        DetailOpname[]
+
+  @@index([cabangId, status])
+  @@map("stok_opname")
+}
+
+model DetailOpname {
+  id            Int        @id @default(autoincrement())
+  opnameId      Int        @map("opname_id")
+  opname        StokOpname @relation(fields: [opnameId], references: [id], onDelete: Cascade)
+  sumber        String // ban atau produk
+  kodeProduk    String     @map("kode_produk")
+  barisId       Int        @map("baris_id")
+  nama          String
+  stokSistem    Int        @map("stok_sistem") // stok sistem saat baris diisi
+  stokFisik     Int        @map("stok_fisik")
+  selisih       Int
+  alasanSelisih String     @default("") @map("alasan_selisih")
+  diisi         DateTime   @default(now())
+  stokSaatFinal Int?       @map("stok_saat_final") // stok sistem saat finalisasi, sebelum selisih diterapkan
+  stokAkhir     Int?       @map("stok_akhir") // stok sesudah selisih diterapkan
+
+  @@unique([opnameId, sumber, barisId])
+  @@map("detail_opname")
+}

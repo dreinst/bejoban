@@ -97,7 +97,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
       {kasir && (
         <p className="adm-card p-4 text-sm text-ink">
           <b>Cabang {namaCabang} memakai kasir.</b>{' '}
-          <span className="text-mute">Harga jual dan stok di sini mengikuti batch kasir dan tidak bisa diubah dari tabel ini. Harga coret, Dijual, dan Promo kilat tetap bisa diubah.{owner ? ' Koreksi stok dan harga batch lewat tombol Batch di tiap baris.' : ''}</span>
+          <span className="text-mute">Harga jual dan stok di sini mengikuti batch kasir dan tidak bisa diubah dari tabel ini. Harga coret, Dijual, dan Promo kilat tetap bisa diubah.{' Barang datang dicatat lewat Kasir, Barang masuk, dan selisih hitung lewat Opname.'}{owner ? ' Harga batch diatur lewat tombol Batch di tiap baris.' : ''}</span>
         </p>
       )}
       <ListToolbar

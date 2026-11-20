@@ -11,7 +11,7 @@
 // - Halaman yang tidak masuk tab (Akun saya, Panduan ukuran foto) tidak punya menu aktif.
 //
 // Pemetaan ke modul BejoStock (Asah): Ringkasan = Analitik, Stok dan harga = Inventaris,
-// Pengaturan = Akses, Kasir = Kasir (transaksi, riwayat, tinjau diskon, harga batch). Rinciannya di
+// Pengaturan = Akses, Kasir = Kasir (transaksi, riwayat, barang masuk, opname, tinjau pengajuan, dashboard, rekap, harga batch). Rinciannya di
 // docs/PENYELARASAN-BEJOSTOCK.md dan docs/KASIR.md.
 
 export type Role = 'OWNER' | 'BRANCH_ADMIN'
@@ -41,7 +41,11 @@ export const ADMIN_MENU: AdminMenu[] = [
     tabs: [
       { key: 'transaksi-baru', label: 'Transaksi baru', href: '/admin/kasir' },
       { key: 'riwayat', label: 'Riwayat', href: '/admin/kasir/riwayat' },
-      { key: 'tinjau-diskon', label: 'Tinjau diskon', href: '/admin/kasir/diskon', owner: true },
+      { key: 'barang-masuk', label: 'Barang masuk', href: '/admin/kasir/masuk' },
+      { key: 'opname', label: 'Opname', href: '/admin/kasir/opname' },
+      { key: 'tinjau-pengajuan', label: 'Tinjau pengajuan', href: '/admin/kasir/pengajuan', owner: true },
+      { key: 'dashboard-kasir', label: 'Dashboard', href: '/admin/kasir/dashboard', owner: true },
+      { key: 'rekap-kasir', label: 'Rekap dan ekspor', href: '/admin/kasir/rekap', owner: true },
       { key: 'pengaturan-kasir', label: 'Pengaturan kasir', href: '/admin/kasir/pengaturan', owner: true, match: ['/admin/kasir/pengaturan', '/admin/kasir/barang'] },
     ],
   },
@@ -108,6 +112,7 @@ export const LEGACY_REDIRECTS: { source: string; destination: string }[] = [
   { source: '/admin/produk', destination: '/admin/harga' },
   { source: '/admin/pengaturan/whatsapp', destination: '/admin/chatbot/pengaturan' },
   { source: '/admin/pengaturan/ongkir', destination: '/admin/ongkir/pengaturan' },
+  { source: '/admin/kasir/diskon', destination: '/admin/kasir/pengajuan' },
 ]
 
 export const legacyDestination = (pathname: string) => LEGACY_REDIRECTS.find((r) => r.source === pathname)?.destination ?? null

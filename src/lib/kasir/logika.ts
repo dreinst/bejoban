@@ -187,3 +187,60 @@ export function keputusanPeringatan(stok: number, batas: number | null, adaAktif
   if (stok <= batas) return adaAktif ? 'tetap' : 'buat'
   return adaAktif ? 'tutup' : 'tetap'
 }
+
+/* ---------- Bagian 2: barang masuk, opname, analitik ---------- */
+
+export const JENIS_PEMASOK = ['distributor', 'rekanan'] as const
+export type JenisPemasok = (typeof JENIS_PEMASOK)[number]
+export const JENIS_PEMASOK_LABEL: Record<JenisPemasok, string> = { distributor: 'Distributor', rekanan: 'Toko rekanan' }
+export const isJenisPemasok = (v: unknown): v is JenisPemasok => typeof v === 'string' && (JENIS_PEMASOK as readonly string[]).includes(v)
+
+// Nomor penerimaan BM-KODE-YYMMDD-NNN, urut per cabang per hari WIB. Awalan BM membuatnya tidak mungkin sama
+// dengan nomor nota (KODE-YYMMDD-NNNN), walau kode nota cabang kebetulan "BM".
+export function formatNomorPenerimaan(kode: string, tanggal: string, urut: number): string {
+  formatNomor(kode, tanggal, urut) // validasi yang sama dengan nomor nota
+  return `BM-${kode}-${tanggal}-${String(urut).padStart(3, '0')}`
+}
+
+// Tanggal YYYY-MM-DD (WIB) menjadi pukul 00.00 WIB hari itu. null kalau formatnya salah.
+export const tanggalKeWaktu = (iso: string): Date | null => rentangHariWib(iso, iso)?.mulai ?? null
+
+// Lead time dalam hari dari tanggal pesan ke tanggal terima (keduanya pukul 00.00 WIB). null kalau tanggal pesan kosong.
+export const leadTimeHari = (pesan: Date | null, terima: Date) => (pesan ? Math.round((terima.getTime() - pesan.getTime()) / (24 * 3600_000)) : null)
+
+// Senin (WIB) dari minggu yang memuat waktu d, berbentuk YYYY-MM-DD. Minggu dihitung Senin sampai Minggu.
+export function awalMingguWib(d: Date): string {
+  const w = new Date(d.getTime() + WIB)
+  const geser = (w.getUTCDay() + 6) % 7
+  return isoWib(new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() - geser) - WIB))
+}
+
+// Rentang [mulai, akhir) satu bulan WIB dari teks YYYY-MM. null kalau formatnya salah.
+export function rentangBulanWib(bulan: string): { mulai: Date; akhir: Date } | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(bulan)
+  if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) return null
+  const y = Number(m[1])
+  const b = Number(m[2]) - 1
+  return { mulai: new Date(Date.UTC(y, b, 1) - WIB), akhir: new Date(Date.UTC(y, b + 1, 1) - WIB) }
+}
+
+// Hasil opname untuk satu baris saat final: selisih diterapkan ke stok sekarang (bukan menimpa angkanya),
+// supaya penjualan sesudah baris diisi tidak hilang. Hasil negatif berarti hitungan fisik tidak cocok lagi.
+export function hasilOpname(stokSekarang: number, selisih: number): { akhir: number; negatif: boolean } {
+  const akhir = stokSekarang + selisih
+  return { akhir, negatif: akhir < 0 }
+}
+
+/* ---------- CSV ---------- */
+
+// Satu sel CSV. Teks yang diawali =, +, -, @, tab, atau CR diberi awalan ' supaya spreadsheet tidak menjalankannya
+// sebagai rumus (CSV injection). Angka ditulis apa adanya. Sel dikutip kalau memuat koma, kutip, atau baris baru.
+export function selCsv(v: string | number | null | undefined): string {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
+  const t = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v
+  return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+}
+
+export const keCsv = (kolom: readonly string[], baris: (string | number | null)[][]) =>
+  [kolom.map(selCsv).join(','), ...baris.map((r) => r.map(selCsv).join(','))].join('\r\n') + '\r\n'

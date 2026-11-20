@@ -313,9 +313,10 @@ export async function voidTransaksi(sesi: SesiKasir, p: { transaksiId: number; a
 // Owner menandai pengajuan diskon disetujui atau ditolak. Transaksinya tidak berubah.
 export async function putuskanPengajuan(sesi: SesiKasir, p: { id: number; keputusan: 'disetujui' | 'ditolak' }) {
   if (sesi.role !== 'OWNER') throw new GalatKasir('Hanya owner yang meninjau diskon')
-  const awal = await db.pengajuanHarga.findUnique({ where: { id: p.id }, select: { pengajuId: true, cabangId: true, transaksiId: true } })
-  if (!awal) throw new GalatKasir('Pengajuan tidak ditemukan')
-  const n = await db.pengajuanHarga.updateMany({ where: { id: p.id, status: 'menunggu' }, data: { status: p.keputusan, penyetujuId: sesi.uid, diputuskan: new Date() } })
+  const awal = await db.pengajuanHarga.findUnique({ where: { id: p.id }, select: { pengajuId: true, cabangId: true, transaksiId: true, tipe: true } })
+  // Harga restock diputuskan lewat putuskanRestock (src/lib/kasir/masuk.ts), karena keputusannya mengubah batch.
+  if (!awal || awal.tipe !== 'diskon') throw new GalatKasir('Pengajuan tidak ditemukan')
+  const n = await db.pengajuanHarga.updateMany({ where: { id: p.id, tipe: 'diskon', status: 'menunggu' }, data: { status: p.keputusan, penyetujuId: sesi.uid, diputuskan: new Date() } })
   if (!n.count) throw new GalatKasir('Pengajuan ini sudah diputuskan atau dibatalkan')
   const t = awal.transaksiId ? await db.transaksi.findUnique({ where: { id: awal.transaksiId }, select: { nomor: true } }) : null
   siarkan(

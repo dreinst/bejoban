@@ -361,7 +361,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               <Drawer trigger="Ubah" triggerLabel={`Ubah ${t.sizeRaw} ${t.brand}`} title={`Ubah ${t.sizeRaw} ${t.brand}`} description={`Ring ${t.ring}, ${t.cabangId === null ? 'tanpa cabang' : `cabang ${namaCabang(t.cabangId)}`}. Perubahan stok tercatat di buku stok sebagai koreksi.`}>
                 {kasir && (
                   <p className="mb-4 rounded-lg border border-line bg-soft p-3 text-sm text-ink">
-                    Cabang ini memakai kasir, jadi harga, potongan, dan stok hanya bisa diubah lewat batch kasir.{' '}
+                    Cabang ini memakai kasir. Stok berubah lewat transaksi kasir, Barang masuk, dan Opname. Harga diatur di batch kasir.{' '}
                     <Link href={`/admin/kasir/barang?sumber=ban&id=${t.id}`} className="font-semibold underline underline-offset-2">Buka batch dan koreksi stok</Link>
                   </p>
                 )}

@@ -104,7 +104,7 @@ export async function samakanHargaTx(tx: Tx, sumber: SumberStok, barisId: number
 
 /* ---------- Ubah sisa batch (selalu bersama buku_stok) ---------- */
 
-type Catatan = { tipe: 'jual' | 'void' | 'koreksi'; refId: string; pengguna: string | null }
+export type Catatan = { tipe: 'jual' | 'void' | 'koreksi' | 'opname'; refId: string; pengguna: string | null }
 
 // Kurangi stok baris menurut FIFO. Satu baris buku_stok per batch yang terpakai.
 export async function kurangiFifoTx(tx: Tx, baris: BarisTerkunci, jumlah: number, c: Catatan) {
@@ -126,11 +126,33 @@ export async function kembalikanKeBatchTx(tx: Tx, baris: BarisTerkunci, batchId:
   return h
 }
 
-// Batch baru (koreksi tambah, atau batch awal saat pengaktifan) plus buku_stok.
-async function buatBatchTx(tx: Tx, baris: BarisTerkunci, p: { jumlah: number; harga: number; jenis: 'awal' | 'koreksi'; tanggal?: Date }) {
+// Batch baru (batch awal saat pengaktifan, koreksi tambah, barang masuk, opname tambah). Buku stok dicatat pemanggil.
+export async function buatBatchTx(
+  tx: Tx,
+  baris: BarisTerkunci,
+  p: { jumlah: number; harga: number; jenis: 'awal' | 'koreksi' | 'masuk' | 'opname'; tanggal?: Date; hargaBeli?: number | null; detailBarangMasukId?: number },
+) {
   return tx.batchStok.create({
-    data: { sumber: baris.sumber, kodeProduk: baris.kode, barisId: baris.barisId, cabangId: baris.cabangId!, jenis: p.jenis, hargaJual: p.harga, jumlahAwal: p.jumlah, sisa: p.jumlah, ...(p.tanggal && { tanggalMasuk: p.tanggal }) },
+    data: {
+      sumber: baris.sumber,
+      kodeProduk: baris.kode,
+      barisId: baris.barisId,
+      cabangId: baris.cabangId!,
+      jenis: p.jenis,
+      hargaJual: p.harga,
+      hargaBeli: p.hargaBeli ?? null,
+      detailBarangMasukId: p.detailBarangMasukId ?? null,
+      jumlahAwal: p.jumlah,
+      sisa: p.jumlah,
+      ...(p.tanggal && { tanggalMasuk: p.tanggal }),
+    },
   })
+}
+
+// Harga yang dipakai batch baru kalau tidak ada harga lain: harga batch terdepan, atau harga jual efektif baris
+// kalau baris belum punya batch bersisa (kosong dianggap 0, dan barang berharga 0 tidak bisa dijual kasir).
+export async function hargaLamaTx(tx: Tx, baris: BarisTerkunci) {
+  return hargaTerdepan(await batchTx(tx, baris.sumber, baris.barisId)) ?? baris.harga
 }
 
 /* ---------- Pengaktifan kasir ---------- */
@@ -186,6 +208,7 @@ export async function aktifkanKasir(p: { cabangId: number; kodeNota: string; pen
 
 // Setel stok baris ke angka baru. Pengurangan memakai urutan FIFO. Penambahan membentuk batch jenis koreksi
 // dengan harga yang diisi owner (bawaan: harga batch terdepan, atau harga baris kalau tidak ada batch).
+// Barang datang dicatat lewat barang masuk (src/lib/kasir/masuk.ts), bukan lewat koreksi.
 export async function koreksiStok(p: { sumber: SumberStok; barisId: number; setKe: number; alasan: string; harga?: number | null; pengguna: string | null }) {
   if (!Number.isInteger(p.setKe) || p.setKe < 0) throw new GalatKasir('Stok baru harus bilangan bulat 0 atau lebih')
   if (p.alasan.trim().length < 3) throw new GalatKasir('Tulis alasan koreksi')
@@ -200,8 +223,7 @@ export async function koreksiStok(p: { sumber: SumberStok; barisId: number; setK
     let hasil: HasilUbahStok[] = []
     if (selisih < 0) hasil = (await kurangiFifoTx(tx, baris, -selisih, c)).hasil
     if (selisih > 0) {
-      const depan = hargaTerdepan(await batchTx(tx, p.sumber, p.barisId))
-      const harga = p.harga ?? depan ?? baris.harga
+      const harga = p.harga ?? (await hargaLamaTx(tx, baris))
       if (!Number.isInteger(harga) || harga < 0) throw new GalatKasir('Harga batch harus rupiah bulat')
       const batch = await buatBatchTx(tx, baris, { jumlah: selisih, harga, jenis: 'koreksi' })
       await tx.riwayatHarga.create({ data: { sumber: p.sumber, kodeProduk: baris.kode, cabangId: baris.cabangId!, batchId: batch.id, hargaLama: null, harga, pengguna: p.pengguna } })

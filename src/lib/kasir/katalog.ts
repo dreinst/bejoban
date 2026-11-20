@@ -90,3 +90,10 @@ export async function muatKatalog(cabangId: number): Promise<ItemKatalog[]> {
   }
   return items
 }
+
+// Ban dan produk situs satu cabang untuk formulir barang masuk dan opname (tanpa jasa).
+export async function muatBarangCabang(cabangId: number) {
+  return (await muatKatalog(cabangId))
+    .filter((i): i is ItemKatalog & { sumber: 'ban' | 'produk' } => i.sumber !== 'jasa')
+    .map((i) => ({ key: i.key, sumber: i.sumber, id: i.id, nama: i.nama, keterangan: i.keterangan, kode: i.kode, barcode: i.barcode, ukuran: i.ukuran, stok: i.stok ?? 0, harga: i.harga }))
+}
