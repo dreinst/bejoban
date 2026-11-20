@@ -9,13 +9,14 @@ const aktif = (path: string, menu = owner) => {
   return `${a.menu ?? '-'}/${a.tab ?? '-'}`
 }
 
-test('sidebar paling banyak enam menu, owner melihat semuanya dalam urutan yang ditetapkan', () => {
-  assert.ok(ADMIN_MENU.length <= 6)
-  assert.deepEqual(owner.map((m) => m.label), ['Ringkasan', 'Stok dan harga', 'Chatbot', 'Ongkir', 'Situs', 'Pengaturan'])
+test('sidebar paling banyak tujuh menu, owner melihat semuanya dalam urutan yang ditetapkan', () => {
+  assert.ok(ADMIN_MENU.length <= 7)
+  assert.deepEqual(owner.map((m) => m.label), ['Ringkasan', 'Kasir', 'Stok dan harga', 'Chatbot', 'Ongkir', 'Situs', 'Pengaturan'])
 })
 
-test('admin cabang hanya mendapat empat menu tanpa item owner', () => {
-  assert.deepEqual(cabang.map((m) => m.label), ['Ringkasan', 'Stok dan harga', 'Chatbot', 'Ongkir'])
+test('admin cabang hanya mendapat lima menu tanpa item owner', () => {
+  assert.deepEqual(cabang.map((m) => m.label), ['Ringkasan', 'Kasir', 'Stok dan harga', 'Chatbot', 'Ongkir'])
+  assert.deepEqual(cabang.find((m) => m.key === 'kasir')!.tabs.map((t) => t.key), ['transaksi-baru', 'riwayat'])
   const tabs = cabang.flatMap((m) => m.tabs)
   assert.ok(tabs.every((t) => !t.owner))
   assert.deepEqual(cabang.find((m) => m.key === 'stok-harga')!.tabs.map((t) => t.key), ['produk-situs', 'perlu-dicek'])
@@ -29,6 +30,11 @@ test('admin cabang hanya mendapat empat menu tanpa item owner', () => {
 test('tiap alamat baru memetakan ke menu dan tab yang benar (owner)', () => {
   const peta: Record<string, string> = {
     '/admin': 'ringkasan/-',
+    '/admin/kasir': 'kasir/transaksi-baru',
+    '/admin/kasir/riwayat': 'kasir/riwayat',
+    '/admin/kasir/diskon': 'kasir/tinjau-diskon',
+    '/admin/kasir/pengaturan': 'kasir/pengaturan-kasir',
+    '/admin/kasir/barang': 'kasir/pengaturan-kasir',
     '/admin/stok-ban': 'stok-harga/stok-ban',
     '/admin/harga-jasa': 'stok-harga/harga-jasa',
     '/admin/harga': 'stok-harga/produk-situs',

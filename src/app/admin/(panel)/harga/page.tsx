@@ -59,10 +59,12 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
   // Produk dipakai bersama semua cabang, jadi hanya owner yang menambah.
   const tambah = owner ? <Link href="/admin/produk/baru" className="adm-btn-line">+ Tambah produk</Link> : undefined
   const namaCabang = namaPendek(branch.name)
+  // Cabang bermode kasir: harga jual dan stok hanya dibaca di sini, diatur lewat Kasir (server juga mengabaikannya).
+  const kasir = branch.modeStok === 'kasir'
   // Kolom isian: dibungkus supaya lebarnya tetap kecil di tabel dan tidak melebar di kartu 390 px.
   const angka = (name: string, label: string, value: string | number, lebar = 'w-28') => (
     <span className={`inline-block ${lebar} align-middle max-md:w-full`}>
-      <input name={name} inputMode="numeric" aria-label={label} defaultValue={value} className={`${inputCls} min-h-10 text-right max-md:min-h-11`} />
+      <input name={name} inputMode="numeric" aria-label={label} defaultValue={value} readOnly={kasir} className={`${inputCls} min-h-10 text-right max-md:min-h-11`} />
     </span>
   )
 
@@ -91,6 +93,12 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
           label="Pilih cabang"
           items={branches.map((b) => ({ href: url({ cabang: String(b.id) }), label: namaPendek(b.name), active: b.id === branchId }))}
         />
+      )}
+      {kasir && (
+        <p className="adm-card p-4 text-sm text-ink">
+          <b>Cabang {namaCabang} memakai kasir.</b>{' '}
+          <span className="text-mute">Harga jual dan stok di sini mengikuti batch kasir dan tidak bisa diubah dari tabel ini. Harga coret, Dijual, dan Promo kilat tetap bisa diubah.{owner ? ' Koreksi stok dan harga batch lewat tombol Batch di tiap baris.' : ''}</span>
+        </p>
       )}
       <ListToolbar
         count={products.length}
@@ -129,7 +137,7 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
                   </>
                 ),
               },
-              { key: 'harga', header: 'Harga jual', align: 'right', hpKolom: '1 / 3', cell: (p) => <RupiahInput name={`p${p.id}_price`} label={`Harga jual ${p.name}`} defaultValue={p.listings[0]?.price ?? ''} /> },
+              { key: 'harga', header: 'Harga jual', align: 'right', hpKolom: '1 / 3', cell: (p) => <RupiahInput name={`p${p.id}_price`} label={`Harga jual ${p.name}`} defaultValue={p.listings[0]?.price ?? ''} readOnly={kasir} /> },
               { key: 'coret', header: 'Harga coret', align: 'right', hpKolom: '3 / -1', cell: (p) => <RupiahInput name={`p${p.id}_compare`} label={`Harga coret ${p.name}`} defaultValue={p.listings[0]?.comparePrice || ''} /> },
               { key: 'stok', header: 'Stok', align: 'right', hpKolom: '1 / 3', cell: (p) => angka(`p${p.id}_stock`, `Stok ${p.name}`, p.listings[0]?.stock ?? '', 'w-20') },
               {
@@ -156,7 +164,10 @@ export default async function Harga({ searchParams }: PageProps<'/admin/harga'>)
               },
             ]}
             actions={(p) => (
-              <Link href={`/admin/produk/${p.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Ubah detail ${p.name}`}>Ubah detail</Link>
+              <span className="flex flex-wrap justify-end gap-2">
+                {kasir && owner && p.listings[0] && <Link href={`/admin/kasir/barang?sumber=produk&id=${p.listings[0].id}`} className="adm-btn-line adm-btn-sm" aria-label={`Batch ${p.name}`}>Batch</Link>}
+                <Link href={`/admin/produk/${p.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Ubah detail ${p.name}`}>Ubah detail</Link>
+              </span>
             )}
           />
           <BilahSimpan formId="form-harga">Simpan harga dan stok</BilahSimpan>

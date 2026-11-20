@@ -44,7 +44,8 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   const q = String(sp.q ?? '').trim().slice(0, 60)
   const ring = Number(sp.ring) || 0
   const f = ['masalah', 'manual', 'habis'].includes(String(sp.f)) ? String(sp.f) : ''
-  const branches = await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true } })
+  const branches = await db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }], select: { id: true, slug: true, name: true, modeStok: true } })
+  const cabangKasir = new Set(branches.filter((b) => b.modeStok === 'kasir').map((b) => b.id))
   // Filter cabang: kosong = semua, "tanpa" = baris tanpa cabang, atau slug cabang.
   const cbRaw = String(sp.cb ?? '')
   const cbBranch = branches.find((b) => b.slug === cbRaw) ?? null
@@ -88,9 +89,9 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
   }
   const back = params({ hal: halaman > 1 ? String(halaman) : '' })
   const targets = [
-    { value: '', label: 'Tanpa cabang', url: sheetUrl('stok.sheet') },
-    ...branches.map((b) => ({ value: b.slug, label: namaPendek(b.name), url: sheetUrl(`stok.sheet.${b.slug}`) })),
-    { value: GABUNGAN, label: 'Satu sheet untuk semua cabang', url: sheetUrl('stok.sheet.gabungan') },
+    { value: '', label: 'Tanpa cabang', url: sheetUrl('stok.sheet'), kasir: false },
+    ...branches.map((b) => ({ value: b.slug, label: namaPendek(b.name), url: sheetUrl(`stok.sheet.${b.slug}`), kasir: cabangKasir.has(b.id) })),
+    { value: GABUNGAN, label: 'Satu sheet untuk semua cabang', url: sheetUrl('stok.sheet.gabungan'), kasir: false },
   ]
   const grup = banding ? bandingCabang(rows) : []
   const kolomBanding: (number | null)[] = [...(tanpaCabang ? [null] : []), ...branches.map((b) => b.id)]
@@ -119,13 +120,19 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             </div>
           </details>
           <div className="mt-2 space-y-3">
-            {targets.map((t) => (
-              <form key={t.value || 'tanpa'} action={syncSheet} className="flex flex-wrap items-end gap-2">
-                <input type="hidden" name="cabang" value={t.value} />
-                <TextField className="min-w-0 flex-1 basis-60" id={`sheet-${t.value || 'tanpa'}`} label={t.label} name="url" defaultValue={t.url} placeholder="Tempel tautan Google Sheets" />
-                <SubmitButton className="adm-btn-line" pending="Menyinkron...">Sinkron</SubmitButton>
-              </form>
-            ))}
+            {targets.map((t) =>
+              t.kasir ? (
+                <p key={t.value} className="rounded-lg border border-line bg-soft px-3 py-2 text-sm text-mute">
+                  <b className="text-ink">{t.label}</b>: memakai kasir, stoknya tidak diambil dari sheet.
+                </p>
+              ) : (
+                <form key={t.value || 'tanpa'} action={syncSheet} className="flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="cabang" value={t.value} />
+                  <TextField className="min-w-0 flex-1 basis-60" id={`sheet-${t.value || 'tanpa'}`} label={t.label} name="url" defaultValue={t.url} placeholder="Tempel tautan Google Sheets" />
+                  <SubmitButton className="adm-btn-line" pending="Menyinkron...">Sinkron</SubmitButton>
+                </form>
+              ),
+            )}
           </div>
         </section>
 
@@ -136,7 +143,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
             <FormGrid cols={1}>
               <SelectField label="Masuk ke" name="cabang" id="impor-cabang" defaultValue="">
                 <option value="">Tanpa cabang</option>
-                {branches.map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
+                {branches.filter((b) => !cabangKasir.has(b.id)).map((b) => <option key={b.slug} value={b.slug}>Cabang {namaPendek(b.name)}</option>)}
                 <option value={GABUNGAN}>Satu sheet untuk semua cabang (ada kolom Cabang)</option>
               </SelectField>
               <BerkasInput label="Berkas CSV" name="file" accept=".csv,text/csv,text/plain" />
@@ -217,6 +224,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                   <>
                     <p>Semua {tanpaCabang} baris tanpa cabang menjadi stok cabang {namaPendek(b.name)}. Bot lalu hanya menyebut stok ini untuk pelanggan cabang itu.</p>
                     <p className="text-mute">Baris yang ukuran dan mereknya sudah ada di {namaPendek(b.name)} dilewati dan tetap tanpa cabang. Aksi ini tercatat di log aktivitas dan buku stok.</p>
+                    {cabangKasir.has(b.id) && <p className="text-mute">{namaPendek(b.name)} memakai kasir, jadi tiap ban yang berstok mendapat batch awal dengan harga sekarang.</p>}
                   </>
                 }
                 alternative={{ action: tetapkanCabang, fields: { cabang: b.slug, yakin: 'on' }, label: `Tetapkan ke ${namaPendek(b.name)}` }}
@@ -347,22 +355,31 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
               { key: 'ringkas', header: 'Ringkas', hanyaHp: true, mobileLabel: false, cell: (t) => `${rp(t.price)} · ${t.stock === 0 ? 'stok habis' : `stok ${t.stock}`}` },
               { key: 'ket', header: 'Keterangan', mobile: 'hide', cell: (t) => <span className="line-clamp-2 text-mute">{t.note || '-'}</span> },
             ]}
-            actions={(t) => (
+            actions={(t) => {
+              const kasir = t.cabangId !== null && cabangKasir.has(t.cabangId)
+              return (
               <Drawer trigger="Ubah" triggerLabel={`Ubah ${t.sizeRaw} ${t.brand}`} title={`Ubah ${t.sizeRaw} ${t.brand}`} description={`Ring ${t.ring}, ${t.cabangId === null ? 'tanpa cabang' : `cabang ${namaCabang(t.cabangId)}`}. Perubahan stok tercatat di buku stok sebagai koreksi.`}>
+                {kasir && (
+                  <p className="mb-4 rounded-lg border border-line bg-soft p-3 text-sm text-ink">
+                    Cabang ini memakai kasir, jadi harga, potongan, dan stok hanya bisa diubah lewat batch kasir.{' '}
+                    <Link href={`/admin/kasir/barang?sumber=ban&id=${t.id}`} className="font-semibold underline underline-offset-2">Buka batch dan koreksi stok</Link>
+                  </p>
+                )}
                 <form action={saveStockRow}>
                   <input type="hidden" name="id" value={t.id} />
                   <input type="hidden" name="back" value={back} />
                   <FormGrid>
-                    <TextField label="Harga asli (Rp)" name="price" defaultValue={t.price ?? ''} inputMode="numeric" placeholder="kosong" hint="Kosongkan kalau belum ada harga." />
-                    <TextField label="Potongan (Rp)" name="discount" defaultValue={t.discount || ''} inputMode="numeric" placeholder="0" />
-                    <TextField label="Stok" name="stock" defaultValue={t.stock} inputMode="numeric" required />
+                    <TextField label="Harga asli (Rp)" name="price" defaultValue={t.price ?? ''} inputMode="numeric" placeholder="kosong" hint={kasir ? undefined : 'Kosongkan kalau belum ada harga.'} readOnly={kasir} />
+                    <TextField label="Potongan (Rp)" name="discount" defaultValue={t.discount || ''} inputMode="numeric" placeholder="0" readOnly={kasir} />
+                    <TextField label="Stok" name="stock" defaultValue={t.stock} inputMode="numeric" required readOnly={kasir} />
                     <TextField label="Keterangan" name="note" defaultValue={t.note} maxLength={200} />
                     <CheckField className="sm:col-span-2" label="Kunci baris ini" name="lock" defaultChecked={t.manual ? t.lockManual : true} hint="Sinkron dan impor berikutnya tidak menimpa harga, potongan, stok, dan keterangan baris ini." />
                   </FormGrid>
                   <FormActions><CloseButton /><SubmitButton>Simpan baris</SubmitButton></FormActions>
                 </form>
               </Drawer>
-            )}
+              )
+            }}
             empty={<Empty title="Tidak ada baris stok" action={q || f || cb || ring ? <Link href="/admin/stok-ban" className="adm-btn-line">Hapus saringan</Link> : undefined}>{q || f || cb || ring ? 'Ubah pencarian dan saringan.' : 'Isi stok dulu lewat tombol Perbarui dari pricelist.'}</Empty>}
           />
         )}

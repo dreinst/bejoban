@@ -2,12 +2,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronUp, LayoutDashboard, Menu, MessageCircle, Package, Settings, Store, Truck, X, type LucideIcon } from 'lucide-react'
+import { ChevronUp, LayoutDashboard, Menu, MessageCircle, Package, ReceiptText, Settings, Store, Truck, X, type LucideIcon } from 'lucide-react'
 import { activeFor, type AdminMenu } from '@/lib/admin-menu'
 import { hapusCatatan } from './panel-simpan'
 
 const ICON: Record<string, LucideIcon> = {
   ringkasan: LayoutDashboard,
+  kasir: ReceiptText,
   'stok-harga': Package,
   chatbot: MessageCircle,
   ongkir: Truck,
@@ -16,7 +17,7 @@ const ICON: Record<string, LucideIcon> = {
 }
 
 /* eslint-disable @next/next/no-img-element */
-// Sidebar gelap: paling banyak enam menu tanpa judul kelompok, lalu satu menu profil di bawah.
+// Sidebar gelap: paling banyak tujuh menu tanpa judul kelompok, lalu satu menu profil di bawah.
 // Di layar kecil menjadi bilah atas dengan menu yang bisa dibuka tutup.
 export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; name: string; role: string; logout: () => Promise<void> }) {
   const pathname = usePathname()

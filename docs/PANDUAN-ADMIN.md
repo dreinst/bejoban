@@ -4,13 +4,17 @@ Halaman admin ada di `/admin`. Ada dua peran, owner dan admin cabang.
 
 ## Menu dan tab
 
-Sidebar berisi paling banyak enam menu, tanpa judul kelompok. Tiap menu punya tab di bagian atas halaman, dan tiap tab punya alamat sendiri. Susunan menu, tab, dan hak owner diatur di satu berkas, `src/lib/admin-menu.ts`, beserta tesnya di `tests/menu.test.ts`. Di layar kecil menu dibuka dengan tombol di bilah atas, dan tab bisa digeser ke samping.
+Sidebar berisi paling banyak tujuh menu, tanpa judul kelompok. Tiap menu punya tab di bagian atas halaman, dan tiap tab punya alamat sendiri. Susunan menu, tab, dan hak owner diatur di satu berkas, `src/lib/admin-menu.ts`, beserta tesnya di `tests/menu.test.ts`. Di layar kecil menu dibuka dengan tombol di bilah atas, dan tab bisa digeser ke samping.
 
 Nama pengguna, *Lihat situs*, *Akun saya*, dan *Keluar* ada di satu menu profil di bawah sidebar. Admin cabang juga mendapat *Data cabang saya* di sana.
 
 | Menu | Tab (alamat) | Owner | Admin cabang |
 | --- | --- | --- | --- |
 | Ringkasan | tanpa tab (`/admin`) | ya | ya, cabangnya |
+| Kasir | Transaksi baru (`/admin/kasir`) | ya, pilih cabang | ya, cabangnya |
+| | Riwayat (`/admin/kasir/riwayat`, nota di `/admin/nota/[id]`) | ya | ya, cabangnya |
+| | Tinjau diskon (`/admin/kasir/diskon`) | ya | tidak |
+| | Pengaturan kasir (`/admin/kasir/pengaturan`, juga `/admin/kasir/barang`) | ya | tidak |
 | Stok dan harga | Stok ban (`/admin/stok-ban`) | ya | tidak |
 | | Harga jasa (`/admin/harga-jasa`) | ya | tidak |
 | | Produk situs (`/admin/harga`, juga `/admin/produk/baru` dan `/admin/produk/[id]`) | ya | ya, harga dan stok cabangnya |
@@ -75,6 +79,54 @@ Produk dengan label **contoh** adalah data isian awal. Ganti nama, harga, dan fo
 ### Form panjang
 
 Halaman *Tautan WhatsApp*, *Pengaturan bot*, dan *Pengaturan ongkir* dipecah per bagian. Tiap bagian punya tombol simpan sendiri dan hanya menyimpan bagian itu.
+
+## Kasir
+
+Kasir dipakai untuk mencatat penjualan di toko dan lewat WhatsApp. Rincian aturan dan skemanya ada di [KASIR.md](KASIR.md).
+
+### Sebelum kasir dipakai
+
+- Owner mengaktifkan kasir per cabang di **Kasir, Pengaturan kasir**. Isi kode nota (2 sampai 5 huruf, misalnya `BTU`), centang pernyataan, lalu tekan *Aktifkan kasir*. Stok dan harga yang ada saat itu menjadi batch awal.
+- Ban yang belum punya cabang tidak bisa dijual kasir. Tetapkan dulu di Stok ban kalau ban itu milik cabang yang akan diaktifkan.
+- Sesudah aktif, stok cabang itu hanya berubah lewat kasir. Impor dan sinkron pricelist untuk cabang itu ditolak, dan isian harga serta stok di Stok ban dan Produk situs terkunci. Belum ada jalan kembali ke mode sheet.
+- Kasir bisa dipasang sebagai aplikasi di HP, tablet, atau PC. Buka Kasir di Chrome, lalu pilih *Instal aplikasi* atau *Tambahkan ke layar utama*.
+
+### Mencatat penjualan
+
+1. Buka **Kasir**. Admin cabang langsung memakai cabangnya. Owner memilih cabang kalau lebih dari satu yang aktif.
+2. Ketik ukuran, merek, nama, atau kode di kolom cari. `185 65 15` menemukan `185/65 R15`. Tekan barangnya, atau tekan Enter untuk menambah hasil pertama. Pemindai barcode juga bisa dipakai.
+3. Atur jumlah dengan tombol minus dan plus. Kalau jumlah melebihi stok, layar menyebut stok di cabang lain.
+4. Pilih channel (Toko atau WhatsApp) dan metode bayar (Tunai, QRIS, Debit). Untuk tunai, isi uang diterima atau tekan *Uang pas*. Kembalian tampil di bawah total.
+5. Tekan *Bayar*, periksa ringkasannya, lalu *Simpan transaksi*. Nota langsung terbuka.
+
+Harga yang tampil adalah harga batch yang akan terjual. Kalau stok satu barang berasal dari dua batch dengan harga berbeda, keranjang menulis keduanya, misalnya `1 × Rp 100.000 + 2 × Rp 120.000`. Semua harga sudah termasuk pajak.
+
+Kalau koneksi putus saat menyimpan, tekan *Simpan transaksi* lagi. Nota yang sama tidak akan tercatat dua kali.
+
+### Diskon
+
+Isi *Diskon nota* dalam rupiah dan alasannya. Transaksi tetap jalan. Diskon dari admin cabang masuk antrean **Tinjau diskon** untuk owner. Owner menandai *Setujui* atau *Tolak*, dan transaksinya tidak berubah. Kalau nota perlu dibatalkan, owner membuka notanya lalu void. Diskon dari owner langsung berlaku dan tercatat di log.
+
+### Nota
+
+Halaman nota punya tombol *Cetak* (pilih kertas 58 mm, 80 mm, atau A4 dulu), *Bagikan* (di HP membuka pilihan kirim, misalnya WhatsApp), dan *Salin teks* untuk ditempel ke chat pelanggan.
+
+### Void
+
+Buka nota dari **Riwayat**, tekan *Void transaksi*, tulis alasannya, lalu konfirmasi. Stok kembali ke batch asalnya dan nota diberi tanda VOID. Admin cabang hanya bisa void transaksi cabangnya di hari yang sama. Transaksi hari sebelumnya di-void owner.
+
+### Riwayat dan tutup kas
+
+**Riwayat** menampilkan transaksi hari ini. Ganti tanggal atau cabang lalu tekan *Terapkan*. Rekap di atas daftar menyebut total per metode bayar, jumlah transaksi, diskon, dan void per cabang, untuk dicocokkan dengan uang di laci dan mutasi QRIS atau debit.
+
+### Harga batch, koreksi stok, dan batas minimum (owner)
+
+Di **Pengaturan kasir**, cari barangnya lalu tekan *Buka*. Tombol yang sama ada di panel Ubah Stok ban dan tombol *Batch* di Produk situs.
+
+- *Ubah harga* di baris batch mengganti harga jual batch itu saja. Batch lain tetap.
+- *Koreksi stok* menyetel stok ke angka baru dengan alasan wajib. Pengurangan diambil dari batch tertua. Penambahan menjadi batch baru dengan harga yang diisi, atau harga batch terdepan kalau dikosongkan. Barang datang dicatat lewat koreksi ini sampai fitur barang masuk tersedia.
+- *Batas minimum* memunculkan peringatan *Stok menipis* di Perlu dicek kalau stok turun ke angka itu atau di bawahnya, dan notifikasi ke admin cabang serta owner. Kosongkan untuk mematikan.
+- *Periksa sekarang* di Pengaturan kasir memastikan stok dan harga tiap baris cocok dengan batch-nya.
 
 ## Fitur internal
 

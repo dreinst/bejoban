@@ -9,6 +9,7 @@ import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
+import { GalatStok } from '@/lib/stok/logika'
 import { aksesSimpanProduk } from '@/lib/admin/produk'
 import { arahDari, aturanHapus, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
 import type { HasilAksi } from '@/components/admin/row-controls'
@@ -104,7 +105,8 @@ export async function saveProduct(fd: FormData) {
 
   for (const { branchId, listing } of rencana) {
     const ref = { productId: product.id, branchId, pengguna: penggunaDari(s), refId: `produk:${product.id}` }
-    if (!listing.available && !listing.price) {
+    // Cabang bermode kasir tidak pernah menghapus listing dari sini: harganya terkunci, jadi isian harga selalu kosong.
+    if (!listing.available && !listing.price && branches.find((b) => b.id === branchId)?.modeStok !== 'kasir') {
       await hapusListing(ref)
       continue
     }
@@ -120,7 +122,13 @@ export async function deleteProduct(fd: FormData) {
   const id = int(fd, 'id')
   const p = await db.product.findUnique({ where: { id }, select: { name: true } })
   if (!p) return gagal('/admin/harga', 'Produk tidak ditemukan')
-  await hapusProduk({ productId: id, pengguna: penggunaDari(s) })
+  try {
+    await hapusProduk({ productId: id, pengguna: penggunaDari(s) })
+  } catch (e) {
+    // Stok cabang bermode kasir tidak bisa dihapus dari sini (src/lib/stok/ubah.ts).
+    if (e instanceof GalatStok) gagal(`/admin/produk/${id}`, `${e.message} Kosongkan stoknya lewat koreksi dulu.`)
+    throw e
+  }
   await catat(s, 'hapus', 'produk', { id, nama: p.name })
   done('/admin/harga', `${p.name} dihapus`)
 }

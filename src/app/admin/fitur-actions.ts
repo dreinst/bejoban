@@ -64,11 +64,17 @@ const labelTujuan = (t: Tujuan) => (t.jenis === 'cabang' ? `cabang ${namaPendek(
 // Jalankan impor sesuai tujuan dan kembalikan pesan hasil. Sheet gabungan diimpor per cabang, satu transaksi per cabang.
 async function jalankanImpor(r: ParseResult, source: ImportSource, tujuan: Tujuan, s: { uid: number }): Promise<string> {
   const pengguna = penggunaDari(s)
+  // Cabang bermode kasir menolak impor dan sinkron. Diperiksa juga di applyImport di dalam transaksi.
+  const kasir = await db.branch.findMany({ where: { modeStok: 'kasir' }, select: { id: true, name: true } })
+  const tolak = (nama: string) => go(STOK_PAGE, `Cabang ${namaPendek(nama)} memakai mode kasir, jadi stoknya tidak bisa diganti dari pricelist atau Google Sheets.`, 'err')
+  if (tujuan.jenis === 'cabang' && kasir.some((b) => b.id === tujuan.id)) tolak(tujuan.name)
   const aksi = source === 'sheet' ? 'sinkron' : 'impor'
   if (tujuan.jenis === 'gabungan') {
     if (!r.adaKolomCabang) go(STOK_PAGE, 'Sumber ini tidak punya kolom "Cabang" di baris judul. Pilih cabangnya, atau tambahkan kolom Cabang.', 'err')
     const branches = await db.branch.findMany({ select: { id: true, slug: true, name: true }, orderBy: { id: 'asc' } })
     const { bagian, masalah } = pisahPerCabang(r, branches)
+    const bentrok = bagian.find((b) => kasir.some((k) => k.id === b.cabang.id))
+    if (bentrok) tolak(bentrok.cabang.name)
     if (!bagian.length) go(STOK_PAGE, `Tidak ada baris dengan cabang yang dikenali (${masalah.length} baris dilewati). Isi kolom Cabang dengan Batu atau Karanglo.`, 'err')
     const list: RingkasanImpor[] = []
     for (const b of bagian) list.push(await applyImport(b.hasil, source, pengguna, b.cabang.id, false))
@@ -141,6 +147,14 @@ export async function saveStockRow(fd: FormData) {
   const discount = int(fd, 'discount')
   if (price !== null && discount >= price) go(to, 'Potongan harus lebih kecil dari harga', 'err')
   const stock = int(fd, 'stock')
+  // Baris cabang bermode kasir: harga, potongan, dan stok diatur lewat batch kasir, jadi hanya keterangan dan kunci yang disimpan.
+  const baris = await db.stockTire.findUnique({ where: { id }, select: { cabangId: true } })
+  const kasir = baris?.cabangId != null && (await db.branch.findUnique({ where: { id: baris.cabangId }, select: { modeStok: true } }))?.modeStok === 'kasir'
+  if (kasir) {
+    await db.stockTire.update({ where: { id }, data: { note: str(fd, 'note', 200), lockManual: fd.get('lock') === 'on' } })
+    await catat(s, 'simpan', 'stok_ban', { id, hanyaKeterangan: true })
+    go(to, 'Keterangan tersimpan. Harga dan stok cabang ini diatur lewat Kasir.')
+  }
   // Kolom lain dan stok (lewat buku stok, tipe koreksi) disimpan dalam satu transaksi.
   try {
     await db.$transaction(async (tx) => {

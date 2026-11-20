@@ -2,7 +2,8 @@
 // dan daftar pengalihan alamat lama. Berkas ini murni (tanpa React, tanpa database) supaya bisa dites.
 //
 // Aturan:
-// - Paling banyak enam menu. Menu tanpa tab (Ringkasan) cocok hanya dengan alamatnya sendiri.
+// - Paling banyak tujuh menu. Menu tanpa tab (Ringkasan) cocok hanya dengan alamatnya sendiri.
+//   Menu ketujuh adalah Kasir; halaman kasir lainnya memakai tab supaya sidebar tidak bertambah.
 // - Tab aktif ditentukan dari alamat halaman: pola terpanjang yang cocok menang
 //   (mis. /admin/chatbot/uji lebih cocok ke Kotak uji daripada ke Percakapan).
 // - `owner: true` berarti hanya owner yang melihatnya. Ini hanya penyaring tampilan;
@@ -10,7 +11,8 @@
 // - Halaman yang tidak masuk tab (Akun saya, Panduan ukuran foto) tidak punya menu aktif.
 //
 // Pemetaan ke modul BejoStock (Asah): Ringkasan = Analitik, Stok dan harga = Inventaris,
-// Pengaturan = Akses. Modul Kasir dan Harga belum ada di sini; rinciannya di docs/PENYELARASAN-BEJOSTOCK.md.
+// Pengaturan = Akses, Kasir = Kasir (transaksi, riwayat, tinjau diskon, harga batch). Rinciannya di
+// docs/PENYELARASAN-BEJOSTOCK.md dan docs/KASIR.md.
 
 export type Role = 'OWNER' | 'BRANCH_ADMIN'
 
@@ -32,6 +34,17 @@ export type AdminMenu = {
 
 export const ADMIN_MENU: AdminMenu[] = [
   { key: 'ringkasan', label: 'Ringkasan', href: '/admin', tabs: [] },
+  {
+    key: 'kasir',
+    label: 'Kasir',
+    href: '/admin/kasir',
+    tabs: [
+      { key: 'transaksi-baru', label: 'Transaksi baru', href: '/admin/kasir' },
+      { key: 'riwayat', label: 'Riwayat', href: '/admin/kasir/riwayat' },
+      { key: 'tinjau-diskon', label: 'Tinjau diskon', href: '/admin/kasir/diskon', owner: true },
+      { key: 'pengaturan-kasir', label: 'Pengaturan kasir', href: '/admin/kasir/pengaturan', owner: true, match: ['/admin/kasir/pengaturan', '/admin/kasir/barang'] },
+    ],
+  },
   {
     key: 'stok-harga',
     label: 'Stok dan harga',

@@ -74,14 +74,22 @@ export default async function EditProduct({ params }: PageProps<'/admin/produk/[
             <div className="grid gap-4 md:grid-cols-2">
               {branches.filter((b) => canEditBranch(s, b.id)).map((b) => {
                 const l = p?.listings.find((x) => x.branchId === b.id)
+                // Cabang bermode kasir: harga dan stok hanya bisa dilihat, diubah lewat Kasir (server juga mengabaikannya).
+                const kasir = b.modeStok === 'kasir'
                 return (
                   <fieldset key={b.id} className="min-w-0 rounded-[10px] border border-line p-4">
                     <legend className="px-1 font-display text-sm font-extrabold text-ink">Cabang {namaPendek(b.name)}</legend>
                     <div className="grid grid-cols-3 gap-2 max-sm:grid-cols-1">
-                      <TextField id={`b${b.id}-price`} label="Harga jual" name={`b${b.id}_price`} inputMode="numeric" defaultValue={l?.price ?? ''} />
+                      <TextField id={`b${b.id}-price`} label="Harga jual" name={`b${b.id}_price`} inputMode="numeric" defaultValue={l?.price ?? ''} readOnly={kasir} />
                       <TextField id={`b${b.id}-compare`} label="Harga coret" name={`b${b.id}_compare`} inputMode="numeric" defaultValue={l?.comparePrice || ''} />
-                      <TextField id={`b${b.id}-stock`} label="Stok" name={`b${b.id}_stock`} inputMode="numeric" defaultValue={l?.stock ?? ''} />
+                      <TextField id={`b${b.id}-stock`} label="Stok" name={`b${b.id}_stock`} inputMode="numeric" defaultValue={l?.stock ?? ''} readOnly={kasir} />
                     </div>
+                    {kasir && (
+                      <p className="mt-2 text-xs text-mute">
+                        Cabang ini memakai kasir, jadi harga jual dan stok diatur lewat Kasir.{' '}
+                        {owner && l && <Link href={`/admin/kasir/barang?sumber=produk&id=${l.id}`} className="font-semibold text-ink underline underline-offset-2">Atur stok dan harga batch</Link>}
+                      </p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-x-6">
                       <CheckField id={`b${b.id}-sell`} label="Dijual" name={`b${b.id}_sell`} defaultChecked={l?.available ?? false} />
                       <CheckField id={`b${b.id}-flash`} label="Promo kilat" name={`b${b.id}_flash`} defaultChecked={l?.flashSale ?? false} />

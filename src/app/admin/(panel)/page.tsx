@@ -25,6 +25,7 @@ export default async function Dashboard() {
   const tugas = [
     { n: menunggu, label: 'Percakapan menunggu admin', hint: 'balas pelanggan lalu tandai selesai', href: '/admin/chatbot?status=DISERAHKAN' },
     { n: cek.stokKosong, label: 'Stok ban habis', hint: owner ? 'semua cabang' : 'di cabang kamu', href: owner ? '/admin/stok-ban?f=habis' : '/admin/peringatan' },
+    { n: cek.stokMenipis, label: 'Stok menipis', hint: 'sudah di batas minimum atau di bawahnya', href: '/admin/peringatan#menipis' },
     { n: cek.hargaMasalah, label: 'Harga ban perlu diisi', hint: 'harga kosong atau tidak terbaca', href: '/admin/peringatan#harga' },
     { n: cek.produkTanpaHarga, label: 'Produk dijual tanpa harga', hint: 'sakelar harga di situs menyala', href: '/admin/peringatan#produk' },
     { n: noPhoto, label: 'Produk tanpa foto', hint: 'tampil di situs tanpa gambar', href: '/admin/harga?f=tanpa-foto' },
