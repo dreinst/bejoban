@@ -263,18 +263,20 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
                       <button type="button" onClick={() => ubahJumlah(b.key, b.jumlah - 1)} disabled={b.jumlah <= 1} aria-label={`Kurangi ${i.nama}`} className="adm-icon-btn size-11 disabled:opacity-40">
                         <Minus aria-hidden className="size-4" />
                       </button>
-                      <input
-                        aria-label={`Jumlah ${i.nama}`}
-                        inputMode="numeric"
-                        value={b.jumlah}
-                        onChange={(e) => ubahJumlah(b.key, Number(digit(e.target.value)) || 1)}
-                        className={`${inputCls} min-h-11 w-16 text-center text-base`}
-                      />
+                      <span className="block w-16">
+                        <input
+                          aria-label={`Jumlah ${i.nama}`}
+                          inputMode="numeric"
+                          value={b.jumlah}
+                          onChange={(e) => ubahJumlah(b.key, Number(digit(e.target.value)) || 1)}
+                          className={`${inputCls} min-h-11 text-center text-base`}
+                        />
+                      </span>
                       <button type="button" onClick={() => ubahJumlah(b.key, b.jumlah + 1)} aria-label={`Tambah ${i.nama}`} className="adm-icon-btn size-11">
                         <Plus aria-hidden className="size-4" />
                       </button>
                     </div>
-                    <p className="font-semibold text-ink">{rp(sub)}</p>
+                    <p className="whitespace-nowrap font-semibold text-ink">{rp(sub)}</p>
                   </div>
                 </li>
               )
@@ -290,7 +292,8 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             <div>
               <label htmlFor="kasir-diskon" className="mb-1 block text-xs font-semibold text-neutral-700">Diskon nota (Rp)</label>
-              <input id="kasir-diskon" inputMode="numeric" value={diskon} onChange={(e) => setDiskon(digit(e.target.value))} placeholder="0" className={`${inputCls} min-h-11 text-right`} />
+              <input id="kasir-diskon" inputMode="numeric" value={diskon} onChange={(e) => setDiskon(digit(e.target.value))} placeholder="0" aria-describedby="kasir-diskon-rp" className={`${inputCls} min-h-11 text-right`} />
+              <span id="kasir-diskon-rp" className="mt-0.5 block h-4 text-right text-[11px] leading-4 text-mute">{nDiskon > 0 ? rp(nDiskon) : ''}</span>
             </div>
             {nDiskon > 0 && (
               <div>
@@ -304,7 +307,8 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
           {metode === 'tunai' && (
             <div>
               <label htmlFor="kasir-bayar" className="mb-1 block text-xs font-semibold text-neutral-700">Uang diterima (Rp)</label>
-              <input id="kasir-bayar" inputMode="numeric" value={dibayar} onChange={(e) => setDibayar(digit(e.target.value))} placeholder="0" className={`${inputCls} min-h-12 text-right text-base`} />
+              <input id="kasir-bayar" inputMode="numeric" value={dibayar} onChange={(e) => setDibayar(digit(e.target.value))} placeholder="0" aria-describedby="kasir-bayar-rp" className={`${inputCls} min-h-12 text-right text-base`} />
+              <span id="kasir-bayar-rp" className="mt-0.5 block h-4 text-right text-[11px] leading-4 text-mute">{nBayar > 0 ? rp(nBayar) : ''}</span>
               {saranUang.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {saranUang.map((n, k) => (

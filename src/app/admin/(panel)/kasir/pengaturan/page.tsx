@@ -70,7 +70,11 @@ export default async function PengaturanKasir({ searchParams }: PageProps<'/admi
                 <form action={aktifkanKasirAksi} className="space-y-3 text-sm">
                   <input type="hidden" name="cabang" value={b.id} />
                   <ul className="list-disc space-y-1 pl-5 text-ink">
-                    <li>{c!.banStok} dari {c!.ban} baris ban dan {c!.produkStok} dari {c!.produk} produk situs berstok akan mendapat batch awal dengan stok dan harga sekarang.</li>
+                    <li>
+                      {c!.banStok + c!.produkStok > 0
+                        ? `${[c!.banStok ? `${c!.banStok} baris ban` : '', c!.produkStok ? `${c!.produkStok} produk situs` : ''].filter(Boolean).join(' dan ')} yang berstok akan mendapat batch awal dengan stok dan harga sekarang.`
+                        : 'Belum ada ban atau produk situs berstok di cabang ini. Stok bisa ditambah lewat koreksi sesudah kasir aktif.'}
+                    </li>
                     {c!.hargaNol > 0 && <li>{c!.hargaNol} ban berstok belum punya harga, jadi belum bisa dijual sampai harga batch-nya diatur.</li>}
                     {c!.tanpaCabang > 0 && (
                       <li>

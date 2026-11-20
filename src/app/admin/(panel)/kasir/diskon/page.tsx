@@ -35,14 +35,18 @@ export default async function TinjauDiskon() {
   type P = (typeof menunggu)[number]
   const nota = (p: P) => {
     const x = t(p.transaksiId)
-    return x ? <Link href={`/admin/nota/${x.id}`} className="font-semibold text-ink underline underline-offset-2">{x.nomor}</Link> : '-'
+    return (
+      <span className="block">
+        {x ? <Link href={`/admin/nota/${x.id}`} className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">{x.nomor}</Link> : '-'}
+        <span className="block text-xs text-mute">{waktuWib(p.dibuat)}</span>
+      </span>
+    )
   }
   const kolom = [
     { key: 'nota', header: 'Nota', mobile: 'title' as const, cell: nota },
-    { key: 'waktu', header: 'Waktu', cell: (p: P) => waktuWib(p.dibuat) },
     { key: 'cabang', header: 'Cabang', cell: (p: P) => cabang(p.cabangId) },
     { key: 'admin', header: 'Admin', cell: (p: P) => orang(p.pengajuId) },
-    { key: 'diskon', header: 'Diskon', align: 'right' as const, cell: (p: P) => <span className="font-semibold">{rp(p.hargaLama - p.hargaBaru)}</span> },
+    { key: 'diskon', header: 'Diskon', align: 'right' as const, cell: (p: P) => <span className="whitespace-nowrap font-semibold">{rp(p.hargaLama - p.hargaBaru)}</span> },
     { key: 'nilai', header: 'Subtotal ke total', mobile: 'hide' as const, cell: (p: P) => `${rp(p.hargaLama)} ke ${rp(p.hargaBaru)}` },
     { key: 'alasan', header: 'Alasan', cell: (p: P) => <span className="line-clamp-2">{p.alasan}</span> },
   ]
@@ -84,9 +88,8 @@ export default async function TinjauDiskon() {
             rows={selesai}
             rowKey={(p) => p.id}
             columns={[
-              ...kolom.filter((k) => k.key !== 'nilai'),
+              ...kolom.filter((k) => k.key !== 'nilai' && k.key !== 'admin'),
               { key: 'status', header: 'Keputusan', cell: (p: P) => <Badge tone={p.status === 'disetujui' ? 'dark' : 'outline'}>{STATUS[p.status] ?? p.status}</Badge> },
-              { key: 'oleh', header: 'Oleh', mobile: 'hide', cell: (p: P) => (p.penyetujuId ? orang(p.penyetujuId) : '-') },
             ]}
           />
         </Section>

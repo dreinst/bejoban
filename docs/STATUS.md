@@ -1,6 +1,6 @@
 # Status pekerjaan Bejo Ban
 
-Keadaan per 20 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
+Keadaan per 21 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
 
 Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tagihan tidak ditulis di sini. Semuanya dicatat di luar repo, di `~/ndru/bejoban-aset/CATATAN-PRIBADI.md` pada mesin pengembang.
 
@@ -8,10 +8,11 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
-- `npm test` lulus 141 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- Kasir v1 bagian 1 selesai di branch `kasir-v1` dan belum dirilis. `main` dan situs belum memuatnya. Rinciannya di [KASIR.md](KASIR.md).
+- `npm test` lulus 162 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
-- Isi database produksi: 325 baris stok ban (semuanya belum punya cabang), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
+- Isi database produksi: 325 baris stok ban (pada cadangan 20 November 2026 pukul 04.28 UTC semuanya sudah ditetapkan ke cabang Batu), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
 
 ## Yang sudah selesai
 
@@ -43,6 +44,15 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - Baris yang hilang dari pricelist dinonaktifkan dan aktif lagi kalau muncul kembali. Baris yang diubah manual bisa dikunci supaya tidak tertimpa sinkron berikutnya.
 - Setiap perubahan stok tercatat di buku stok, dan aksi admin tercatat di log aktivitas.
 - Skema data sudah diselaraskan dengan rancangan BejoStock. Rinciannya di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
+
+### Kasir (branch `kasir-v1`, belum dirilis)
+
+- Menu Kasir dengan tab Transaksi baru, Riwayat, Tinjau diskon, dan Pengaturan kasir. Aturan, alur, skema, dan beda dengan ERD Asah ada di [KASIR.md](KASIR.md). Cara pakai untuk admin toko ada di [PANDUAN-ADMIN.md](PANDUAN-ADMIN.md).
+- Mode stok per cabang (sheet atau kasir). Owner mengaktifkan kasir per cabang dengan batch awal dari stok dan harga sekarang. Selama mode kasir, impor dan sinkron sheet untuk cabang itu ditolak dan isian stok serta harga di Stok ban dan Produk situs terkunci.
+- Transaksi dengan batch FIFO, diskon nota, tunai dengan kembalian, QRIS, debit, idempotency, dan nota digital untuk kertas 58 mm, 80 mm, dan A4.
+- Void sesuai aturan peran, harga batch oleh owner dengan riwayat harga, koreksi stok oleh owner, batas minimum dan peringatan stok menipis, siaran realtime lewat Server-Sent Events, dan manifest web app kasir.
+- Bagian 2 belum: barang masuk, opname, dashboard owner, rekap bulanan, dan ekspor CSV.
+- Diuji 21 November 2026 di lokal pada salinan data produksi dengan sandi uji, lewat browser tanpa kepala dengan formulir sungguhan: aktivasi kasir, transaksi ban, produk, dan jasa dengan tunai dan kembalian, QRIS, pemecahan batch, penolakan jumlah melebihi stok (di layar dan di server), diskon admin lalu ditinjau owner, void admin, ubah harga batch, batas minimum yang memicu peringatan, pratinjau cetak 58 mm, 80 mm, dan A4, siaran ke layar kasir lain, serta perubahan di Stok ban dan Kotak uji chatbot. 64 pemeriksaan lulus, termasuk tanpa luapan mendatar di 1440, 820, dan 390 px.
 
 ### Ongkir
 
@@ -82,7 +92,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 
 ### Menunggu jawaban toko
 
-1. Pricelist yang sudah diimpor itu milik cabang mana. Sampai dijawab, 325 baris stok ban belum punya cabang. Ikut ditanyakan: daftar stok cabang satunya, dan apakah harga dua cabang sama.
+1. Pricelist yang sudah diimpor itu milik cabang mana. Di cadangan 20 November 2026 ke-325 barisnya sudah ditetapkan ke Batu, tetapi kepastiannya dari toko belum tercatat di sini. Ikut ditanyakan: daftar stok cabang satunya, dan apakah harga dua cabang sama.
 2. Daftar tarif agen J&T Cargo dan Baraka Express.
 3. Berat dan ukuran kemasan ban per ring. Angka yang terpasang masih contoh.
 4. Kepastian harga untuk empat baris di tab Perlu dicek.
@@ -95,9 +105,8 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 ### Menunggu keputusan pemilik proyek
 
 - Nomor WhatsApp Business utama dan nomor admin tiap cabang. Tanpa ini bot tidak bisa disambungkan.
-- Kelanjutan rancangan BejoStock: kasir, penyatuan stok ban dan produk situs, serta aturan diskon. Pindah basis data sudah diputuskan ke PostgreSQL (20 November 2026), bukan MySQL. Daftar lengkapnya ada di bagian "Yang sengaja ditunda" di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
+- Kelanjutan rancangan BejoStock: penyatuan stok ban dan produk situs. Kasir dan aturan diskon sudah diputuskan dan bagian 1-nya dibangun di branch `kasir-v1`. Pindah basis data sudah diputuskan ke PostgreSQL (20 November 2026), bukan MySQL. Daftar lengkapnya ada di bagian "Yang sengaja ditunda" di [PENYELARASAN-BEJOSTOCK.md](PENYELARASAN-BEJOSTOCK.md).
 - Kalender libur dan promo. Halamannya ada di `/admin/kalender` tetapi disembunyikan dari menu, karena datanya belum dipakai bot maupun situs.
-- Kolom batas minimum stok.
 - Bawaan kotak "Kunci baris ini" di panel Ubah stok ban. Sekarang kotak itu tercentang dari awal, jadi menekan Simpan tanpa mengubah apa pun tetap mengunci baris dari sinkron dan impor berikutnya.
 - Urusan server: waktu reboot untuk memasang kernel baru, deploy otomatis, cadangan ke luar server, dan kanal notifikasi pemantau.
 
@@ -148,6 +157,9 @@ Urutan yang dipakai sejauh ini:
 Migrasi baru diuji dulu pada salinan database produksi sebelum dirilis. Pada 20 November 2026 `npm ci` di dalam build sekali melewati paket biner `lightningcss` untuk Linux tanpa galat, sehingga `next build` gagal. Dockerfile di server sekarang memeriksa paket biner itu bisa dimuat sesudah `npm ci`.
 
 ## Jebakan
+
+- Kasir: sesudah kasir aktif di satu cabang, stok cabang itu tidak bisa lagi diganti dari pricelist dan belum ada jalan kembali ke mode sheet. Sebelum toko memakai kasir, ganti dulu sandi akun produksi yang masih gampang.
+- Kasir: siaran realtime memakai pemancar di dalam proses. Kalau aplikasi suatu saat dijalankan lebih dari satu proses, ganti dengan `LISTEN/NOTIFY` PostgreSQL (lihat [KASIR.md](KASIR.md)).
 
 - `npm run seed:lokal` menghapus semua harga jasa lalu membuatnya ulang dari `seed.json`. Skrip itu juga menimpa alamat dan foto cabang, serta nama, spesifikasi, dan foto produk yang ada di berkas. Di produksi `seed.json` sengaja hanya berisi bagian merek dan dua teks beranda. Versi lengkapnya disimpan sebagai `seed-lengkap.json` di folder yang sama. Jangan menjalankan seed lengkap di produksi.
 - Seed tidak mengubah urutan dan status by order merek yang sudah ada. Urutan merek di produksi disetel langsung di database.

@@ -204,7 +204,7 @@ export async function koreksiStok(p: { sumber: SumberStok; barisId: number; setK
       const harga = p.harga ?? depan ?? baris.harga
       if (!Number.isInteger(harga) || harga < 0) throw new GalatKasir('Harga batch harus rupiah bulat')
       const batch = await buatBatchTx(tx, baris, { jumlah: selisih, harga, jenis: 'koreksi' })
-      await tx.riwayatHarga.create({ data: { sumber: p.sumber, kodeProduk: baris.kode, cabangId: baris.cabangId!, batchId: batch.id, hargaLama: depan, harga, pengguna: p.pengguna } })
+      await tx.riwayatHarga.create({ data: { sumber: p.sumber, kodeProduk: baris.kode, cabangId: baris.cabangId!, batchId: batch.id, hargaLama: null, harga, pengguna: p.pengguna } })
       hasil = [await ubahStokTx(tx, { target: baris.target, delta: selisih, tipe: 'koreksi', refId, batchId: batch.id, pengguna: p.pengguna, jalurKasir: true })]
     }
     await samakanHargaTx(tx, p.sumber, p.barisId)

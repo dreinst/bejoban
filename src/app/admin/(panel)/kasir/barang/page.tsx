@@ -8,8 +8,7 @@ import { namaPendek } from '@/lib/tire/cabang'
 import { Badge, PageBody, PageHeader, Section, SettingsGrid } from '@/components/admin/ui'
 import { DataTable } from '@/components/admin/data-table'
 import { FormActions, TextField } from '@/components/admin/field'
-import { inputCls } from '@/components/admin/form-cls'
-import { SubmitButton } from '@/components/admin/overlay'
+import { CloseButton, Modal, SubmitButton } from '@/components/admin/overlay'
 import { aturBatasAksi, koreksiStokAksi, ubahHargaBatchAksi } from '../../../kasir-actions'
 
 const rp = (n: number | null) => (n === null ? 'kosong' : `Rp ${n.toLocaleString('id-ID')}`)
@@ -59,6 +58,7 @@ export default async function BarangKasir({ searchParams }: PageProps<'/admin/ka
           <DataTable<B>
             caption="Daftar batch"
             tanpaBingkai
+            actionsBelow
             rows={batch}
             rowKey={(b) => b.id}
             muted={(b) => b.sisa === 0}
@@ -70,13 +70,17 @@ export default async function BarangKasir({ searchParams }: PageProps<'/admin/ka
             ]}
             actions={(b) =>
               b.sisa > 0 ? (
-                <form action={ubahHargaBatchAksi} className="flex items-center gap-2">
-                  <input type="hidden" name="batch" value={b.id} />
-                  <input type="hidden" name="back" value={ini} />
-                  <label htmlFor={`harga-${b.id}`} className="sr-only">Harga baru batch {waktuWib(b.tanggalMasuk)}</label>
-                  <input id={`harga-${b.id}`} name="harga" inputMode="numeric" required defaultValue={b.hargaJual || ''} className={`${inputCls} min-h-11 w-32 text-right`} />
-                  <SubmitButton className="adm-btn-line adm-btn-sm min-h-11">Ubah harga</SubmitButton>
-                </form>
+                <Modal trigger="Ubah harga" triggerLabel={`Ubah harga batch ${waktuWib(b.tanggalMasuk)}`} title="Ubah harga batch" description={`Batch ${waktuWib(b.tanggalMasuk)}, sisa ${b.sisa}. Batch lain tidak ikut berubah.`}>
+                  <form action={ubahHargaBatchAksi}>
+                    <input type="hidden" name="batch" value={b.id} />
+                    <input type="hidden" name="back" value={ini} />
+                    <TextField id={`harga-${b.id}`} label="Harga jual baru (Rp)" name="harga" inputMode="numeric" required defaultValue={b.hargaJual || ''} />
+                    <FormActions>
+                      <CloseButton />
+                      <SubmitButton>Simpan harga</SubmitButton>
+                    </FormActions>
+                  </form>
+                </Modal>
               ) : null
             }
             empty={<p className="py-4 text-sm text-mute">Belum ada batch. Stok baris ini 0 saat kasir diaktifkan. Tambah stok lewat koreksi.</p>}
@@ -122,7 +126,7 @@ export default async function BarangKasir({ searchParams }: PageProps<'/admin/ka
               {riwayat.map((r) => (
                 <li key={r.id} className="flex justify-between gap-3 py-2">
                   <span className="text-mute">{waktuWib(r.berlakuMulai)}</span>
-                  <span>{r.hargaLama === null ? `awal ${rp(r.harga)}` : `${rp(r.hargaLama)} ke ${rp(r.harga)}`}</span>
+                  <span>{r.hargaLama === null ? `batch baru ${rp(r.harga)}` : `${rp(r.hargaLama)} ke ${rp(r.harga)}`}</span>
                 </li>
               ))}
             </ul>
