@@ -8,8 +8,8 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
-- Kasir v1 bagian 1 selesai di branch `kasir-v1` dan belum dirilis. `main` dan situs belum memuatnya. Rinciannya di [KASIR.md](KASIR.md).
-- `npm test` lulus 162 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- Kasir v1 bagian 1 dan 2 selesai di branch `kasir-v1` dan belum dirilis. `main` dan situs belum memuatnya. Rinciannya di [KASIR.md](KASIR.md).
+- `npm test` lulus 175 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (pada cadangan 20 November 2026 pukul 04.28 UTC semuanya sudah ditetapkan ke cabang Batu), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -47,12 +47,13 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 ### Kasir (branch `kasir-v1`, belum dirilis)
 
-- Menu Kasir dengan tab Transaksi baru, Riwayat, Tinjau diskon, dan Pengaturan kasir. Aturan, alur, skema, dan beda dengan ERD Asah ada di [KASIR.md](KASIR.md). Cara pakai untuk admin toko ada di [PANDUAN-ADMIN.md](PANDUAN-ADMIN.md).
+- Menu Kasir dengan tab Transaksi baru, Riwayat, Barang masuk, Opname, Tinjau pengajuan, Dashboard, Rekap dan ekspor, dan Pengaturan kasir. Aturan, alur, skema, dan beda dengan ERD Asah ada di [KASIR.md](KASIR.md). Cara pakai untuk admin toko ada di [PANDUAN-ADMIN.md](PANDUAN-ADMIN.md).
 - Mode stok per cabang (sheet atau kasir). Owner mengaktifkan kasir per cabang dengan batch awal dari stok dan harga sekarang. Selama mode kasir, impor dan sinkron sheet untuk cabang itu ditolak dan isian stok serta harga di Stok ban dan Produk situs terkunci.
 - Transaksi dengan batch FIFO, diskon nota, tunai dengan kembalian, QRIS, debit, idempotency, dan nota digital untuk kertas 58 mm, 80 mm, dan A4.
 - Void sesuai aturan peran, harga batch oleh owner dengan riwayat harga, koreksi stok oleh owner, batas minimum dan peringatan stok menipis, siaran realtime lewat Server-Sent Events, dan manifest web app kasir.
-- Bagian 2 belum: barang masuk, opname, dashboard owner, rekap bulanan, dan ekspor CSV.
+- Bagian 2: barang masuk dengan nomor `BM-...` dan pengajuan harga restock untuk owner, opname draft, review, dan final (selisih diterapkan ke stok saat final), dashboard owner, rekap bulanan per barang dan cabang, dan ekspor CSV untuk tim data (penjualan per minggu, stok habis, barang masuk dengan lead time). Barang datang sekarang dicatat lewat Barang masuk, bukan koreksi.
 - Diuji 21 November 2026 di lokal pada salinan data produksi dengan sandi uji, lewat browser tanpa kepala dengan formulir sungguhan: aktivasi kasir, transaksi ban, produk, dan jasa dengan tunai dan kembalian, QRIS, pemecahan batch, penolakan jumlah melebihi stok (di layar dan di server), diskon admin lalu ditinjau owner, void admin, ubah harga batch, batas minimum yang memicu peringatan, pratinjau cetak 58 mm, 80 mm, dan A4, siaran ke layar kasir lain, serta perubahan di Stok ban dan Kotak uji chatbot. 64 pemeriksaan lulus, termasuk tanpa luapan mendatar di 1440, 820, dan 390 px.
+- Bagian 2 diuji 20 November 2026 dengan cara yang sama: barang masuk admin dengan harga usulan, owner menyetujui satu dan menolak satu, penjualan dengan harga batch yang sesuai, opname admin dengan selisih plus dan minus dan penjualan sebelum final, penolakan untuk cabang mode sheet dan cabang lain, dashboard yang cocok dengan Riwayat, rekap bulanan, unduhan CSV, serta perubahan di Stok ban dan Kotak uji chatbot. 106 pemeriksaan lulus, termasuk tanpa luapan dan tanpa tabel terpotong di 1440, 820, dan 390 px.
 
 ### Ongkir
 

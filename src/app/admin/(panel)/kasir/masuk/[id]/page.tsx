@@ -65,11 +65,23 @@ export default async function RincianBarangMasuk({ params }: PageProps<'/admin/k
         rowKey={(d) => d.id}
         columns={[
           { key: 'nama', header: 'Barang', mobile: 'title', cell: (d) => <span className="block"><span className="block font-semibold text-ink">{d.nama}</span><span className="text-xs text-mute">{SUMBER_LABEL[d.sumber as Sumber] ?? d.sumber}</span></span> },
-          { key: 'jumlah', header: 'Jumlah', align: 'right', cell: (d) => `${d.jumlah} pcs` },
-          { key: 'beli', header: 'Harga beli', align: 'right', cell: (d) => (d.hargaBeli === null ? '-' : rp(d.hargaBeli)) },
-          { key: 'usulan', header: 'Harga jual diisi', align: 'right', cell: (d) => rp(d.hargaJual) },
-          { key: 'batch', header: 'Harga batch sekarang', align: 'right', cell: (d) => { const b = batch.find((x) => x.id === d.batchId); return b ? <span className="block">{rp(b.hargaJual)}<span className="block text-xs text-mute">sisa {b.sisa}</span></span> : '-' } },
-          { key: 'status', header: 'Harga', cell: statusHarga },
+          { key: 'jumlah', header: 'Pcs', align: 'right', cell: (d) => d.jumlah },
+          { key: 'beli', header: 'Beli', align: 'right', cell: (d) => (d.hargaBeli === null ? '-' : <span className="whitespace-nowrap">{rp(d.hargaBeli)}</span>) },
+          { key: 'usulan', header: 'Jual diisi', align: 'right', cell: (d) => <span className="whitespace-nowrap">{rp(d.hargaJual)}</span> },
+          {
+            key: 'batch',
+            header: 'Batch sekarang',
+            align: 'right',
+            cell: (d) => {
+              const b = batch.find((x) => x.id === d.batchId)
+              return (
+                <span className="block">
+                  {b ? <span className="whitespace-nowrap">{rp(b.hargaJual)}, sisa {b.sisa}</span> : '-'}
+                  <span className="block text-xs">{statusHarga(d)}</span>
+                </span>
+              )
+            },
+          },
         ]}
       />
       <p className="text-xs text-mute">Harga lama barang saat dicatat dipakai untuk batch baru sampai owner menyetujui usulan harga dari admin. Usulan yang menunggu ada di Tinjau pengajuan (owner).</p>

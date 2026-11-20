@@ -153,31 +153,36 @@ Sidebar admin tidak lagi memakai judul kelompok modul Asah. Pemetaannya dicatat 
 | --- | --- |
 | Analitik | Ringkasan |
 | Inventaris | Stok dan harga (Stok ban, Harga jasa, Produk situs, Perlu dicek); Merek dan Kategori ada di menu Situs |
-| Kasir dan Harga | menu Kasir (Transaksi baru, Riwayat, Tinjau diskon, Pengaturan kasir), lihat [KASIR.md](KASIR.md) |
+| Kasir dan Harga | menu Kasir (Transaksi baru, Riwayat, Barang masuk, Opname, Tinjau pengajuan, Dashboard, Rekap dan ekspor, Pengaturan kasir), lihat [KASIR.md](KASIR.md) |
 | Peringatan | Stok dan harga, tab Perlu dicek; Kalender libur dan promo disembunyikan dari menu, halamannya di `/admin/kalender` |
 | Akses | Pengaturan (Cabang, Pengguna); Akun saya di menu profil |
 
 ## Kasir v1
 
-Kasir bagian 1 (21 November 2026) menambah tabel dengan nama ERD Asah. Aturan dan alurnya di [KASIR.md](KASIR.md).
+Kasir bagian 1 dan bagian 2 (November 2026) menambah tabel dengan nama ERD Asah. Aturan dan alurnya di [KASIR.md](KASIR.md).
 
 | Tabel ERD Asah | Di Bejo Ban v1 | Beda utama |
 | --- | --- | --- |
 | `TRANSAKSI` | `transaksi` | uang `Int`; tambahan `subtotal`, `diskon`, `alasan_diskon`, `dibayar`, `kembalian`, `divoid_oleh`, `waktu_void`, `nama_kasir` |
 | `DETAIL_TRANSAKSI` | `detail_transaksi` | `produk_id` diganti `sumber` + `kode_produk` + `baris_id`; tambahan `nama`; `harga_satuan` = `harga_asli` |
-| `BATCH_STOK` | `batch_stok` | `produk_id` diganti `sumber` + `kode_produk` + `baris_id`; tambahan `jenis` |
-| `PENGAJUAN_HARGA` | `pengajuan_harga` | dipakai untuk diskon nota (bukan per item); tambahan `cabang_id`, `transaksi_id`, `dibuat`, status `batal` |
+| `BATCH_STOK` | `batch_stok` | `produk_id` diganti `sumber` + `kode_produk` + `baris_id`; tambahan `jenis` (`awal`, `koreksi`, `masuk`, `opname`); `detail_barang_masuk_id` terisi untuk batch `masuk` |
+| `PENGAJUAN_HARGA` | `pengajuan_harga` | tipe `diskon` untuk diskon nota (bukan per item) dan `restock` untuk usulan harga batch dari barang masuk; tambahan `cabang_id`, `transaksi_id`, `dibuat`, status `batal` |
 | `RIWAYAT_HARGA` | `riwayat_harga` | per batch dan cabang; tambahan `harga_lama`, `pengguna` |
 | `PERINGATAN_STOK` | `peringatan_stok` | `stok_cabang_id` diganti `sumber` + `baris_id`; tambahan `batas_minimum`, `kode_produk`, `cabang_id` |
 | `STOK_CABANG` | kolom di `StockTire` dan `Listing` | `jumlah` = `stock`, `batas_minimum` kolom baru |
 | `CABANG` | `Branch` | tambahan `kode_nota`, `mode_stok`, `kasir_aktif_sejak` |
+| `BARANG_MASUK` | `barang_masuk` | tambahan `cabang_id` di kepala, `nama_pengguna`, `catatan`, `idempotency_key`, `dibuat`; `jenis_pemasok` `distributor` atau `rekanan` |
+| `DETAIL_BARANG_MASUK` | `detail_barang_masuk` | `produk_id` diganti `sumber` + `kode_produk` + `baris_id`; tambahan `nama`, `harga_lama`, `batch_id`, `pengajuan_harga_id`; uang `Int` |
+| `STOK_OPNAME` | `stok_opname` | tambahan `nama_penginput`, `catatan`, `dikirim`, `finalisator_id`, `difinalkan` |
+| `DETAIL_OPNAME` | `detail_opname` | `produk_id` diganti `sumber` + `kode_produk` + `baris_id`; tambahan `nama`, `diisi`, `stok_saat_final`, `stok_akhir` |
 | (tidak ada) | `penghitung_nota` | nomor transaksi per cabang per hari |
-| `BUKU_STOK` | `buku_stok` | sekarang dipakai tipe `jual` dan `void`, dan `batch_id` terisi untuk perubahan dari kasir |
+| (tidak ada) | `penghitung_penerimaan` | nomor barang masuk per cabang per hari |
+| `BUKU_STOK` | `buku_stok` | sekarang dipakai tipe `jual`, `void`, `masuk`, dan `opname`, dan `batch_id` terisi untuk perubahan dari kasir |
 
 ## Yang sengaja ditunda
 
-- Barang masuk, opname, dan transfer antarcabang (kasir bagian 2). Batch FIFO, transaksi, void, dan diskon nota sudah ada sejak kasir v1.
-- Pengajuan harga restock (bagian 2).
+- Transfer stok antarcabang (`TRANSFER_STOK`). Barang masuk, opname, dan pengajuan harga restock sudah ada sejak kasir bagian 2.
+- Forecasting dan rekomendasi restock. Kasir menyediakan ekspor CSV (penjualan per minggu, stok habis, lead time barang masuk) sebagai bahan untuk tim data.
 - Penyatuan `StockTire` dan `ServicePrice` ke `Product`.
 - Transfer stok ban antarcabang (sekarang hanya penetapan baris tanpa cabang).
 - Nama tabel lama yang diselaraskan penuh dengan ERD.

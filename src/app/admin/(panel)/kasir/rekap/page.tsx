@@ -62,16 +62,17 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
           rows={rows}
           rowKey={(r) => `${r.sumber}:${r.barisId}`}
           columns={[
-            { key: 'nama', header: 'Barang', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/barang?sumber=${r.sumber}&id=${r.barisId}`} className="block font-semibold text-ink underline underline-offset-2">{r.nama}<span className="block text-xs font-normal text-mute no-underline">{SUMBER_LABEL[r.sumber]}</span></Link> },
+            { key: 'nama', header: 'Barang', mobile: 'title', cell: (r) => <span className="block"><Link href={`/admin/kasir/barang?sumber=${r.sumber}&id=${r.barisId}`} className="font-semibold text-ink underline underline-offset-2">{r.nama}</Link><span className="block text-xs text-mute">{SUMBER_LABEL[r.sumber]}</span></span> },
             ...(cabangId === null && kasir.length > 1 ? [{ key: 'cabang', header: 'Cabang', cell: (r: BarisRekap) => nama(r.cabangId) }] : []),
             { key: 'masuk', header: 'Masuk', align: 'right', cell: (r) => r.masuk || '-' },
             { key: 'terjual', header: 'Terjual', align: 'right', cell: (r) => r.terjual || '-' },
-            { key: 'nilai', header: 'Nilai terjual', align: 'right', cell: (r) => (r.nilaiTerjual ? <span className="whitespace-nowrap">{rp(r.nilaiTerjual)}</span> : '-') },
-            { key: 'sesuai', header: 'Opname dan koreksi', align: 'right', cell: (r) => (r.penyesuaian ? tanda(r.penyesuaian) : '-') },
-            { key: 'stok', header: 'Stok sekarang', align: 'right', cell: (r) => r.stokSekarang ?? '-' },
+            { key: 'nilai', header: 'Nilai', align: 'right', cell: (r) => (r.nilaiTerjual ? <span className="whitespace-nowrap">{rp(r.nilaiTerjual)}</span> : '-') },
+            { key: 'sesuai', header: 'Selisih', align: 'right', cell: (r) => (r.penyesuaian ? tanda(r.penyesuaian) : '-') },
+            { key: 'stok', header: 'Stok kini', align: 'right', cell: (r) => r.stokSekarang ?? '-' },
           ]}
           empty={<p className="py-6 text-center text-sm text-mute">Belum ada barang masuk, penjualan, atau opname di bulan ini.</p>}
         />
+        <p className="text-xs text-mute">Nilai: nilai terjual sesudah diskon. Selisih: perubahan dari opname dan koreksi owner. Stok kini: stok saat halaman dibuka.</p>
       </section>
 
       <Section id="ekspor" title="Ekspor CSV untuk tim data" description="Berkas CSV (pemisah koma, UTF-8). Arti tiap kolom ada di dokumentasi kasir. Isinya data toko, jadi simpan dan bagikan dengan hati-hati.">
@@ -86,7 +87,7 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
               <input id="ek-sampai" type="date" name="sampai" defaultValue={hariIni} max={hariIni} required className={`${inputCls} min-h-11`} />
             </div>
           </div>
-          <ul className="grid gap-3 md:grid-cols-3">
+          <ul className="grid gap-3 xl:grid-cols-3">
             {[
               { jenis: 'penjualan', judul: 'Penjualan per minggu', isi: 'Jumlah terjual per barang, cabang, minggu, dan channel, dengan harga asli, diskon, harga efektif, dan penanda stok sempat habis.' },
               { jenis: 'stok-habis', judul: 'Stok habis', isi: 'Kapan stok tiap barang turun ke 0 dan kapan tersedia lagi, dari buku stok.' },
@@ -95,7 +96,7 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
               <li key={x.jenis} className="flex flex-col gap-3 rounded-lg border border-line p-4">
                 <p className="font-semibold text-ink">{x.judul}</p>
                 <p className="flex-1 text-sm text-mute">{x.isi}</p>
-                <button name="jenis" value={x.jenis} className="adm-btn-line min-h-11">Unduh {x.judul.toLowerCase()}</button>
+                <button name="jenis" value={x.jenis} className="adm-btn-line min-h-11" aria-label={`Unduh CSV ${x.judul.toLowerCase()}`}>Unduh CSV</button>
               </li>
             ))}
           </ul>

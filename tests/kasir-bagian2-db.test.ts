@@ -426,12 +426,14 @@ test('invarian tetap benar sesudah urutan acak penjualan, void, barang masuk, op
   let benih = 20261122
   const acak = (n: number) => {
     benih = (benih * 1103515245 + 12345) % 2147483648
-    return benih % n
+    // Bit rendah LCG modulo 2^31 berulang dengan periode pendek, jadi yang dipakai bit atasnya.
+    return Math.floor(benih / 65536) % n
   }
   const barang: { sumber: 'ban' | 'produk'; id: number }[] = [{ sumber: 'ban', id: banA }, { sumber: 'ban', id: banKosong }, { sumber: 'produk', id: listingA }]
   const terjual: number[] = []
   let ditolak = 0
-  for (let i = 0; i < 60; i++) {
+  const mulaiAcak = new Date()
+  for (let i = 0; i < 150; i++) {
     const pilih = acak(8)
     const x = barang[acak(barang.length)]
     try {
@@ -455,7 +457,13 @@ test('invarian tetap benar sesudah urutan acak penjualan, void, barang masuk, op
       ditolak++
     }
   }
-  assert.ok(ditolak < 60)
+  assert.ok(ditolak < 100)
+  // Urutan acak benar-benar memuat tiap jenis langkah.
+  const sejak = { gte: mulaiAcak }
+  assert.ok((await m.db.barangMasuk.count({ where: { cabangId: A, dibuat: sejak } })) > 0)
+  assert.ok((await m.db.pengajuanHarga.count({ where: { tipe: 'restock', diputuskan: sejak } })) > 0)
+  assert.ok((await m.db.stokOpname.count({ where: { cabangId: A, status: 'final', difinalkan: sejak } })) > 0)
+  assert.ok((await m.db.transaksi.count({ where: { cabangId: A, status: 'void', waktuVoid: sejak } })) > 0)
   await negatifTidakAda()
   await invarianBersih()
   // Saldo buku_stok tiap baris sama dengan stok baris.

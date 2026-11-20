@@ -73,14 +73,12 @@ export default async function DaftarBarangMasuk({ searchParams }: PageProps<'/ad
         rowKey={(r) => r.id}
         columns={[
           { key: 'nomor', header: 'Nomor', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/masuk/${r.id}`} className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">{r.nomorPenerimaan}</Link> },
-          { key: 'terima', header: 'Diterima', cell: (r) => tanggalLabel(r.tanggalTerima) },
+          { key: 'terima', header: 'Diterima', cell: (r) => <span className="block">{tanggalLabel(r.tanggalTerima)}<span className="block text-xs text-mute">dicatat {r.namaPengguna}</span></span> },
           ...(owner && cabangId === null ? [{ key: 'cabang', header: 'Cabang', cell: (r: Baris) => nama(r.cabangId) }] : []),
           { key: 'pemasok', header: 'Pemasok', cell: (r) => <span className="block">{r.pemasok}<span className="block text-xs text-mute">{JENIS_PEMASOK_LABEL[r.jenisPemasok as JenisPemasok] ?? r.jenisPemasok}</span></span> },
           { key: 'jumlah', header: 'Jumlah', align: 'right', cell: (r) => `${r.detail.reduce((n, d) => n + d.jumlah, 0)} pcs` },
-          { key: 'oleh', header: 'Dicatat', mobile: 'hide', cell: (r) => r.namaPengguna },
           { key: 'harga', header: 'Harga', cell: (r) => (r.detail.some((d) => d.pengajuanHargaId !== null && menunggu.has(d.pengajuanHargaId)) ? <Badge tone="light">menunggu owner</Badge> : '-') },
         ]}
-        actions={(r) => <Link href={`/admin/kasir/masuk/${r.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Buka ${r.nomorPenerimaan}`}>Rincian</Link>}
         empty={<Empty title="Belum ada barang masuk">Ubah tanggal atau cabang, atau catat barang masuk baru.</Empty>}
       />
       {total > rows.length && <p className="text-xs text-mute">Menampilkan {rows.length} terbaru dari {total}. Persempit tanggalnya.</p>}

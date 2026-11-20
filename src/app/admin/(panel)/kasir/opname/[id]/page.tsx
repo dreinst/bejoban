@@ -62,16 +62,32 @@ export default async function RincianOpname({ params }: PageProps<'/admin/kasir/
         rows={o.detail}
         rowKey={(d) => d.id}
         columns={[
-          { key: 'nama', header: 'Barang', mobile: 'title', cell: (d) => <span className="font-semibold text-ink">{d.nama}</span> },
-          { key: 'sistem', header: 'Stok sistem saat diisi', align: 'right', cell: (d) => d.stokSistem },
-          { key: 'fisik', header: 'Stok fisik', align: 'right', cell: (d) => <b className="text-ink">{d.stokFisik}</b> },
+          {
+            key: 'nama',
+            header: 'Barang',
+            mobile: 'title',
+            cell: (d) => (
+              <span className="block">
+                <span className="font-semibold text-ink">{d.nama}</span>
+                {bolehUbah && (
+                  <form action={hapusBarisOpnameAksi} className="mt-1">
+                    <input type="hidden" name="opname" value={o.id} />
+                    <input type="hidden" name="baris" value={d.id} />
+                    <SubmitButton className="adm-btn-ghost adm-btn-sm min-h-11 px-0 text-xs font-normal underline" pending="Menghapus...">Hapus baris</SubmitButton>
+                  </form>
+                )}
+              </span>
+            ),
+          },
+          { key: 'sistem', header: 'Sistem', align: 'right', cell: (d) => d.stokSistem },
+          { key: 'fisik', header: 'Fisik', align: 'right', cell: (d) => <b className="text-ink">{d.stokFisik}</b> },
           { key: 'selisih', header: 'Selisih', align: 'right', cell: (d) => (d.selisih ? <b className="text-ink">{tanda(d.selisih)}</b> : '0') },
           { key: 'alasan', header: 'Alasan', cell: (d) => d.alasanSelisih || '-' },
           status === 'final'
-            ? { key: 'hasil', header: 'Stok saat final', align: 'right' as const, cell: (d: D) => (d.stokSaatFinal === null ? '-' : `${d.stokSaatFinal} ke ${d.stokAkhir}`) }
+            ? { key: 'hasil', header: 'Saat final', align: 'right' as const, cell: (d: D) => (d.stokSaatFinal === null ? '-' : `${d.stokSaatFinal} ke ${d.stokAkhir}`) }
             : {
                 key: 'sekarang',
-                header: 'Stok sekarang',
+                header: 'Sekarang',
                 align: 'right' as const,
                 cell: (d: D) => {
                   const n = stokSekarang.get(`${d.sumber}:${d.barisId}`)
@@ -85,19 +101,9 @@ export default async function RincianOpname({ params }: PageProps<'/admin/kasir/
                 },
               },
         ]}
-        actions={
-          bolehUbah
-            ? (d) => (
-                <form action={hapusBarisOpnameAksi}>
-                  <input type="hidden" name="opname" value={o.id} />
-                  <input type="hidden" name="baris" value={d.id} />
-                  <SubmitButton className="adm-btn-line adm-btn-sm min-h-11" pending="Menghapus...">Hapus</SubmitButton>
-                </form>
-              )
-            : undefined
-        }
         empty={<p className="py-4 text-sm text-mute">Belum ada baris. Cari barang di atas lalu isi stok fisiknya.</p>}
       />
+      <p className="text-xs text-mute">Sistem: stok sistem saat baris diisi. Fisik: hasil hitung di toko.{status === 'final' ? ' Saat final: stok ketika opname difinalkan, lalu stok sesudah selisih diterapkan.' : ''}</p>
       {status !== 'final' && <p className="text-xs text-mute">Saat final, selisih tiap baris ditambahkan ke stok yang ada saat itu, jadi penjualan sesudah baris diisi tetap terhitung. Kalau hasilnya akan minus, finalisasi ditolak dan baris itu perlu dihitung ulang.</p>}
 
       {status !== 'final' && (

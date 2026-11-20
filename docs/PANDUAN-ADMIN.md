@@ -13,7 +13,11 @@ Nama pengguna, *Lihat situs*, *Akun saya*, dan *Keluar* ada di satu menu profil 
 | Ringkasan | tanpa tab (`/admin`) | ya | ya, cabangnya |
 | Kasir | Transaksi baru (`/admin/kasir`) | ya, pilih cabang | ya, cabangnya |
 | | Riwayat (`/admin/kasir/riwayat`, nota di `/admin/nota/[id]`) | ya | ya, cabangnya |
-| | Tinjau diskon (`/admin/kasir/diskon`) | ya | tidak |
+| | Barang masuk (`/admin/kasir/masuk`) | ya, semua cabang kasir | ya, cabangnya |
+| | Opname (`/admin/kasir/opname`) | ya, tinjau dan finalkan | ya, isi cabangnya |
+| | Tinjau pengajuan (`/admin/kasir/pengajuan`, dulu `/admin/kasir/diskon`) | ya | tidak |
+| | Dashboard (`/admin/kasir/dashboard`) | ya | tidak |
+| | Rekap dan ekspor (`/admin/kasir/rekap`) | ya | tidak |
 | | Pengaturan kasir (`/admin/kasir/pengaturan`, juga `/admin/kasir/barang`) | ya | tidak |
 | Stok dan harga | Stok ban (`/admin/stok-ban`) | ya | tidak |
 | | Harga jasa (`/admin/harga-jasa`) | ya | tidak |
@@ -88,7 +92,7 @@ Kasir dipakai untuk mencatat penjualan di toko dan lewat WhatsApp. Rincian atura
 
 - Owner mengaktifkan kasir per cabang di **Kasir, Pengaturan kasir**. Isi kode nota (2 sampai 5 huruf, misalnya `BTU`), centang pernyataan, lalu tekan *Aktifkan kasir*. Stok dan harga yang ada saat itu menjadi batch awal.
 - Ban yang belum punya cabang tidak bisa dijual kasir. Tetapkan dulu di Stok ban kalau ban itu milik cabang yang akan diaktifkan.
-- Sesudah aktif, stok cabang itu hanya berubah lewat kasir. Impor dan sinkron pricelist untuk cabang itu ditolak, dan isian harga serta stok di Stok ban dan Produk situs terkunci. Belum ada jalan kembali ke mode sheet.
+- Sesudah aktif, stok cabang itu hanya berubah lewat kasir (penjualan, void, barang masuk, opname, dan koreksi owner). Impor dan sinkron pricelist untuk cabang itu ditolak, dan isian harga serta stok di Stok ban dan Produk situs terkunci. Belum ada jalan kembali ke mode sheet.
 - Kasir bisa dipasang sebagai aplikasi di HP, tablet, atau PC. Buka Kasir di Chrome, lalu pilih *Instal aplikasi* atau *Tambahkan ke layar utama*.
 
 ### Mencatat penjualan
@@ -105,7 +109,7 @@ Kalau koneksi putus saat menyimpan, tekan *Simpan transaksi* lagi. Nota yang sam
 
 ### Diskon
 
-Isi *Diskon nota* dalam rupiah dan alasannya. Transaksi tetap jalan. Diskon dari admin cabang masuk antrean **Tinjau diskon** untuk owner. Owner menandai *Setujui* atau *Tolak*, dan transaksinya tidak berubah. Kalau nota perlu dibatalkan, owner membuka notanya lalu void. Diskon dari owner langsung berlaku dan tercatat di log.
+Isi *Diskon nota* dalam rupiah dan alasannya. Transaksi tetap jalan. Diskon dari admin cabang masuk antrean **Tinjau pengajuan** untuk owner. Owner menandai *Setujui* atau *Tolak*, dan transaksinya tidak berubah. Kalau nota perlu dibatalkan, owner membuka notanya lalu void. Diskon dari owner langsung berlaku dan tercatat di log.
 
 ### Nota
 
@@ -124,9 +128,48 @@ Buka nota dari **Riwayat**, tekan *Void transaksi*, tulis alasannya, lalu konfir
 Di **Pengaturan kasir**, cari barangnya lalu tekan *Buka*. Tombol yang sama ada di panel Ubah Stok ban dan tombol *Batch* di Produk situs.
 
 - *Ubah harga* di baris batch mengganti harga jual batch itu saja. Batch lain tetap.
-- *Koreksi stok* menyetel stok ke angka baru dengan alasan wajib. Pengurangan diambil dari batch tertua. Penambahan menjadi batch baru dengan harga yang diisi, atau harga batch terdepan kalau dikosongkan. Barang datang dicatat lewat koreksi ini sampai fitur barang masuk tersedia.
+- *Koreksi stok* menyetel stok ke angka baru dengan alasan wajib. Pengurangan diambil dari batch tertua. Penambahan menjadi batch baru dengan harga yang diisi, atau harga batch terdepan kalau dikosongkan. Pakai untuk membetulkan selisih di luar opname. Barang yang datang dicatat lewat **Barang masuk**, bukan lewat koreksi.
 - *Batas minimum* memunculkan peringatan *Stok menipis* di Perlu dicek kalau stok turun ke angka itu atau di bawahnya, dan notifikasi ke admin cabang serta owner. Kosongkan untuk mematikan.
 - *Periksa sekarang* di Pengaturan kasir memastikan stok dan harga tiap baris cocok dengan batch-nya.
+
+### Barang masuk
+
+Barang yang datang dari distributor atau toko rekanan dicatat di **Kasir, Barang masuk**, tombol *Catat barang masuk*. Hanya untuk cabang yang sudah memakai kasir. Cabang mode sheet tetap mencatat stoknya di sheet.
+
+1. Isi pemasok dan jenisnya (distributor atau toko rekanan). Nama pemasok yang pernah dipakai muncul sebagai pilihan.
+2. Isi tanggal pesan kalau tahu, dan tanggal terima (bawaan hari ini). Selisih keduanya dipakai tim data sebagai lead time.
+3. Cari barangnya seperti di layar kasir, lalu isi jumlah, harga beli (boleh kosong), dan harga jual. Harga jual terisi harga sekarang.
+4. Tekan *Simpan barang masuk*. Stok langsung bertambah, dan penerimaan mendapat nomor `BM-KODE-YYMMDD-NNN`, misalnya `BM-BTU-261120-001`.
+
+Harga jual:
+
+- Admin cabang yang mengubah harga jual membuat usulan harga untuk owner. Sampai owner memutuskan, batch baru itu dijual dengan harga lama (harga batch yang sedang terjual). Barang yang belum punya harga sama sekali belum bisa dijual sampai owner menyetujui usulannya.
+- Owner yang mencatat barang masuk langsung memakai harga yang diisi untuk batch baru. Batch lama tetap dengan harganya sendiri.
+
+Daftar barang masuk bisa disaring tanggal terima dan cabang. Buka nomornya untuk melihat rincian, harga batch sekarang, dan status usulan harga.
+
+### Tinjau pengajuan (owner)
+
+**Tinjau pengajuan** memuat dua antrean:
+
+- *Harga barang masuk*: usulan harga jual dari admin cabang. *Setujui* mengganti harga batch itu dengan harga usulan (tercatat di riwayat harga). *Tolak* membiarkan harga lama. Keputusan tidak bisa diubah sesudahnya. Kalau harga perlu diganti lagi, ubah harga batch-nya di halaman barang.
+- *Diskon nota*: seperti di atas, keputusan tidak mengubah transaksi.
+
+### Opname
+
+Opname dipakai untuk mencocokkan stok sistem dengan hitungan fisik di toko. Hanya untuk cabang yang sudah memakai kasir.
+
+1. Admin cabang membuka **Kasir, Opname** lalu menekan *Mulai opname*. Satu cabang hanya punya satu opname yang belum final.
+2. Cari barang yang dihitung, isi stok fisik, lalu *Simpan baris*. Stok sistem saat itu ikut dicatat. Kalau fisik berbeda dengan sistem, alasan selisih wajib diisi. Barang yang sudah diisi bisa dipilih lagi untuk diubah.
+3. Tekan *Kirim ke owner*. Sesudah itu admin tidak bisa mengubah baris lagi, kecuali owner mengembalikannya ke draft.
+4. Owner membuka opname itu, memeriksa barisnya (owner juga bisa mengubah baris), lalu menekan *Finalkan*.
+
+Penjualan tetap boleh berjalan selama opname. Saat final, sistem menambahkan selisih tiap baris ke stok yang ada saat itu, jadi penjualan sesudah baris diisi tidak hilang. Contoh: sistem 8, fisik 10 (selisih +2), lalu terjual 1. Saat final stoknya 7 + 2 = 9. Kalau hasilnya akan minus, finalisasi ditolak dan baris itu perlu dihitung ulang. Opname yang sudah final tidak bisa diubah atau difinalkan lagi. Draft yang belum dipakai bisa dihapus tanpa mengubah stok.
+
+### Dashboard dan rekap (owner)
+
+- **Dashboard**: penjualan hari ini dan minggu ini per cabang, 7 hari dan 8 minggu terakhir, porsi ban, jasa, dan produk, barang paling laris, stok menipis, dan jumlah pengajuan serta opname yang menunggu. Angkanya dari transaksi selesai sesudah diskon. Transaksi void tidak dihitung. Hari dan minggu memakai jam WIB, minggu dimulai Senin.
+- **Rekap dan ekspor**: pilih bulan untuk melihat barang masuk, terjual, dan selisih opname atau koreksi per barang dan cabang. Di bagian bawah ada tombol unduh CSV untuk tim data (penjualan per minggu, stok habis, dan barang masuk). Isi CSV adalah data toko, jadi simpan dan bagikan dengan hati-hati. Arti kolomnya ada di [KASIR.md](KASIR.md).
 
 ## Fitur internal
 

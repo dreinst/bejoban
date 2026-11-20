@@ -77,18 +77,17 @@ export default async function TinjauPengajuan() {
         )
       },
     },
-    { key: 'cabang', header: 'Cabang', cell: (p: R) => cabang(p.cabangId) },
-    { key: 'admin', header: 'Admin', cell: (p: R) => orang(p.pengajuId) },
+    { key: 'dari', header: 'Dari', cell: (p: R) => <span className="block">{orang(p.pengajuId)}<span className="block text-xs text-mute">{cabang(p.cabangId)}</span></span> },
     {
       key: 'harga',
       header: 'Harga lama ke usulan',
       cell: (p: R) => (
-        <span className="whitespace-nowrap">
-          {p.hargaLama ? rp(p.hargaLama) : 'belum ada'} ke <b className="text-ink">{rp(p.hargaBaru)}</b>
+        <span className="block">
+          <span className="whitespace-nowrap">{p.hargaLama ? rp(p.hargaLama) : 'belum ada'} ke <b className="text-ink">{rp(p.hargaBaru)}</b></span>
+          {bt(p) && <span className="block text-xs text-mute">batch sisa {bt(p)!.sisa} dari {bt(p)!.jumlahAwal}</span>}
         </span>
       ),
     },
-    { key: 'batch', header: 'Batch', mobile: 'hide' as const, cell: (p: R) => (bt(p) ? `sisa ${bt(p)!.sisa} dari ${bt(p)!.jumlahAwal}` : '-') },
   ]
 
   return (
@@ -130,7 +129,7 @@ export default async function TinjauPengajuan() {
               tanpaBingkai
               rows={restockSelesai}
               rowKey={(p) => p.id}
-              columns={[...kolomR.filter((k) => k.key !== 'batch'), { key: 'status', header: 'Keputusan', cell: (p: R) => <Badge tone={p.status === 'disetujui' ? 'dark' : 'outline'}>{STATUS[p.status] ?? p.status}</Badge> }]}
+              columns={[...kolomR, { key: 'status', header: 'Keputusan', cell: (p: R) => <Badge tone={p.status === 'disetujui' ? 'dark' : 'outline'}>{STATUS[p.status] ?? p.status}</Badge> }]}
             />
           </details>
         )}
