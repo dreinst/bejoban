@@ -350,7 +350,7 @@ export default async function StokBan({ searchParams }: PageProps<'/admin/stok-b
                 : []),
               { key: 'harga', header: 'Harga', align: 'right', mobile: 'hide', cell: (t) => rp(t.price) },
               { key: 'potongan', header: 'Potongan', align: 'right', mobile: 'hide', cell: (t) => (t.discount ? rpAngka(t.discount) : '-') },
-              { key: 'stok', header: 'Stok', align: 'right', mobile: 'hide', cell: (t) => (t.stock === 0 ? <Badge tone="outline">Habis</Badge> : t.stock) },
+              { key: 'stok', header: 'Stok', align: 'right', mobile: 'hide', cell: (t) => (t.stock === 0 ? <Badge tone="danger">Habis</Badge> : t.stock) },
               // Di HP harga dan stok jadi satu baris keterangan.
               { key: 'ringkas', header: 'Ringkas', hanyaHp: true, mobileLabel: false, cell: (t) => `${rp(t.price)} · ${t.stock === 0 ? 'stok habis' : `stok ${t.stock}`}` },
               { key: 'ket', header: 'Keterangan', mobile: 'hide', cell: (t) => <span className="line-clamp-2 text-mute">{t.note || '-'}</span> },

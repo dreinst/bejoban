@@ -2,7 +2,7 @@
 
 Acuan untuk semua halaman di `/admin`. Halaman baru dan perubahan halaman lama mengikuti aturan di sini dan memakai komponen bersama di `src/components/admin/`. Halaman tidak menata sendiri jarak, tombol, atau tabelnya.
 
-Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mute`), Rubik untuk judul, DM Sans untuk isi, sudut 5 sampai 10 px.
+Arah desain hitam putih dengan aksen oranye (rancangan tema Hankook, belum disetujui): hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mute`), Rubik untuk judul, DM Sans untuk isi, sudut 5 sampai 10 px. Oranye hanya lewat token di `src/app/globals.css`: `accent` untuk isian (tombol utama, garis tab aktif, penanda menu aktif, lencana angka) dengan teks hitam di atasnya, dan `accent-deep` untuk teks atau garis fokus oranye di latar terang. Jangan menulis hex oranye di komponen. Warna status memakai `danger` (galat, void, stok habis) dan `ok` (sukses), tidak pernah oranye. Di admin ornamen dipakai hemat: garis oranye di atas sidebar dan penanda aktif saja.
 
 ## Aturan
 
@@ -12,7 +12,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 4. Urutan diatur dengan tombol naik turun (`ReorderButtons`), tidak dengan mengetik angka.
 5. Halaman daftar punya: judul, satu kalimat penjelas kalau perlu, tombol utama "Tambah ..." di kanan atas, jumlah item, pencarian atau saringan kalau item bisa lebih dari sepuluh, keadaan kosong yang menjelaskan langkah pertama, dan toast setelah simpan.
 6. Lebar konten terpakai. Tabel melebar sampai 1200 px (`PageBody`). Satu form dibatasi 640 px. Halaman pengaturan dengan beberapa bagian memakai `SettingsGrid` (dua kolom di layar lebar) supaya tidak separuh kosong.
-7. Hierarki tombol. Satu tombol utama hitam (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan hitam. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
+7. Hierarki tombol. Satu tombol utama oranye (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan oranye. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
 8. Unggah gambar ringkas (`ImageField`, `ImagesInput`): pratinjau 56 px, tombol Ganti dan Hapus, satu baris keterangan ukuran dengan tautan "Panduan ukuran".
 9. Kepadatan seragam lewat komponen bersama. Jangan menulis kelas tabel, chip, atau kartu sendiri di halaman.
 10. Lebar 390 px: tabel otomatis menjadi daftar kartu ringkas satu item per kartu, targetnya sekitar 65 sampai 80 px per kartu untuk item sederhana. Tata letak kartu: gambar kecil di kiri, judul dan keterangan di tengah, aksi di kanan setinggi kartu (bukan baris tombol selebar penuh di dasar kartu). Tombol aksi selebar isinya, sasaran sentuh 44 px. Keterangan yang pendek digabung satu baris dengan titik tengah lewat kolom `hanyaHp` (mis. "Rp 500.000 · stok 4"), kolom aslinya diberi `mobile: 'hide'`. Kalau satu item punya lebih dari satu aksi, tombol pertama (Ubah) tetap tampil dan sisanya (Hapus, urutan naik turun, sakelar) masuk ke menu "Lainnya" lewat prop `lainnya` di `DataTable`. Semua aksi yang masuk menu wajib ikut ada di `lainnya`, karena di HP `actions` hanya menampilkan tombol pertamanya. Tabel berisi kotak isian (Produk situs) memakai `isianHp` dan `hpKolom`: kisi 4 kolom, label di atas kotak. Aksi utama tidak boleh butuh gulir mendatar. Saringan chip yang memakan beberapa baris di HP diganti `SaringHp` (pilihan berlabel yang langsung berlaku), chip tetap dipakai di layar lebar.
@@ -27,7 +27,7 @@ Arah desain tetap hitam putih: hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mut
 | `PageHeader` | `ui.tsx` | server | Judul, penjelas, tombol utama kanan atas |
 | `PageBody` | `ui.tsx` | server | Pembatas lebar: `list` 1200 px, `form` 640 px |
 | `SettingsGrid`, `Section` | `ui.tsx` | server | Halaman pengaturan: kartu per bagian, dua kolom di layar lebar |
-| `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana status, keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
+| `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana (`dark`, `light`, `outline`, `accent` untuk penanda, `danger` dan `ok` untuk status), keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
 | `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris. `hanyaHp` menambah kolom khusus kartu HP, `tanpaBingkai` untuk tabel di dalam `Section`, `lainnya` isi menu "Lainnya" di HP, `isianHp` dan `hpKolom` untuk kartu berisi kotak isian |
 | `MenuLainnya` | `menu-lainnya.tsx` | klien | Tombol "..." 44 px di kartu HP dengan daftar aksi jarang dipakai. Tetap terbuka selama dialog dari dalamnya tampil, Escape menutup |
 | `SaringHp` | `saring-hp.tsx` | klien | Pilihan saringan berlabel untuk HP, tiap pilihan membawa alamat tujuan |

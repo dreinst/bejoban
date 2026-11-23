@@ -136,7 +136,7 @@ export default async function Riwayat({ searchParams }: PageProps<'/admin/kasir/
             { key: 'kasir', header: 'Kasir', mobile: 'hide', sembunyiTablet: true, cell: (t) => t.namaKasir },
             { key: 'bayar', header: 'Bayar', cell: (t) => `${METODE_LABEL[t.metodeBayar as MetodeBayar] ?? t.metodeBayar} · ${CHANNEL_LABEL[t.channel as Channel] ?? t.channel}` },
             { key: 'total', header: 'Total', align: 'right', cell: (t) => <span className="font-semibold">{rp(t.total)}</span> },
-            { key: 'status', header: 'Status', cell: (t) => (t.status === 'void' ? <Badge tone="outline">VOID</Badge> : t.diskon > 0 ? <Badge tone="light">selesai, diskon</Badge> : 'Selesai') },
+            { key: 'status', header: 'Status', cell: (t) => (t.status === 'void' ? <Badge tone="danger">VOID</Badge> : t.diskon > 0 ? <Badge tone="light">selesai, diskon</Badge> : 'Selesai') },
           ]}
           actions={(t) => <Link href={`/admin/nota/${t.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Buka nota ${t.nomor}`}>Nota</Link>}
           empty={<Empty title="Tidak ada transaksi">Ubah tanggal atau cabang.</Empty>}

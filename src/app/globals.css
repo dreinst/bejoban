@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
-/* Desain hitam putih minimalis. Tanpa warna aksen: hitam, putih, dan abu. */
+/* Dasar hitam putih dengan aksen oranye. Rasio kontras dihitung dengan rumus WCAG 2.x:
+   - teks hitam ink di atas accent 7,17:1, di atas accent-hover 5,79:1;
+   - accent sebagai teks di atas ink 7,17:1 (hanya untuk latar gelap);
+   - accent-deep sebagai teks di atas putih 5,76:1, di atas soft 5,14:1, di atas accent-soft 5,20:1;
+   - accent di atas putih hanya 2,76:1, jadi tidak dipakai untuk teks, garis fokus, atau tanda satu-satunya di latar terang.
+   Warna status (danger, ok) sengaja merah dan hijau supaya tidak tertukar dengan aksen. */
 @theme {
   --color-ink: #0a0a0a;
   --color-graphite: #141414;
@@ -11,7 +16,17 @@
   --color-line-dark: #262626;
   --color-mute-dark: #8f8f8f;
   --color-soft-dark: #c8c8c8;
-  --color-accent: #0a0a0a;
+  --color-accent: #f47920;
+  --color-accent-hover: #e2660f;
+  --color-accent-edge: #b4500c;
+  --color-accent-deep: #a84a0a;
+  --color-accent-soft: #fff1e6;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-danger-line: #fecaca;
+  --color-ok: #15803d;
+  --color-ok-soft: #f0fdf4;
+  --color-ok-line: #bbf7d0;
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-rubik), ui-sans-serif, system-ui, sans-serif;
 }
@@ -19,6 +34,13 @@
 body {
   background: var(--color-paper);
   color: var(--color-ink);
+}
+
+/* Cincin fokus: oranye gelap di latar terang, oranye biasa di latar hitam. Di lapisan base supaya utilitas seperti
+   outline-none tetap menang. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: 2px; }
+  :is(.bg-ink, .bg-graphite) :focus-visible { outline-color: var(--color-accent); }
 }
 
 html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
@@ -43,6 +65,22 @@ html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
   .chip-k { display: flex; flex: none; align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(#2e2e2e, #0a0a0a); border: 1px solid #3a3a3a; border-bottom: 3px solid #000; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 5px 9px -3px rgba(0, 0, 0, .4); }
   .tag { display: inline-flex; align-items: center; gap: .5rem; border-radius: 7px; font-weight: 700; letter-spacing: .02em; }
   .h-line::after { content: ''; display: block; width: 48px; height: 3px; border-radius: 2px; background: currentColor; opacity: .9; margin: 14px auto 0; }
+  /* Tombol utama oranye. Teksnya hitam (7,17:1), ikon di dalamnya juga hitam. */
+  .btn-o { background: linear-gradient(var(--color-accent), var(--color-accent-hover)); color: var(--color-ink); border-bottom: 3px solid var(--color-accent-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 6px 12px -4px rgba(0, 0, 0, .5); }
+}
+
+/* Ornamen buatan sendiri, bukan grafis merek. Semuanya hiasan (aria-hidden) dan tidak menangkap klik. */
+@layer components {
+  /* Motif tapak ban: blok chevron berulang seperti alur ban searah. Dipakai sebagai latar tipis di area gelap. */
+  .hias-tapak {
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='40' viewBox='0 0 56 40'%3E%3Cpath d='M0 22 28 6l28 16v8L28 14 0 30z' fill='%23fff'/%3E%3Cpath d='M26 30h4v10h-4z' fill='%23fff'/%3E%3C/svg%3E");
+    background-size: 56px 40px;
+  }
+  /* Garis aksen di bawah judul bagian, ujung kanannya terpotong miring. */
+  .bilah-aksen { display: block; width: 56px; height: 5px; background: var(--color-accent); clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+  /* Potongan sudut kanan atas untuk tombol dan label. */
+  .sudut-potong { clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -59,10 +97,10 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
 @layer components {
   .adm-card { background: #fff; border: 1px solid var(--color-line); border-radius: 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 10px 16px -14px rgba(0, 0, 0, .3); }
 
-  /* Tombol: satu tombol utama hitam per tampilan, sekunder bergaris, bahaya merah hanya di dialog konfirmasi. */
+  /* Tombol: satu tombol utama oranye per tampilan (teks hitam), sekunder bergaris, bahaya merah hanya di dialog konfirmasi. */
   .adm-btn, .adm-btn-line, .adm-btn-ghost, .adm-btn-danger { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.5rem; border-radius: 10px; padding: .5rem 1rem; font-size: .875rem; line-height: 1.25; white-space: nowrap; cursor: pointer; }
-  .adm-btn { font-weight: 700; color: #fff; background: linear-gradient(#2e2e2e, #0a0a0a); border: 1px solid #3a3a3a; border-bottom: 3px solid #000; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 4px 8px -4px rgba(0, 0, 0, .45); }
-  .adm-btn:hover { filter: brightness(1.15); }
+  .adm-btn { font-weight: 700; color: var(--color-ink); background: var(--color-accent); border: 1px solid var(--color-accent-edge); border-bottom: 3px solid var(--color-accent-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 8px -4px rgba(0, 0, 0, .35); }
+  .adm-btn:hover { background: var(--color-accent-hover); }
   .adm-btn-lg { min-height: 3rem; padding: .75rem 1.5rem; }
   .adm-btn-line { font-weight: 600; color: #0a0a0a; background: #fff; border: 1px solid #0a0a0a; }
   .adm-btn-line:hover { background: var(--color-soft); }
@@ -77,6 +115,7 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   .adm-btn-danger:hover { background: #991b1b; }
   .adm-btn-sm { min-height: 2.25rem; padding: .375rem .75rem; font-size: .8125rem; }
   .adm-btn:disabled, .adm-btn-line:disabled, .adm-btn-ghost:disabled, .adm-btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+  .adm-btn:disabled:hover { background: var(--color-accent); }
   .adm-btn-line:disabled:hover { background: #fff; color: #0a0a0a; }
   /* Tombol ikon persegi (urutan naik turun, tutup panel). */
   .adm-icon-btn { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 8px; color: #0a0a0a; border: 1px solid var(--color-line); background: #fff; }
@@ -84,7 +123,7 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   .adm-icon-btn:disabled { opacity: .35; cursor: not-allowed; }
 
   .adm-area h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; }
-  .adm-area :focus-visible, .adm-overlay :focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; }
+  .adm-area :focus-visible, .adm-overlay :focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: 2px; }
 
   /* Tabel data. Di layar lebar tabel biasa; di bawah 768 px tiap baris menjadi kartu ringkas:
      gambar di kiri, judul dan keterangan di tengah, aksi di kanan. Lihat DataTable. */
