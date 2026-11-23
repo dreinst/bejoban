@@ -1,14 +1,16 @@
 'use client'
 // Layar transaksi kasir: cari barang dan jasa dalam satu daftar, keranjang, channel, metode bayar, diskon nota,
-// konfirmasi, lalu simpan lewat aksi server. Harga di layar hanya pratinjau; server menghitung ulang dari batch.
+// konfirmasi, lalu simpan lewat aksi server. Harga di layar hanya pratinjau; server menghitung ulang dari batch dan
+// menolak kalau totalnya berbeda dari yang dilihat kasir. Aturan kiriman putus: docs/KASIR.md, bagian transaksi.
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus, Search, X } from 'lucide-react'
 import { inputCls } from '@/components/admin/form-cls'
 import { cariKatalog, cocokPersis, hitungKeranjang } from '@/lib/kasir/cari'
-import { CHANNEL, CHANNEL_LABEL, METODE_BAYAR, METODE_LABEL, SUMBER_LABEL, type Channel, type MetodeBayar } from '@/lib/kasir/logika'
+import { CHANNEL, CHANNEL_LABEL, MAKS_UANG, METODE_BAYAR, METODE_LABEL, SUMBER_LABEL, type Channel, type MetodeBayar } from '@/lib/kasir/logika'
 import type { ItemKatalog } from '@/lib/kasir/katalog'
-import { bayarKasir, type HasilBayar } from '../../kasir-actions'
+import { bayarKasir, cekKunciKasir, type HasilBayar, type HasilCekKunci } from '../../kasir-actions'
 
 const rp = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
 const digit = (s: string) => s.replace(/\D/g, '').slice(0, 12)
@@ -16,7 +18,27 @@ const angka = (s: string) => (s ? Number(s) : 0)
 const kunciBaru = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`)
 
 type Baris = { key: string; jumlah: number }
-type Galat = { pesan: string; nama?: string; stokLain?: { cabang: string; stok: number }[] }
+type Galat = { pesan: string; nama?: string; stokLain?: { cabang: string; stok: number }[]; nota?: { id: number; nomor: string }; info?: boolean }
+type Kiriman = {
+  cabangId: number
+  channel: Channel
+  metode: MetodeBayar
+  diskon: number
+  alasanDiskon: string
+  dibayar: number | null
+  totalDilihat: number
+  kunci: string
+  baris: { sumber: ItemKatalog['sumber']; id: number; alt?: true; jumlah: number }[]
+}
+
+// Kiriman yang jawabannya belum diterima disimpan di tab ini, supaya statusnya tetap dicek walau halaman dimuat ulang.
+const simpanan = (cabangId: number) => `kasir-kiriman-${cabangId}`
+const ingatKiriman = (cabangId: number, k: Kiriman | null) => {
+  try {
+    if (k) sessionStorage.setItem(simpanan(cabangId), JSON.stringify(k))
+    else sessionStorage.removeItem(simpanan(cabangId))
+  } catch {}
+}
 
 function Pilihan<T extends string>({ label, nilai, pilihan, ubah }: { label: string; nilai: T; pilihan: readonly { v: T; t: string }[]; ubah: (v: T) => void }) {
   return (
@@ -47,8 +69,11 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   const [konfirmasi, setKonfirmasi] = useState(false)
   const [kirim, setKirim] = useState(false)
   const [galat, setGalat] = useState<Galat | null>(null)
+  // putus: kiriman terakhir tidak mendapat jawaban. Keranjang dikunci sampai statusnya jelas lewat Cek status.
   const [putus, setPutus] = useState(false)
+  const [mengecek, setMengecek] = useState(false)
   const kunci = useRef<string | null>(null)
+  const kiriman = useRef<Kiriman | null>(null)
   const cari = useRef<HTMLInputElement>(null)
   const dlg = useRef<HTMLDialogElement>(null)
 
@@ -65,8 +90,26 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   const nDiskon = angka(diskon)
   const nBayar = angka(dibayar)
   const kurangBayar = metode === 'tunai' && nBayar < hitung.total
+  const uangLebih = metode === 'tunai' && nBayar > MAKS_UANG
   const alasanKurang = nDiskon > 0 && alasan.trim().length < 3
-  const bisaBayar = isi.length > 0 && !hitung.galat && !kurangBayar && !alasanKurang && nDiskon <= hitung.subtotal
+  const bisaBayar = isi.length > 0 && !hitung.galat && !kurangBayar && !uangLebih && !alasanKurang && nDiskon <= hitung.subtotal
+
+  // Kiriman dari sebelum halaman dimuat ulang yang jawabannya tidak sampai: cek statusnya sekali.
+  useEffect(() => {
+    let k: Kiriman | null = null
+    try {
+      k = JSON.parse(sessionStorage.getItem(simpanan(cabang.id)) ?? 'null')
+    } catch {}
+    if (!k) return
+    cekKunciKasir(k)
+      .then((h) => {
+        if (!h.ok) return setInfo({ pesan: `Transaksi sebelum halaman dimuat ulang belum bisa dicek: ${h.pesan}` })
+        ingatKiriman(cabang.id, null)
+        if (h.status === 'tersimpan') setInfo({ pesan: `Transaksi sebelum halaman dimuat ulang sudah tersimpan sebagai nota ${h.nomor}. Jangan diulang.`, nota: { id: h.id, nomor: h.nomor }, info: true })
+        else setInfo({ pesan: 'Transaksi sebelum halaman dimuat ulang tidak tersimpan. Kalau pelanggan masih menunggu, masukkan lagi barangnya.', info: true })
+      })
+      .catch(() => setInfo({ pesan: 'Transaksi sebelum halaman dimuat ulang belum bisa dicek karena koneksi. Muat ulang halaman ini saat sinyal kembali, sebelum membuat transaksi baru.' }))
+  }, [cabang.id])
 
   useEffect(() => {
     const d = dlg.current
@@ -74,6 +117,8 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
     if (konfirmasi && !d.open) d.showModal()
     if (!konfirmasi && d.open) d.close()
   }, [konfirmasi])
+
+  const bisaTambah = (i: ItemKatalog) => i.harga > 0 && (i.sumber === 'jasa' || (i.stok ?? 0) > 0)
 
   const tambah = (i: ItemKatalog) => {
     setInfo(null)
@@ -103,55 +148,97 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   }
 
   const bukaKonfirmasi = () => {
-    if (!bisaBayar) return
+    if (!bisaBayar || putus) return
     kunci.current ??= kunciBaru()
     setGalat(null)
-    setPutus(false)
     setKonfirmasi(true)
   }
 
+  // Kunci dibuang bersama kirimannya. Hanya boleh sesudah jawaban pasti dari server (berhasil, ditolak, atau Cek status).
+  const lepasKunci = () => {
+    kunci.current = null
+    kiriman.current = null
+    ingatKiriman(cabang.id, null)
+    setPutus(false)
+  }
+
   const tutupKonfirmasi = () => {
-    if (kirim) return
+    // Selama status kiriman belum jelas, keranjang tidak boleh diubah. Kasir harus menekan Cek status dulu.
+    if (kirim || mengecek || putus) return
     setKonfirmasi(false)
-    // Kiriman terakhir terputus: kuncinya dipertahankan supaya kiriman ulang tidak membuat nota ganda.
-    if (!putus) kunci.current = null
+    lepasKunci()
   }
 
   const simpan = async () => {
-    if (!kunci.current) kunci.current = kunciBaru()
-    setKirim(true)
-    setGalat(null)
-    let h: HasilBayar
-    try {
-      h = await bayarKasir({
+    // Kirim ulang sesudah putus memakai isi yang persis sama dengan kiriman pertama.
+    if (!putus || !kiriman.current) {
+      kunci.current ??= kunciBaru()
+      kiriman.current = {
         cabangId: cabang.id,
         channel,
         metode,
         diskon: nDiskon,
         alasanDiskon: alasan,
         dibayar: metode === 'tunai' ? nBayar : null,
+        totalDilihat: hitung.total,
         kunci: kunci.current,
         baris: isi.map((b) => {
           const i = peta.get(b.key)!
           return { sumber: i.sumber, id: i.id, ...(i.alt && { alt: true }), jumlah: b.jumlah }
         }),
-      })
+      }
+    }
+    ingatKiriman(cabang.id, kiriman.current)
+    setKirim(true)
+    setGalat(null)
+    let h: HasilBayar
+    try {
+      h = await bayarKasir(kiriman.current)
     } catch {
       setKirim(false)
       setPutus(true)
-      setGalat({ pesan: 'Koneksi terputus sebelum jawaban server sampai. Tekan Simpan lagi untuk mengirim ulang nota yang sama. Nota tidak akan tercatat dua kali.' })
+      setGalat({ pesan: 'Koneksi terputus sebelum jawaban server sampai, jadi belum pasti transaksi ini tersimpan. Keranjang dikunci. Tekan Cek status sebelum melakukan hal lain.' })
       return
     }
     setKirim(false)
+    lepasKunci()
     if (!h.ok) {
-      setPutus(false)
-      kunci.current = null
-      setGalat({ pesan: h.pesan, nama: h.nama, stokLain: h.stokLain })
+      setGalat({ pesan: h.pesan, nama: h.nama, stokLain: h.stokLain, nota: h.nota })
       router.refresh()
       return
     }
-    kunci.current = null
     router.push(`/admin/nota/${h.id}?baru=1`)
+  }
+
+  // Tanya server apakah kiriman yang putus tadi tersimpan. Kalau belum, server menutup kuncinya, jadi kiriman lama
+  // yang baru sampai nanti ditolak dan keranjang boleh diubah lalu dikirim dengan kunci baru tanpa nota ganda.
+  const cekStatus = async () => {
+    if (!kiriman.current) return
+    setMengecek(true)
+    let h: HasilCekKunci
+    try {
+      h = await cekKunciKasir(kiriman.current)
+    } catch {
+      setMengecek(false)
+      setGalat({ pesan: 'Masih belum tersambung ke server. Tunggu sinyal kembali, lalu tekan Cek status lagi.' })
+      return
+    }
+    setMengecek(false)
+    if (!h.ok) {
+      setGalat({ pesan: h.pesan })
+      return
+    }
+    lepasKunci()
+    if (h.status === 'tersimpan' && h.cocok) {
+      router.push(`/admin/nota/${h.id}?baru=1`)
+      return
+    }
+    if (h.status === 'tersimpan') {
+      setGalat({ pesan: `Kiriman tadi tersimpan sebagai nota ${h.nomor}, tetapi isinya berbeda dari keranjang ini. Periksa notanya sebelum menyimpan lagi.`, nota: { id: h.id, nomor: h.nomor } })
+      return
+    }
+    setGalat({ pesan: 'Transaksi tadi tidak tersimpan. Keranjang masih utuh. Periksa lagi, lalu tekan Simpan transaksi untuk mengirimnya sebagai transaksi baru.', info: true })
+    router.refresh()
   }
 
   const kunciKeyboard = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -166,8 +253,13 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   const jumlahBarang = isi.reduce((n, b) => n + b.jumlah, 0)
 
   const kotakInfo = (g: Galat) => (
-    <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+    <div role="alert" className={`rounded-lg border px-3 py-2 text-sm ${g.info ? 'border-line bg-soft text-ink' : 'border-red-200 bg-red-50 text-red-800'}`}>
       <p className="font-semibold">{g.pesan}</p>
+      {g.nota && (
+        <Link href={`/admin/nota/${g.nota.id}`} className="mt-1 inline-flex min-h-11 items-center font-semibold underline">
+          Buka nota {g.nota.nomor}
+        </Link>
+      )}
       {g.stokLain && (
         <p className="mt-0.5">
           {g.stokLain.length ? `Stok di cabang lain: ${g.stokLain.map((s) => `${s.cabang} ${s.stok}`).join(', ')}.` : 'Cabang lain tidak punya barang ini.'}
@@ -206,9 +298,15 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
             <ul className="mt-3 divide-y divide-line rounded-lg border border-line" aria-label="Hasil pencarian">
               {hasil.map((i) => {
                 const habis = i.stok !== null && i.stok <= 0
+                const bisa = bisaTambah(i)
+                // Baris yang tidak bisa dijual tetap tampil (supaya stok cabang lain terlihat), tetapi bukan tombol.
+                const Wadah = bisa ? 'button' : 'div'
                 return (
                   <li key={i.key}>
-                    <button type="button" onClick={() => tambah(i)} className={`flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-soft ${habis ? 'text-mute' : ''}`}>
+                    <Wadah
+                      {...(bisa ? { type: 'button' as const, onClick: () => tambah(i) } : {})}
+                      className={`flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left ${bisa ? 'hover:bg-soft' : 'bg-soft/60 text-mute'}`}
+                    >
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-x-2">
                           <span className="font-semibold text-ink">{i.nama}</span>
@@ -225,8 +323,8 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
                         {i.harga > 0 ? rp(i.harga) : <span className="text-xs font-semibold text-red-700">harga belum diatur</span>}
                         {i.batch.length > 1 && i.batch[1].harga !== i.batch[0].harga && <span className="block text-[11px] font-normal text-mute">lalu {rp(i.batch[1].harga)}</span>}
                       </span>
-                      <Plus aria-hidden className="size-5 shrink-0 text-mute" />
-                    </button>
+                      {bisa ? <Plus aria-hidden className="size-5 shrink-0 text-mute" /> : <span className="shrink-0 text-xs font-semibold">tidak bisa dijual</span>}
+                    </Wadah>
                   </li>
                 )
               })}
@@ -307,7 +405,7 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
           {metode === 'tunai' && (
             <div>
               <label htmlFor="kasir-bayar" className="mb-1 block text-xs font-semibold text-neutral-700">Uang diterima (Rp)</label>
-              <input id="kasir-bayar" inputMode="numeric" value={dibayar} onChange={(e) => setDibayar(digit(e.target.value))} placeholder="0" aria-describedby="kasir-bayar-rp" className={`${inputCls} min-h-12 text-right text-base`} />
+              <input id="kasir-bayar" inputMode="numeric" value={dibayar} onChange={(e) => setDibayar(digit(e.target.value).slice(0, 10))} placeholder="0" aria-describedby="kasir-bayar-rp" className={`${inputCls} min-h-12 text-right text-base`} />
               <span id="kasir-bayar-rp" className="mt-0.5 block h-4 text-right text-[11px] leading-4 text-mute">{nBayar > 0 ? rp(nBayar) : ''}</span>
               {saranUang.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -336,7 +434,15 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
           </button>
           {isi.length > 0 && !bisaBayar && (
             <p className="text-xs text-mute">
-              {hitung.galat ? 'Periksa baris yang bertanda di keranjang.' : alasanKurang ? 'Tulis alasan diskon.' : kurangBayar ? 'Isi uang diterima, paling sedikit sebesar total.' : ''}
+              {hitung.galat
+                ? 'Periksa baris yang bertanda di keranjang.'
+                : alasanKurang
+                  ? 'Tulis alasan diskon.'
+                  : kurangBayar
+                    ? 'Isi uang diterima, paling sedikit sebesar total.'
+                    : uangLebih
+                      ? `Uang diterima paling banyak ${rp(MAKS_UANG)} karena batas penyimpanan. Periksa lagi angkanya.`
+                      : ''}
             </p>
           )}
         </div>
@@ -400,10 +506,23 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
             {galat && <div className="mt-4">{kotakInfo(galat)}</div>}
           </div>
           <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end">
-            <button type="button" onClick={tutupKonfirmasi} disabled={kirim} className="adm-btn-line min-h-12">Kembali</button>
-            <button type="button" onClick={simpan} disabled={kirim} className="adm-btn min-h-12" data-autofocus>
-              {kirim ? 'Menyimpan...' : 'Simpan transaksi'}
-            </button>
+            {putus ? (
+              <>
+                <button type="button" onClick={simpan} disabled={kirim || mengecek} className="adm-btn-line min-h-12">
+                  {kirim ? 'Mengirim ulang...' : 'Kirim ulang yang sama'}
+                </button>
+                <button type="button" onClick={cekStatus} disabled={kirim || mengecek} className="adm-btn min-h-12">
+                  {mengecek ? 'Mengecek...' : 'Cek status'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={tutupKonfirmasi} disabled={kirim} className="adm-btn-line min-h-12">Kembali</button>
+                <button type="button" onClick={simpan} disabled={kirim} className="adm-btn min-h-12" data-autofocus>
+                  {kirim ? 'Menyimpan...' : 'Simpan transaksi'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </dialog>

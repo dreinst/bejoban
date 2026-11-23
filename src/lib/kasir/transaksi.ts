@@ -1,5 +1,6 @@
 // Transaksi kasir: jual, void, dan keputusan owner atas diskon. Semua cek peran ada di sini (server).
 // Aturan: docs/KASIR.md. Urutan kunci sama dengan src/lib/kasir/stok.ts.
+import { createHash } from 'node:crypto'
 import { Prisma } from '@/generated/prisma/client'
 import { db } from '../db'
 import { catatAktivitas } from '../stok/aktivitas'
@@ -9,17 +10,19 @@ import {
   bagiDiskon,
   formatNomor,
   GalatKasir,
+  GalatKunciDipakai,
   hitungNota,
   isChannel,
   isMetode,
   isSumber,
+  MAKS_UANG,
   syaratVoid,
   tanggalWib,
   type Channel,
   type MetodeBayar,
   type Sumber,
 } from './logika'
-import { batchTx, kembalikanKeBatchTx, kunciBarisTx, kunciCabangTx, kurangiFifoTx, samakanHargaTx, type SumberStok } from './stok'
+import { batchTx, kembalikanKeBatchTx, kunciBarisTx, kunciCabangTx, kurangiFifoTx, pesanTidakDipakai, samakanHargaTx, type SumberStok } from './stok'
 import { siarkan, type Siaran } from './siaran'
 
 export type SesiKasir = { uid: number; role: 'OWNER' | 'BRANCH_ADMIN'; branchId: number | null; name: string }
@@ -34,6 +37,9 @@ export type InputJual = {
   alasanDiskon: string
   dibayar: number | null
   kunci: string
+  // Total yang dilihat kasir di dialog konfirmasi. Kalau hitungan server berbeda, transaksi ditolak (GalatTotalBerubah).
+  // Selalu diisi lewat bacaInputJual. null hanya untuk pemanggil server yang tidak punya layar (tes).
+  totalDilihat: number | null
   baris: BarisMasuk[]
 }
 
@@ -48,6 +54,20 @@ export class GalatStokKurang extends GalatKasir {
   ) {
     super(message)
     this.name = 'GalatStokKurang'
+  }
+}
+
+// Total hitungan server berbeda dari total yang dilihat kasir (harga batch diubah owner, usulan restock disetujui,
+// atau batch terdepan habis oleh kasir lain). Tidak ada yang tersimpan, layar meminta konfirmasi ulang.
+export class GalatTotalBerubah extends GalatKasir {
+  constructor(
+    public totalLama: number,
+    public totalBaru: number,
+  ) {
+    super(
+      `Total berubah dari Rp ${totalLama.toLocaleString('id-ID')} menjadi Rp ${totalBaru.toLocaleString('id-ID')} karena harga atau batch barang berubah sejak dialog dibuka. Transaksi belum disimpan. Periksa rinciannya, lalu tekan Simpan lagi kalau pelanggan setuju.`,
+    )
+    this.name = 'GalatTotalBerubah'
   }
 }
 
@@ -71,6 +91,10 @@ export function bacaInputJual(raw: unknown): InputJual {
   const alasanDiskon = typeof o.alasanDiskon === 'string' ? o.alasanDiskon.trim().slice(0, 200) : ''
   if (diskon > 0 && alasanDiskon.length < 3) throw new GalatKasir('Tulis alasan diskon')
   const dibayar = o.metode === 'tunai' ? int(o.dibayar) : null
+  if (dibayar !== null && dibayar > MAKS_UANG)
+    throw new GalatKasir(`Uang diterima terlalu besar. Paling banyak Rp ${MAKS_UANG.toLocaleString('id-ID')} karena batas kolom penyimpanan. Periksa lagi angkanya.`)
+  const totalDilihat = int(o.totalDilihat)
+  if (!Number.isInteger(totalDilihat) || totalDilihat < 0) throw new GalatKasir('Total di layar tidak terbaca. Muat ulang halaman.')
   if (!Array.isArray(o.baris) || !o.baris.length) throw new GalatKasir('Keranjang masih kosong')
   if (o.baris.length > MAKS_BARIS) throw new GalatKasir(`Paling banyak ${MAKS_BARIS} baris per nota`)
   // Baris yang sama digabung, supaya FIFO dihitung sekali per barang.
@@ -85,8 +109,19 @@ export function bacaInputJual(raw: unknown): InputJual {
     const ada = gabung.get(k)
     gabung.set(k, { sumber: b.sumber, id, ...(alt && { alt }), jumlah: (ada?.jumlah ?? 0) + jumlah })
   }
-  return { cabangId, channel: o.channel, metode: o.metode, diskon, alasanDiskon: diskon > 0 ? alasanDiskon : '', dibayar: Number.isNaN(dibayar as number) ? null : dibayar, kunci, baris: [...gabung.values()] }
+  return { cabangId, channel: o.channel, metode: o.metode, diskon, alasanDiskon: diskon > 0 ? alasanDiskon : '', dibayar: Number.isNaN(dibayar as number) ? null : dibayar, kunci, totalDilihat, baris: [...gabung.values()] }
 }
+
+// Sidik isi kiriman: barang, jumlah, diskon, dan cara bayar. Total yang dilihat tidak ikut, karena kiriman ulang yang
+// isinya sama tetap harus mengembalikan nota yang sudah tersimpan walau harga di layar sudah berganti.
+export function sidikJual(input: InputJual) {
+  const baris = input.baris.map((b) => `${b.sumber}:${b.id}:${b.alt ? 1 : 0}:${b.jumlah}`).toSorted()
+  const isi = [input.cabangId, input.channel, input.metode, input.diskon, input.alasanDiskon, input.dibayar ?? '', ...baris]
+  return createHash('sha256').update(JSON.stringify(isi)).digest('hex')
+}
+
+const PESAN_KUNCI_DITUTUP =
+  'Kiriman ini sudah dinyatakan tidak tersimpan lewat Cek status, jadi tidak diproses lagi. Buka Riwayat untuk memastikan, lalu simpan sebagai transaksi baru.'
 
 // Admin hanya untuk cabangnya sendiri. Owner semua cabang.
 export function bolehCabang(s: SesiKasir, cabangId: number) {
@@ -132,17 +167,25 @@ export type HasilJual = { id: number; nomor: string; ulang: boolean }
 export async function jual(sesi: SesiKasir, input: InputJual): Promise<HasilJual> {
   if (!bolehCabang(sesi, input.cabangId)) throw new GalatKasir('Kamu hanya bisa bertransaksi untuk cabang sendiri')
   const siaran: Siaran[] = []
+  const sidik = sidikJual(input)
   let gagalBaris: { sumber: SumberStok; barisId: number; nama: string; pesan: string } | null = null
   try {
     const hasil = await db.$transaction(
       async (tx) => {
         // Kiriman dengan kunci yang sama diantrekan, lalu yang kedua melihat transaksi yang pertama.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${KUNCI_IDEMPOTENCY}, hashtext(${input.kunci}))`
-        const ada = await tx.transaksi.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomor: true, cabangId: true } })
+        const ada = await tx.transaksi.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomor: true, cabangId: true, sidikIsi: true } })
         if (ada) {
           if (ada.cabangId !== input.cabangId) throw new GalatKasir('Kunci kiriman sudah dipakai transaksi lain. Muat ulang halaman.')
+          // Kunci sama, isi beda: keranjang berubah sesudah kiriman pertama tersimpan. Jangan dianggap berhasil.
+          if (ada.sidikIsi !== null && ada.sidikIsi !== sidik)
+            throw new GalatKunciDipakai(
+              `Kiriman tadi sudah tersimpan sebagai nota ${ada.nomor}, dan isinya berbeda dari keranjang sekarang. Keranjang ini belum disimpan. Buka nota ${ada.nomor} untuk memeriksa, lalu buat transaksi baru untuk kekurangannya.`,
+              { id: ada.id, nomor: ada.nomor },
+            )
           return { id: ada.id, nomor: ada.nomor, ulang: true, diskon: 0 }
         }
+        if (await tx.kunciDitutup.findUnique({ where: { kunci: input.kunci }, select: { kunci: true } })) throw new GalatKasir(PESAN_KUNCI_DITUTUP)
         const cabang = await kunciCabangTx(tx, input.cabangId)
         if (cabang.mode !== 'kasir' || !cabang.kodeNota) throw new GalatKasir('Kasir belum aktif di cabang ini')
 
@@ -162,7 +205,8 @@ export async function jual(sesi: SesiKasir, input: InputJual): Promise<HasilJual
             continue
           }
           const baris = await kunciBarisTx(tx, b.sumber, b.id)
-          if (baris.cabangId !== input.cabangId || (b.sumber === 'ban' && !baris.aktif)) throw new GalatKasir(`${baris.nama} bukan stok cabang ini`)
+          if (baris.cabangId !== input.cabangId) throw new GalatKasir(`${baris.nama} bukan stok cabang ini`)
+          if (!baris.aktif) throw new GalatKasir(pesanTidakDipakai(baris))
           const batch = await batchTx(tx, b.sumber, b.id)
           const ada = batch.reduce((n, x) => n + x.sisa, 0)
           if (b.jumlah > ada) {
@@ -181,6 +225,10 @@ export async function jual(sesi: SesiKasir, input: InputJual): Promise<HasilJual
           }
         }
 
+        // Dibandingkan sebelum cek uang diterima, supaya kasir melihat total baru dan bukan pesan uang kurang.
+        const subtotal = rencana.reduce((n, r) => n + r.jumlah * r.harga, 0)
+        const totalServer = subtotal - Math.min(input.diskon, subtotal)
+        if (input.totalDilihat !== null && totalServer !== input.totalDilihat) throw new GalatTotalBerubah(input.totalDilihat, totalServer)
         const nota = hitungNota(rencana.map((r) => ({ jumlah: r.jumlah, harga: r.harga })), input.diskon, input.metode, input.dibayar)
         const potongan = bagiDiskon(rencana.map((r) => r.jumlah * r.harga), nota.diskon)
         const sekarang = new Date()
@@ -200,6 +248,7 @@ export async function jual(sesi: SesiKasir, input: InputJual): Promise<HasilJual
             dibayar: nota.dibayar,
             kembalian: nota.kembalian,
             idempotencyKey: input.kunci,
+            sidikIsi: sidik,
             waktuTransaksi: sekarang,
             detail: {
               create: rencana.map((r, i) => ({
@@ -256,12 +305,33 @@ export async function jual(sesi: SesiKasir, input: InputJual): Promise<HasilJual
     if (g) throw new GalatStokKurang(g.pesan, g.nama, await stokCabangLain(g.sumber, g.barisId, input.cabangId))
     // Cadangan: kunci yang sama lolos dari kunci antrean (mestinya tidak terjadi) dan bentrok di indeks unik.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      const ada = await db.transaksi.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomor: true } })
-      if (ada) return { ...ada, ulang: true }
+      const ada = await db.transaksi.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomor: true, cabangId: true, sidikIsi: true } })
+      if (ada && ada.cabangId === input.cabangId && (ada.sidikIsi === null || ada.sidikIsi === sidik)) return { id: ada.id, nomor: ada.nomor, ulang: true }
+      if (ada) throw new GalatKunciDipakai(`Kiriman tadi sudah tersimpan sebagai nota ${ada.nomor} dengan isi berbeda. Keranjang ini belum disimpan.`, { id: ada.id, nomor: ada.nomor })
     }
     if (e instanceof GalatStok) throw new GalatKasir(e.message)
     throw e
   }
+}
+
+export type StatusKunci = { status: 'tersimpan'; id: number; nomor: string; cocok: boolean } | { status: 'belum' }
+
+// Cek status kiriman sesudah koneksi putus. Mengambil kunci antrean yang sama dengan jual(), jadi kiriman yang masih
+// diproses ditunggu sampai selesai. Kalau belum ada transaksi dengan kunci itu, kuncinya ditutup: kiriman lama yang
+// baru sampai sesudah ini ditolak. Karena itu layar boleh memakai kunci baru tanpa risiko nota ganda.
+export async function cekKunciJual(sesi: SesiKasir, input: InputJual): Promise<StatusKunci> {
+  if (!bolehCabang(sesi, input.cabangId)) throw new GalatKasir('Kamu hanya bisa bertransaksi untuk cabang sendiri')
+  const sidik = sidikJual(input)
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${KUNCI_IDEMPOTENCY}, hashtext(${input.kunci}))`
+    const ada = await tx.transaksi.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomor: true, cabangId: true, sidikIsi: true } })
+    if (ada) {
+      if (ada.cabangId !== input.cabangId) throw new GalatKasir('Kunci kiriman sudah dipakai transaksi lain. Muat ulang halaman.')
+      return { status: 'tersimpan' as const, id: ada.id, nomor: ada.nomor, cocok: ada.sidikIsi === null || ada.sidikIsi === sidik }
+    }
+    await tx.kunciDitutup.upsert({ where: { kunci: input.kunci }, create: { kunci: input.kunci, cabangId: input.cabangId, penggunaId: sesi.uid, dibuat: new Date() }, update: {} })
+    return { status: 'belum' as const }
+  })
 }
 
 // Void: kembalikan tiap baris ke batch asalnya, stok naik, buku_stok tipe void. Pengajuan diskon yang menunggu ditutup.

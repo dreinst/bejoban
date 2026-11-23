@@ -313,6 +313,7 @@ model Transaksi {
   divoidOleh     Int?              @map("divoid_oleh")
   waktuVoid      DateTime?         @map("waktu_void")
   idempotencyKey String            @unique @map("idempotency_key")
+  sidikIsi       String?           @map("sidik_isi") // sidik isi kiriman (barang, jumlah, bayar), dibandingkan saat kunci yang sama datang lagi
   waktuTransaksi DateTime          @default(now()) @map("waktu_transaksi")
   detail         DetailTransaksi[]
 
@@ -436,6 +437,17 @@ model PenghitungNota {
   @@map("penghitung_nota")
 }
 
+// Kunci kiriman kasir yang ditutup lewat cek status sesudah koneksi putus. Kiriman lama dengan kunci ini yang baru
+// sampai sesudahnya ditolak, jadi kasir aman membuat kiriman baru tanpa nota ganda (docs/KASIR.md, bagian transaksi).
+model KunciDitutup {
+  kunci      String   @id
+  cabangId   Int      @map("cabang_id")
+  penggunaId Int      @map("pengguna_id")
+  dibuat     DateTime
+
+  @@map("kunci_ditutup")
+}
+
 // Kasir bagian 2 (docs/KASIR.md): barang masuk, opname. Nama tabel dan kolom mengikuti ERD Asah.
 // cabang_id dan pengguna_id sengaja tanpa relasi, sama seperti tabel kasir bagian 1.
 model BarangMasuk {
@@ -450,6 +462,7 @@ model BarangMasuk {
   namaPengguna    String              @map("nama_pengguna")
   catatan         String              @default("")
   idempotencyKey  String              @unique @map("idempotency_key")
+  sidikIsi        String?             @map("sidik_isi")
   dibuat          DateTime            @default(now())
   detail          DetailBarangMasuk[]
 

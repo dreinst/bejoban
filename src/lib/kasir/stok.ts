@@ -8,7 +8,7 @@
 // 4. baris batch_stok FOR UPDATE.
 import { db } from '../db'
 import { kunciSusunanStok, cekPeringatanTx, ubahStokTx, type HasilUbahStok, type TargetStok, type Tx } from '../stok/ubah'
-import { cekInvarian, GalatKasir, hargaTerdepan, KODE_NOTA, pecahFifo, type Batch, type Potongan } from './logika'
+import { cekInvarian, GalatKasir, hargaTerdepan, KODE_NOTA, MAKS_HARGA, pecahFifo, type Batch, type Potongan } from './logika'
 
 export type SumberStok = 'ban' | 'produk'
 
@@ -21,9 +21,18 @@ export type BarisTerkunci = {
   kode: string
   nama: string
   batas: number | null
+  // Dipakai kasir: ban aktif di Stok ban, atau produk situs yang aktif dan bukan produk contoh.
   aktif: boolean
   target: TargetStok
 }
+
+// Produk situs yang ikut kasir: aktif dan bukan produk contoh (rancangan bagian 3). Dipakai katalog dan pengaktifan.
+export const PRODUK_KASIR = { active: true, isSample: false } as const
+
+export const pesanTidakDipakai = (b: Pick<BarisTerkunci, 'sumber' | 'nama'>) =>
+  b.sumber === 'ban'
+    ? `${b.nama} sedang nonaktif di Stok ban, jadi tidak dipakai kasir`
+    : `${b.nama} adalah produk contoh atau sedang nonaktif di Produk situs, jadi tidak dipakai kasir`
 
 export type BatchTerkunci = Batch & { jumlahAwal: number }
 
@@ -60,8 +69,8 @@ export async function kunciBarisTx(tx: Tx, sumber: SumberStok, barisId: number):
       target: { jenis: 'stok_ban', id: r.id },
     }
   }
-  const [r] = await tx.$queryRaw<{ id: number; stock: number; price: number; branchId: number; productId: number; batas: number | null; name: string; kode: string | null; slug: string }[]>`
-    SELECT l."id", l."stock", l."price", l."branchId", l."productId", l."batas_minimum" AS "batas", p."name", p."kode", p."slug"
+  const [r] = await tx.$queryRaw<{ id: number; stock: number; price: number; branchId: number; productId: number; batas: number | null; name: string; kode: string | null; slug: string; active: boolean; isSample: boolean }[]>`
+    SELECT l."id", l."stock", l."price", l."branchId", l."productId", l."batas_minimum" AS "batas", p."name", p."kode", p."slug", p."active", p."isSample"
     FROM "Listing" l JOIN "Product" p ON p."id" = l."productId" WHERE l."id" = ${barisId} FOR UPDATE OF l`
   if (!r) throw new GalatKasir('Produk ini belum terdaftar di cabang tersebut')
   return {
@@ -73,7 +82,7 @@ export async function kunciBarisTx(tx: Tx, sumber: SumberStok, barisId: number):
     kode: r.kode || r.slug,
     nama: r.name,
     batas: r.batas,
-    aktif: true,
+    aktif: r.active && !r.isSample,
     target: { jenis: 'listing', productId: r.productId, branchId: r.branchId },
   }
 }
@@ -172,8 +181,8 @@ export async function hitungCalonAktivasi(cabangId: number) {
   const [ban, banStok, produk, produkStok, tanpaCabang, hargaNol] = await Promise.all([
     db.stockTire.count({ where: { cabangId } }),
     db.stockTire.count({ where: { cabangId, stock: { gt: 0 } } }),
-    db.listing.count({ where: { branchId: cabangId } }),
-    db.listing.count({ where: { branchId: cabangId, stock: { gt: 0 } } }),
+    db.listing.count({ where: { branchId: cabangId, product: PRODUK_KASIR } }),
+    db.listing.count({ where: { branchId: cabangId, stock: { gt: 0 }, product: PRODUK_KASIR } }),
     db.stockTire.count({ where: { cabangId: null, aktif: true } }),
     db.stockTire.count({ where: { cabangId, stock: { gt: 0 }, OR: [{ price: null }, { price: 0 }] } }),
   ])
@@ -181,6 +190,7 @@ export async function hitungCalonAktivasi(cabangId: number) {
 }
 
 // Owner mengaktifkan kasir untuk satu cabang. Tiap baris berstok di atas 0 mendapat batch awal.
+// Listing produk contoh atau produk nonaktif dilewati: stoknya tetap, tanpa batch, dan tidak bisa dipakai kasir.
 export async function aktifkanKasir(p: { cabangId: number; kodeNota: string; pengguna: string | null }) {
   const kodeNota = p.kodeNota.trim().toUpperCase()
   if (!KODE_NOTA.test(kodeNota)) throw new GalatKasir('Kode nota harus 2 sampai 5 huruf, mis. BTU')
@@ -196,7 +206,10 @@ export async function aktifkanKasir(p: { cabangId: number; kodeNota: string; pen
       const ban = await tx.$queryRaw<{ id: number }[]>`SELECT "id" FROM "StockTire" WHERE "cabang_id" = ${p.cabangId} ORDER BY "id" FOR UPDATE`
       for (const { id } of ban) if (await buatBatchAwalTx(tx, await kunciBarisTx(tx, 'ban', id), p.pengguna, waktu)) batch++
       const produk = await tx.$queryRaw<{ id: number }[]>`SELECT "id" FROM "Listing" WHERE "branchId" = ${p.cabangId} ORDER BY "id" FOR UPDATE`
-      for (const { id } of produk) if (await buatBatchAwalTx(tx, await kunciBarisTx(tx, 'produk', id), p.pengguna, waktu)) batch++
+      for (const { id } of produk) {
+        const baris = await kunciBarisTx(tx, 'produk', id)
+        if (baris.aktif && (await buatBatchAwalTx(tx, baris, p.pengguna, waktu))) batch++
+      }
       await tx.branch.update({ where: { id: p.cabangId }, data: { modeStok: 'kasir', kodeNota, kasirAktifSejak: waktu } })
       return { cabang: b.name, kodeNota, batch, ban: ban.length, produk: produk.length }
     },
@@ -217,6 +230,10 @@ export async function koreksiStok(p: { sumber: SumberStok; barisId: number; setK
     const b = await kunciCabangTx(tx, cabangId)
     if (b.mode !== 'kasir') throw new GalatKasir('Koreksi lewat kasir hanya untuk cabang bermode kasir')
     const baris = await kunciBarisTx(tx, p.sumber, p.barisId)
+    // Baris di luar kasir (produk contoh atau nonaktif tanpa batch) tidak dikoreksi lewat kasir. Yang sudah punya batch
+    // tetap boleh dikoreksi, misalnya untuk menolkan sisa stok produk yang berhenti dijual.
+    if (!baris.aktif && !(await tx.batchStok.count({ where: { sumber: p.sumber, barisId: p.barisId } })))
+      throw new GalatKasir(`${pesanTidakDipakai(baris)}. Aktifkan dulu kalau barangnya masih dijual.`)
     const refId = `koreksi:${p.sumber}:${p.barisId}:${Date.now()}`
     const c = { tipe: 'koreksi' as const, refId, pengguna: p.pengguna }
     const selisih = p.setKe - baris.stok
@@ -224,7 +241,8 @@ export async function koreksiStok(p: { sumber: SumberStok; barisId: number; setK
     if (selisih < 0) hasil = (await kurangiFifoTx(tx, baris, -selisih, c)).hasil
     if (selisih > 0) {
       const harga = p.harga ?? (await hargaLamaTx(tx, baris))
-      if (!Number.isInteger(harga) || harga < 0) throw new GalatKasir('Harga batch harus rupiah bulat')
+      if (!Number.isInteger(harga) || harga < 0 || harga > MAKS_HARGA) throw new GalatKasir('Harga batch harus rupiah bulat, paling besar 1.000.000.000')
+      if (harga === 0) throw new GalatKasir(PESAN_HARGA_NOL)
       const batch = await buatBatchTx(tx, baris, { jumlah: selisih, harga, jenis: 'koreksi' })
       await tx.riwayatHarga.create({ data: { sumber: p.sumber, kodeProduk: baris.kode, cabangId: baris.cabangId!, batchId: batch.id, hargaLama: null, harga, pengguna: p.pengguna } })
       hasil = [await ubahStokTx(tx, { target: baris.target, delta: selisih, tipe: 'koreksi', refId, batchId: batch.id, pengguna: p.pengguna, jalurKasir: true })]
@@ -244,9 +262,13 @@ async function cabangBarisTx(tx: Tx, sumber: SumberStok, barisId: number) {
   return id
 }
 
+// Barang berharga 0 tidak bisa dijual kasir, jadi harga batch 0 ditolak di koreksi dan ubah harga batch.
+export const PESAN_HARGA_NOL = 'Harga batch 0 membuat barang tidak bisa dijual di kasir. Isi harga jual sebenarnya.'
+
 // Owner mengubah harga jual satu batch yang masih bersisa. Tercatat di riwayat_harga.
 export async function ubahHargaBatch(p: { batchId: number; harga: number; pengguna: string | null }) {
-  if (!Number.isInteger(p.harga) || p.harga < 0 || p.harga > 1_000_000_000) throw new GalatKasir('Harga harus rupiah bulat')
+  if (!Number.isInteger(p.harga) || p.harga < 0 || p.harga > MAKS_HARGA) throw new GalatKasir('Harga harus rupiah bulat, paling besar 1.000.000.000')
+  if (p.harga === 0) throw new GalatKasir(PESAN_HARGA_NOL)
   return db.$transaction(async (tx) => {
     const awal = await tx.batchStok.findUnique({ where: { id: p.batchId }, select: { sumber: true, barisId: true, cabangId: true } })
     if (!awal) throw new GalatKasir('Batch tidak ditemukan')
@@ -284,7 +306,7 @@ export async function periksaInvarian(cabangId?: number) {
   for (const c of cabang) {
     const [ban, listing, batch] = await Promise.all([
       db.stockTire.findMany({ where: { cabangId: c.id }, select: { id: true, sizeRaw: true, brand: true, stock: true, price: true, discount: true } }),
-      db.listing.findMany({ where: { branchId: c.id }, select: { id: true, stock: true, price: true, product: { select: { name: true } } } }),
+      db.listing.findMany({ where: { branchId: c.id }, select: { id: true, stock: true, price: true, product: { select: { name: true, active: true, isSample: true } } } }),
       db.batchStok.findMany({ where: { cabangId: c.id }, select: { id: true, sumber: true, barisId: true, sisa: true, hargaJual: true, tanggalMasuk: true, jumlahAwal: true } }),
     ])
     const per = new Map<string, BatchTerkunci[]>()
@@ -299,6 +321,8 @@ export async function periksaInvarian(cabangId?: number) {
       if (r.discount !== 0 && (per.get(`ban:${r.id}`) ?? []).some((b) => b.sisa > 0)) masalah.push({ cabangId: c.id, pesan: `${r.sizeRaw} ${r.brand}: potongan ${r.discount} masih terisi` })
     }
     for (const r of listing) {
+      // Produk contoh atau nonaktif yang tidak pernah punya batch berada di luar kasir, jadi tidak diperiksa.
+      if ((!r.product.active || r.product.isSample) && !per.has(`produk:${r.id}`)) continue
       diperiksa++
       for (const m of cekInvarian({ label: r.product.name, stok: r.stock, harga: r.price }, per.get(`produk:${r.id}`) ?? [])) masalah.push({ cabangId: c.id, pesan: m })
     }

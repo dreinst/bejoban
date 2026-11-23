@@ -31,7 +31,10 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
 
   return (
     <PageBody>
-      <PageHeader title="Rekap dan ekspor" note="Rekap barang masuk dan keluar per barang dan cabang dalam satu bulan (WIB). Jasa tidak punya stok, jadi tidak ikut di rekap ini." />
+      <PageHeader
+        title="Rekap dan ekspor"
+        note="Rekap barang masuk dan keluar per barang dan cabang dalam satu bulan (WIB), menurut tanggal transaksi. Transaksi yang di-void tidak dihitung, walau void-nya terjadi di bulan berikutnya, jadi rekap bulan lalu bisa berubah. Jasa tidak punya stok, jadi tidak ikut di rekap ini."
+      />
       <form className="adm-card flex flex-wrap items-end gap-3 p-4">
         <div>
           <label htmlFor="rk-bulan" className="mb-1 block text-xs font-semibold text-neutral-700">Bulan</label>
@@ -62,7 +65,7 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
           rows={rows}
           rowKey={(r) => `${r.sumber}:${r.barisId}`}
           columns={[
-            { key: 'nama', header: 'Barang', mobile: 'title', cell: (r) => <span className="block"><Link href={`/admin/kasir/barang?sumber=${r.sumber}&id=${r.barisId}`} className="font-semibold text-ink underline underline-offset-2">{r.nama}</Link><span className="block text-xs text-mute">{SUMBER_LABEL[r.sumber]}</span></span> },
+            { key: 'nama', header: 'Barang', mobile: 'title', cell: (r) => <span className="block"><Link href={`/admin/kasir/barang?sumber=${r.sumber}&id=${r.barisId}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center font-semibold text-ink underline underline-offset-2">{r.nama}</Link><span className="block text-xs text-mute">{SUMBER_LABEL[r.sumber]}</span></span> },
             ...(cabangId === null && kasir.length > 1 ? [{ key: 'cabang', header: 'Cabang', cell: (r: BarisRekap) => nama(r.cabangId) }] : []),
             { key: 'masuk', header: 'Masuk', align: 'right', cell: (r) => r.masuk || '-' },
             { key: 'terjual', header: 'Terjual', align: 'right', cell: (r) => r.terjual || '-' },
@@ -90,7 +93,7 @@ export default async function RekapKasir({ searchParams }: PageProps<'/admin/kas
           <ul className="grid gap-3 xl:grid-cols-3">
             {[
               { jenis: 'penjualan', judul: 'Penjualan per minggu', isi: 'Jumlah terjual per barang, cabang, minggu, dan channel, dengan harga asli, diskon, harga efektif, dan penanda stok sempat habis.' },
-              { jenis: 'stok-habis', judul: 'Stok habis', isi: 'Kapan stok tiap barang turun ke 0 dan kapan tersedia lagi, dari buku stok.' },
+              { jenis: 'stok-habis', judul: 'Stok habis', isi: 'Kapan stok tiap barang turun ke 0 dan kapan tersedia lagi, dari buku stok. Hanya cabang yang memakai kasir, sejak kasir diaktifkan.' },
               { jenis: 'barang-masuk', judul: 'Barang masuk', isi: 'Tiap barang yang diterima dengan pemasok, harga beli, harga jual, dan lead time dari tanggal pesan ke tanggal terima.' },
             ].map((x) => (
               <li key={x.jenis} className="flex flex-col gap-3 rounded-lg border border-line p-4">

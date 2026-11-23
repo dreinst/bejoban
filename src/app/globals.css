@@ -97,6 +97,10 @@ form:has([data-uploading]) button:not([type='button']) { pointer-events: none; o
   .adm-table tr[data-muted] [data-thumb-img] { opacity: .45; }
   .adm-table [data-align=right] { text-align: right; }
   .adm-table [data-align=center] { text-align: center; }
+  /* Tablet (768 sampai 1023 px): ruang di samping panel menu sempit, jadi padding sel dikecilkan supaya tabel muat. */
+  @media (min-width: 768px) and (max-width: 1023.98px) {
+    .adm-table th, .adm-table td { padding-left: .5rem; padding-right: .5rem; }
+  }
   .adm-row-actions { display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: .375rem; }
   @media (max-width: 767px) {
     .adm-table, .adm-table tbody { display: block; }

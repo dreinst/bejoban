@@ -7,7 +7,7 @@ import { catatAktivitas } from '../stok/aktivitas'
 import { GalatStok } from '../stok/logika'
 import { ubahStokTx, type HasilUbahStok, type Tx } from '../stok/ubah'
 import { GalatKasir, hasilOpname } from './logika'
-import { buatBatchTx, hargaLamaTx, kunciBarisTx, kunciCabangTx, kurangiFifoTx, samakanHargaTx, type SumberStok } from './stok'
+import { buatBatchTx, hargaLamaTx, kunciBarisTx, kunciCabangTx, kurangiFifoTx, pesanTidakDipakai, samakanHargaTx, type SumberStok } from './stok'
 import { siarkan } from './siaran'
 import { bolehCabang, type SesiKasir } from './transaksi'
 
@@ -20,7 +20,7 @@ export const PESAN_OPNAME_SHEET = 'Cabang ini belum memakai kasir. Stoknya masih
 const KUNCI_OPNAME_CABANG = 4207004
 const MAKS_BARIS = 1000
 
-type Opname = { id: number; cabangId: number; status: StatusOpname }
+type Opname = { id: number; cabangId: number; status: StatusOpname; penginputId: number }
 
 const galat = (e: unknown): never => {
   if (e instanceof GalatStok) throw new GalatKasir(e.message)
@@ -28,7 +28,7 @@ const galat = (e: unknown): never => {
 }
 
 async function kunciOpnameTx(tx: Tx, id: number): Promise<Opname> {
-  const [o] = await tx.$queryRaw<Opname[]>`SELECT "id", "cabang_id" AS "cabangId", "status" FROM "stok_opname" WHERE "id" = ${id} FOR UPDATE`
+  const [o] = await tx.$queryRaw<Opname[]>`SELECT "id", "cabang_id" AS "cabangId", "status", "penginput_id" AS "penginputId" FROM "stok_opname" WHERE "id" = ${id} FOR UPDATE`
   if (!o) throw new GalatKasir('Opname tidak ditemukan')
   return o
 }
@@ -63,6 +63,7 @@ export async function isiBarisOpname(sesi: SesiKasir, p: { opnameId: number; sum
       bolehUbah(sesi, o)
       const baris = await kunciBarisTx(tx, p.sumber, p.barisId)
       if (baris.cabangId !== o.cabangId) throw new GalatKasir(`${baris.nama} bukan stok cabang ini`)
+      if (!baris.aktif) throw new GalatKasir(pesanTidakDipakai(baris))
       const selisih = p.stokFisik - baris.stok
       if (selisih !== 0 && alasan.length < 3) throw new GalatKasir(`Tulis alasan selisih untuk ${baris.nama} (sistem ${baris.stok}, fisik ${p.stokFisik})`)
       const jumlah = await tx.detailOpname.count({ where: { opnameId: o.id } })
@@ -108,6 +109,8 @@ export async function hapusOpname(sesi: SesiKasir, id: number) {
     const o = await kunciOpnameTx(tx, id)
     if (!bolehCabang(sesi, o.cabangId)) throw new GalatKasir('Opname ini milik cabang lain')
     if (o.status !== 'draft') throw new GalatKasir('Hanya opname draft yang bisa dihapus')
+    // Admin cabang hanya menghapus draft buatannya sendiri. Owner boleh menghapus draft siapa pun.
+    if (sesi.role !== 'OWNER' && o.penginputId !== sesi.uid) throw new GalatKasir('Draft ini dibuat orang lain. Hanya pembuatnya atau owner yang bisa menghapusnya.')
     await tx.stokOpname.delete({ where: { id } })
     return o
   })
@@ -137,6 +140,7 @@ export async function finalkanOpname(sesi: SesiKasir, id: number): Promise<Hasil
         for (const d of detail) {
           const baris = await kunciBarisTx(tx, d.sumber as SumberStok, d.barisId)
           if (baris.cabangId !== o.cabangId) throw new GalatKasir(`${baris.nama} sudah bukan stok cabang ini`)
+          if (!baris.aktif) throw new GalatKasir(`${pesanTidakDipakai(baris)}. Hapus barisnya dari opname dulu.`)
           const h = hasilOpname(baris.stok, d.selisih)
           if (h.negatif) negatif.push(`${baris.nama} (stok sekarang ${baris.stok}, selisih ${d.selisih})`)
           rencana.push({ d, baris, ...h })

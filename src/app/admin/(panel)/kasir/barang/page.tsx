@@ -65,8 +65,8 @@ export default async function BarangKasir({ searchParams }: PageProps<'/admin/ka
             columns={[
               { key: 'masuk', header: 'Masuk', mobile: 'title', cell: (b) => <span className="font-semibold text-ink">{waktuWib(b.tanggalMasuk)}{b.id === depan?.id && <span className="ml-1.5"><Badge>terdepan</Badge></span>}</span> },
               { key: 'jenis', header: 'Jenis', cell: (b) => JENIS[b.jenis] ?? b.jenis },
-              { key: 'sisa', header: 'Sisa', align: 'right', cell: (b) => `${b.sisa} dari ${b.jumlahAwal}` },
-              { key: 'harga', header: 'Harga jual', align: 'right', cell: (b) => (b.hargaJual > 0 ? rp(b.hargaJual) : <span className="font-semibold text-red-700">belum diatur</span>) },
+              { key: 'sisa', header: 'Sisa', align: 'right', className: 'whitespace-nowrap', cell: (b) => `${b.sisa} dari ${b.jumlahAwal}` },
+              { key: 'harga', header: 'Harga jual', align: 'right', className: 'whitespace-nowrap', cell: (b) => (b.hargaJual > 0 ? rp(b.hargaJual) : <span className="font-semibold text-red-700">belum diatur</span>) },
             ]}
             actions={(b) =>
               b.sisa > 0 ? (

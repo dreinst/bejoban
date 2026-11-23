@@ -1,13 +1,14 @@
 // Barang masuk (UC-05) dan pengajuan harga restock (UC-06a). Aturan: docs/KASIR.md, bagian barang masuk.
 // Urutan kunci sama dengan src/lib/kasir/stok.ts: kunci idempotency (advisory), baris cabang FOR SHARE,
 // baris stok urut (ban lalu produk, id), baris batch.
+import { createHash } from 'node:crypto'
 import { Prisma } from '@/generated/prisma/client'
 import { db } from '../db'
 import { catatAktivitas } from '../stok/aktivitas'
 import { GalatStok } from '../stok/logika'
 import { ubahStokTx, type HasilUbahStok, type Tx } from '../stok/ubah'
-import { formatNomorPenerimaan, GalatKasir, isJenisPemasok, isoWib, tanggalKeWaktu, tanggalWib, type JenisPemasok } from './logika'
-import { buatBatchTx, hargaLamaTx, kunciBarisTx, kunciCabangTx, samakanHargaTx, type BarisTerkunci, type SumberStok } from './stok'
+import { formatNomorPenerimaan, GalatKasir, GalatKunciDipakai, isJenisPemasok, isoWib, tanggalKeWaktu, tanggalWib, type JenisPemasok } from './logika'
+import { buatBatchTx, hargaLamaTx, kunciBarisTx, kunciCabangTx, pesanTidakDipakai, samakanHargaTx, type BarisTerkunci, type SumberStok } from './stok'
 import { siarkan, type Siaran } from './siaran'
 import { bolehCabang, type SesiKasir } from './transaksi'
 
@@ -70,6 +71,16 @@ export function bacaInputBarangMasuk(raw: unknown, sekarang = new Date()): Input
   return { cabangId, pemasok, jenisPemasok: o.jenisPemasok, tanggalPesan, tanggalTerima, catatan: teks(o.catatan, 300), kunci, baris }
 }
 
+// Sidik isi penerimaan, aturannya sama dengan transaksi kasir (sidikJual): kunci yang sama dengan isi berbeda ditolak.
+export function sidikMasuk(input: InputBarangMasuk) {
+  const baris = input.baris.map((b) => `${b.sumber}:${b.id}:${b.jumlah}:${b.hargaBeli ?? ''}:${b.hargaJual ?? ''}`).toSorted()
+  const isi = [input.cabangId, input.pemasok, input.jenisPemasok, input.tanggalPesan, input.tanggalTerima, input.catatan, ...baris]
+  return createHash('sha256').update(JSON.stringify(isi)).digest('hex')
+}
+
+const pesanKunciMasuk = (nomor: string) =>
+  `Kiriman tadi sudah tersimpan sebagai penerimaan ${nomor}, dan isinya berbeda dari formulir sekarang. Formulir ini belum disimpan. Buka ${nomor} untuk memeriksa, lalu catat kekurangannya sebagai penerimaan baru.`
+
 async function nomorPenerimaanTx(tx: Tx, cabangId: number, tanggal: string) {
   const [r] = await tx.$queryRaw<{ nomor: number }[]>`
     INSERT INTO "penghitung_penerimaan" ("cabang_id", "tanggal", "nomor") VALUES (${cabangId}, ${tanggal}, 1)
@@ -87,13 +98,15 @@ export async function catatBarangMasuk(sesi: SesiKasir, input: InputBarangMasuk)
   if (!bolehCabang(sesi, input.cabangId)) throw new GalatKasir('Kamu hanya bisa mencatat barang masuk untuk cabang sendiri')
   const owner = sesi.role === 'OWNER'
   const siaran: Siaran[] = []
+  const sidik = sidikMasuk(input)
   try {
     const hasil = await db.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${KUNCI_IDEMPOTENCY_MASUK}, hashtext(${input.kunci}))`
-        const lama = await tx.barangMasuk.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomorPenerimaan: true, cabangId: true } })
+        const lama = await tx.barangMasuk.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomorPenerimaan: true, cabangId: true, sidikIsi: true } })
         if (lama) {
           if (lama.cabangId !== input.cabangId) throw new GalatKasir('Kunci kiriman sudah dipakai penerimaan lain. Muat ulang halaman.')
+          if (lama.sidikIsi !== null && lama.sidikIsi !== sidik) throw new GalatKunciDipakai(pesanKunciMasuk(lama.nomorPenerimaan), { id: lama.id, nomor: lama.nomorPenerimaan })
           return { id: lama.id, nomor: lama.nomorPenerimaan, ulang: true, diajukan: 0 }
         }
         const cabang = await kunciCabangTx(tx, input.cabangId)
@@ -104,7 +117,7 @@ export async function catatBarangMasuk(sesi: SesiKasir, input: InputBarangMasuk)
         for (const b of urut) {
           const baris = await kunciBarisTx(tx, b.sumber, b.id)
           if (baris.cabangId !== input.cabangId) throw new GalatKasir(`${baris.nama} bukan stok cabang ini`)
-          if (!baris.aktif) throw new GalatKasir(`${baris.nama} sedang nonaktif di Stok ban`)
+          if (!baris.aktif) throw new GalatKasir(pesanTidakDipakai(baris))
           const hargaLama = await hargaLamaTx(tx, baris)
           if ((b.hargaJual ?? hargaLama) <= 0) throw new GalatKasir(`${baris.nama} belum punya harga jual. Isi harga jual.`)
           terkunci.push({ b, baris, hargaLama })
@@ -125,6 +138,7 @@ export async function catatBarangMasuk(sesi: SesiKasir, input: InputBarangMasuk)
             namaPengguna: sesi.name.slice(0, 60),
             catatan: input.catatan,
             idempotencyKey: input.kunci,
+            sidikIsi: sidik,
           },
           select: { id: true },
         })
@@ -171,8 +185,9 @@ export async function catatBarangMasuk(sesi: SesiKasir, input: InputBarangMasuk)
     return hasil
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      const ada = await db.barangMasuk.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomorPenerimaan: true } })
-      if (ada) return { id: ada.id, nomor: ada.nomorPenerimaan, ulang: true, diajukan: 0 }
+      const ada = await db.barangMasuk.findUnique({ where: { idempotencyKey: input.kunci }, select: { id: true, nomorPenerimaan: true, cabangId: true, sidikIsi: true } })
+      if (ada && ada.cabangId === input.cabangId && (ada.sidikIsi === null || ada.sidikIsi === sidik)) return { id: ada.id, nomor: ada.nomorPenerimaan, ulang: true, diajukan: 0 }
+      if (ada) throw new GalatKunciDipakai(pesanKunciMasuk(ada.nomorPenerimaan), { id: ada.id, nomor: ada.nomorPenerimaan })
     }
     if (e instanceof GalatStok) throw new GalatKasir(e.message)
     throw e

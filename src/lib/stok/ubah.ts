@@ -163,12 +163,31 @@ export function simpanListing(p: { productId: number; branchId: number; data: Da
   })
 }
 
+// Baris yang sudah dipakai kasir (punya batch atau baris nota) tidak boleh dihapus: batch, riwayat harga, dan void
+// nota lama menunjuk ke baris itu. Stok ban tidak punya jalan hapus (impor hanya menonaktifkan baris yang hilang).
+export class GalatDipakaiKasir extends GalatStok {
+  constructor(nama: string) {
+    super(`${nama} sudah dipakai kasir (punya batch stok atau nota), jadi tidak bisa dihapus. Nonaktifkan saja supaya riwayat dan void nota lamanya tetap jalan.`)
+    this.name = 'GalatDipakaiKasir'
+  }
+}
+
+async function cekBelumDipakaiKasirTx(tx: Tx, listingIds: number[], nama: string) {
+  if (!listingIds.length) return
+  const [r] = await tx.$queryRaw<{ ada: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM "batch_stok" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds}))
+        OR EXISTS (SELECT 1 FROM "detail_transaksi" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds})) AS "ada"`
+  if (r?.ada) throw new GalatDipakaiKasir(nama)
+}
+
 // Hapus listing. Sisa stoknya dicatat keluar (koreksi ke 0) supaya buku stok tetap seimbang.
 export function hapusListing(p: { productId: number; branchId: number; pengguna?: string | null; refId?: string | null }) {
   const { productId, branchId } = p
   return db.$transaction(async (tx) => {
     const where = { productId_branchId: { productId, branchId } }
-    if (!(await tx.listing.findUnique({ where, select: { id: true } }))) return false
+    const l = await tx.listing.findUnique({ where, select: { id: true, product: { select: { name: true } } } })
+    if (!l) return false
+    await cekBelumDipakaiKasirTx(tx, [l.id], l.product.name)
     await ubahStokTx(tx, { target: { jenis: 'listing', productId, branchId }, setKe: 0, tipe: 'koreksi', pengguna: p.pengguna, refId: p.refId })
     await tx.listing.delete({ where })
     return true
@@ -179,7 +198,9 @@ export function hapusListing(p: { productId: number; branchId: number; pengguna?
 export function hapusProduk(p: { productId: number; pengguna?: string | null }) {
   const { productId } = p
   return db.$transaction(async (tx) => {
-    for (const l of await tx.listing.findMany({ where: { productId }, select: { branchId: true }, orderBy: { branchId: 'asc' } }))
+    const listing = await tx.listing.findMany({ where: { productId }, select: { id: true, branchId: true, product: { select: { name: true } } }, orderBy: { branchId: 'asc' } })
+    await cekBelumDipakaiKasirTx(tx, listing.map((l) => l.id), listing[0]?.product.name ?? 'Produk ini')
+    for (const l of listing)
       await ubahStokTx(tx, { target: { jenis: 'listing', productId, branchId: l.branchId }, setKe: 0, tipe: 'koreksi', pengguna: p.pengguna, refId: `produk:${productId}` })
     const { count } = await tx.product.deleteMany({ where: { id: productId } })
     return count > 0

@@ -1,6 +1,7 @@
 'use client'
 // Formulir barang masuk: kepala penerimaan, lalu baris barang dari pencarian. Harga jual terisi harga sekarang.
 // Server menghitung ulang harga lama dan menentukan apakah usulan harga perlu disetujui owner.
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
@@ -27,6 +28,7 @@ export function FormMasuk({ cabang, barang, owner, hariIni, pemasokLama }: { cab
   const [baris, setBaris] = useState<Baris[]>([])
   const [kirim, setKirim] = useState(false)
   const [galat, setGalat] = useState('')
+  const [ref, setRef] = useState<{ id: number; nomor: string } | null>(null)
   // Satu kunci untuk satu penerimaan. Dipakai ulang kalau kiriman gagal, supaya kiriman ulang tidak mencatat dua kali.
   const kunci = useRef(kunciBaru())
 
@@ -44,6 +46,7 @@ export function FormMasuk({ cabang, barang, owner, hariIni, pemasokLama }: { cab
     if (kurang || kirim) return
     setKirim(true)
     setGalat('')
+    setRef(null)
     let h: HasilSimpan
     try {
       h = await catatBarangMasukAksi({
@@ -61,7 +64,7 @@ export function FormMasuk({ cabang, barang, owner, hariIni, pemasokLama }: { cab
       })
     } catch {
       setKirim(false)
-      setGalat('Koneksi terputus. Cek daftar barang masuk dulu sebelum mengirim ulang. Kalau belum ada, tekan Simpan lagi.')
+      setGalat('Koneksi terputus. Tekan Simpan lagi tanpa mengubah isian. Kalau penerimaan tadi sudah tersimpan, halamannya yang dibuka, bukan penerimaan baru.')
       return
     }
     if (h.ok) {
@@ -70,6 +73,8 @@ export function FormMasuk({ cabang, barang, owner, hariIni, pemasokLama }: { cab
     }
     setKirim(false)
     setGalat(h.pesan)
+    // Kunci tetap: selama isian berbeda, kiriman berikutnya terus ditolak. Penerimaan baru dibuat dari formulir baru.
+    if (h.ref) setRef(h.ref)
   }
 
   return (
@@ -184,7 +189,16 @@ export function FormMasuk({ cabang, barang, owner, hariIni, pemasokLama }: { cab
         <button type="submit" disabled={!!kurang || kirim} className="adm-btn min-h-12 px-6 disabled:opacity-50">
           {kirim ? 'Menyimpan...' : 'Simpan barang masuk'}
         </button>
-        {galat && <p role="alert" className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{galat}</p>}
+        {galat && (
+          <div role="alert" className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p>{galat}</p>
+            {ref && (
+              <Link href={`/admin/kasir/masuk/${ref.id}`} className="mt-1 inline-flex min-h-11 items-center font-semibold underline">
+                Buka penerimaan {ref.nomor}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </form>
   )

@@ -1,11 +1,42 @@
 // Logika murni kasir: FIFO, pemecahan per batch, pembagian diskon, nomor transaksi, syarat void, invarian.
 // Tidak menyentuh database supaya bisa dites terpisah (tests/kasir-logika.test.ts). Aturan lengkap: docs/KASIR.md.
 
+import { parsePrice } from '../tire/pricelist'
+
 export class GalatKasir extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'GalatKasir'
   }
+}
+
+// Kunci kiriman yang sama datang dengan isi berbeda. ref menunjuk catatan yang sudah tersimpan dengan kunci itu.
+export class GalatKunciDipakai extends GalatKasir {
+  constructor(
+    message: string,
+    public ref: { id: number; nomor: string },
+  ) {
+    super(message)
+    this.name = 'GalatKunciDipakai'
+  }
+}
+
+// Batas atas uang yang disimpan: kolom INTEGER PostgreSQL. Harga dibatasi 1 miliar seperti ubahHargaBatch.
+export const MAKS_UANG = 2_147_483_647
+export const MAKS_HARGA = 1_000_000_000
+
+// Pembaca isian angka owner (stok, harga, batas). Menerima angka bulat dan format rupiah biasa ("1.250.000",
+// "Rp 1.250.000"). Tanda minus, pecahan, sen, dan teks campuran ditolak dengan pesan, tidak ditebak.
+// Kosong: null. Pembaca harga yang sama dipakai impor pricelist (parsePrice).
+export function bacaAngkaIsian(raw: string, label: string, maks: number): number | null {
+  const t = raw.trim()
+  if (!t) return null
+  if (/^-/.test(t.replace(/^rp\.?\s*/i, ''))) throw new GalatKasir(`${label} tidak boleh minus. Tulis angka tujuannya, mis. 12.`)
+  // parsePrice membuang spasi, jadi "1 2" akan terbaca 12. Spasi di antara angka ditolak di sini.
+  const { value } = /\d\s+\d/.test(t) ? { value: null } : parsePrice(t)
+  if (value === null) throw new GalatKasir(`${label} harus angka bulat tanpa koma, sen, atau huruf, mis. 1.250.000`)
+  if (value > maks) throw new GalatKasir(`${label} paling besar ${maks.toLocaleString('id-ID')}`)
+  return value
 }
 
 export const CHANNEL = ['toko', 'whatsapp'] as const

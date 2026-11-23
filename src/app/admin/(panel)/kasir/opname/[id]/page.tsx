@@ -137,7 +137,7 @@ export default async function RincianOpname({ params }: PageProps<'/admin/kasir/
               alternative={{ action: finalkanOpnameAksi, fields: field, label: 'Finalkan' }}
             />
           )}
-          {status === 'draft' && (
+          {status === 'draft' && (owner || o.penginputId === s.uid) && (
             <span className="ml-auto">
               <ConfirmDialog
                 trigger="Hapus draft"

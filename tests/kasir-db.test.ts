@@ -77,8 +77,11 @@ after(async () => {
 })
 
 const kunci = () => randomUUID()
-const input = (cabangId: number, baris: { sumber: 'ban' | 'produk' | 'jasa'; id: number; jumlah: number; alt?: boolean }[], lain: Partial<import('../src/lib/kasir/transaksi').InputJual> = {}) =>
-  m.trx.bacaInputJual({ cabangId, channel: 'toko', metode: 'qris', diskon: 0, alasanDiskon: '', dibayar: null, kunci: kunci(), baris, ...lain })
+// Tanpa totalDilihat di `lain`, cek total dilewati (totalDilihat null), seperti pemanggil server tanpa layar.
+const input = (cabangId: number, baris: { sumber: 'ban' | 'produk' | 'jasa'; id: number; jumlah: number; alt?: boolean }[], lain: Partial<import('../src/lib/kasir/transaksi').InputJual> = {}) => {
+  const x = m.trx.bacaInputJual({ cabangId, channel: 'toko', metode: 'qris', diskon: 0, alasanDiskon: '', dibayar: null, kunci: kunci(), totalDilihat: 0, baris, ...lain })
+  return 'totalDilihat' in lain ? x : { ...x, totalDilihat: null }
+}
 const stokBan = async (id: number) => (await m.db.stockTire.findUniqueOrThrow({ where: { id } })).stock
 const sisaBatch = async (sumber: string, barisId: number) => (await m.db.batchStok.findMany({ where: { sumber, barisId }, orderBy: { id: 'asc' } })).map((b) => b.sisa)
 const invarianBersih = async () => assert.deepEqual((await m.stok.periksaInvarian()).masalah, [])
@@ -243,7 +246,8 @@ test('impor sheet dan ubah stok biasa ditolak untuk cabang mode kasir, cabang mo
   await m.ubah.simpanListing({ productId: l.productId, branchId: A, data: { price: 1, comparePrice: 90_000, available: false, flashSale: false }, stok: 99 })
   const l2 = await m.db.listing.findUniqueOrThrow({ where: { id: listingA } })
   assert.deepEqual([l2.price, l2.stock, l2.comparePrice, l2.available], [l.price, l.stock, 90_000, false])
-  await assert.rejects(m.ubah.hapusListing({ productId: l.productId, branchId: A }), /lewat Kasir/)
+  // Listing ini sudah punya batch, jadi penjaga hapus (K6) menolaknya lebih dulu daripada penjaga mode kasir.
+  await assert.rejects(m.ubah.hapusListing({ productId: l.productId, branchId: A }), /sudah dipakai kasir/)
   await m.ubah.ubahStok({ target: { jenis: 'stok_ban', id: banC }, setKe: 5, tipe: 'koreksi' })
   assert.equal(await stokBan(banC), 5)
   await invarianBersih()

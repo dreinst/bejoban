@@ -1,6 +1,6 @@
 # Status pekerjaan Bejo Ban
 
-Keadaan per 21 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
+Keadaan per 23 November 2026. Dokumen ini mencatat yang sudah selesai, yang belum, dan keputusan yang sudah diambil, supaya pekerjaan berikutnya bisa dimulai dari cabang `main`.
 
 Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tagihan tidak ditulis di sini. Semuanya dicatat di luar repo, di `~/ndru/bejoban-aset/CATATAN-PRIBADI.md` pada mesin pengembang.
 
@@ -8,8 +8,8 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
-- Kasir v1 bagian 1 dan 2 selesai di branch `kasir-v1` dan belum dirilis. `main` dan situs belum memuatnya. Rinciannya di [KASIR.md](KASIR.md).
-- `npm test` lulus 175 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- Kasir v1 bagian 1 dan 2, ditambah perbaikan 11 temuan audit, selesai di branch `kasir-v1` dan belum dirilis. `main` dan situs belum memuatnya. Rinciannya di [KASIR.md](KASIR.md).
+- Di branch `kasir-v1`, `npm test` lulus 188 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (pada cadangan 20 November 2026 pukul 04.28 UTC semuanya sudah ditetapkan ke cabang Batu), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -54,6 +54,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - Bagian 2: barang masuk dengan nomor `BM-...` dan pengajuan harga restock untuk owner, opname draft, review, dan final (selisih diterapkan ke stok saat final), dashboard owner, rekap bulanan per barang dan cabang, dan ekspor CSV untuk tim data (penjualan per minggu, stok habis, barang masuk dengan lead time). Barang datang sekarang dicatat lewat Barang masuk, bukan koreksi.
 - Diuji 21 November 2026 di lokal pada salinan data produksi dengan sandi uji, lewat browser tanpa kepala dengan formulir sungguhan: aktivasi kasir, transaksi ban, produk, dan jasa dengan tunai dan kembalian, QRIS, pemecahan batch, penolakan jumlah melebihi stok (di layar dan di server), diskon admin lalu ditinjau owner, void admin, ubah harga batch, batas minimum yang memicu peringatan, pratinjau cetak 58 mm, 80 mm, dan A4, siaran ke layar kasir lain, serta perubahan di Stok ban dan Kotak uji chatbot. 64 pemeriksaan lulus, termasuk tanpa luapan mendatar di 1440, 820, dan 390 px.
 - Bagian 2 diuji 20 November 2026 dengan cara yang sama: barang masuk admin dengan harga usulan, owner menyetujui satu dan menolak satu, penjualan dengan harga batch yang sesuai, opname admin dengan selisih plus dan minus dan penjualan sebelum final, penolakan untuk cabang mode sheet dan cabang lain, dashboard yang cocok dengan Riwayat, rekap bulanan, unduhan CSV, serta perubahan di Stok ban dan Kotak uji chatbot. 106 pemeriksaan lulus, termasuk tanpa luapan dan tanpa tabel terpotong di 1440, 820, dan 390 px.
+- Audit independen 20 November 2026 menemukan 11 masalah. Yang terberat: kiriman ulang sesudah koneksi putus bisa menyimpan nota lama walau keranjang sudah diubah, produk contoh ikut terjual, dan total yang tersimpan bisa berbeda dari total di dialog. Semuanya sudah diperbaiki dengan tes di `tests/kasir-audit-db.test.ts` dan diuji ulang di browser pada salinan data produksi. Keputusan yang diambil saat perbaikan (produk contoh tidak ikut kasir, harga batch 0 ditolak, admin hanya menghapus draft opname buatannya, rekap bulanan menurut tanggal transaksi) dicatat di [KASIR.md](KASIR.md) dan masih bisa diubah owner.
 
 ### Ongkir
 

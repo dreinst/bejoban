@@ -45,14 +45,14 @@ export default async function TinjauPengajuan() {
     const x = t(p.transaksiId)
     return (
       <span className="block">
-        {x ? <Link href={`/admin/nota/${x.id}`} className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">{x.nomor}</Link> : '-'}
+        {x ? <Link href={`/admin/nota/${x.id}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center whitespace-nowrap font-semibold text-ink underline underline-offset-2">{x.nomor}</Link> : '-'}
         <span className="block text-xs text-mute">{waktuWib(p.dibuat)}</span>
       </span>
     )
   }
   const kolom = [
     { key: 'nota', header: 'Nota', mobile: 'title' as const, cell: nota },
-    { key: 'cabang', header: 'Cabang', cell: (p: P) => cabang(p.cabangId) },
+    { key: 'cabang', header: 'Cabang', sembunyiTablet: true, cell: (p: P) => cabang(p.cabangId) },
     { key: 'admin', header: 'Admin', cell: (p: P) => orang(p.pengajuId) },
     { key: 'diskon', header: 'Diskon', align: 'right' as const, cell: (p: P) => <span className="whitespace-nowrap font-semibold">{rp(p.hargaLama - p.hargaBaru)}</span> },
     { key: 'nilai', header: 'Subtotal ke total', mobile: 'hide' as const, cell: (p: P) => `${rp(p.hargaLama)} ke ${rp(p.hargaBaru)}` },
@@ -72,7 +72,7 @@ export default async function TinjauPengajuan() {
         return (
           <span className="block">
             <span className="block font-semibold text-ink">{d?.nama ?? p.kodeProduk}</span>
-            {d && <Link href={`/admin/kasir/masuk/${d.barangMasuk.id}`} className="text-xs text-mute underline underline-offset-2">{d.barangMasuk.nomorPenerimaan}</Link>}
+            {d && <Link href={`/admin/kasir/masuk/${d.barangMasuk.id}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center text-xs text-mute underline underline-offset-2">{d.barangMasuk.nomorPenerimaan}</Link>}
           </span>
         )
       },

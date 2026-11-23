@@ -5,6 +5,7 @@ import 'server-only'
 import { db } from '../db'
 import { namaPendek } from '../tire/cabang'
 import type { Sumber } from './logika'
+import { PRODUK_KASIR } from './stok'
 
 export type ItemKatalog = {
   key: string // "ban:12", "produk:5", "jasa:3" atau "jasa:3:alt"
@@ -27,7 +28,8 @@ export async function muatKatalog(cabangId: number): Promise<ItemKatalog[]> {
     db.branch.findMany({ select: { id: true, name: true }, orderBy: [{ sort: 'asc' }, { id: 'asc' }] }),
     db.stockTire.findMany({ where: { cabangId, aktif: true }, select: { id: true, sizeRaw: true, sizeNorm: true, brand: true, kode: true, stock: true, price: true, discount: true }, orderBy: [{ ring: 'asc' }, { sizeNorm: 'asc' }, { id: 'asc' }] }),
     db.listing.findMany({
-      where: { branchId: cabangId },
+      // Produk contoh dan produk nonaktif tidak masuk kasir (rancangan bagian 3).
+      where: { branchId: cabangId, product: PRODUK_KASIR },
       select: { id: true, stock: true, price: true, productId: true, product: { select: { name: true, kode: true, slug: true, barcode: true, spec: true, brand: { select: { name: true } } } } },
       orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
     }),

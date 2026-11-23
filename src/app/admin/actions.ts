@@ -8,7 +8,7 @@ import { createSession, destroySession, requireOwner, requireUser, canEditBranch
 import { sectionByKey, type Field } from '@/lib/content'
 import { slugify } from '@/lib/format'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
-import { hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
+import { GalatDipakaiKasir, hapusListing, hapusProduk, simpanListing } from '@/lib/stok/ubah'
 import { GalatStok } from '@/lib/stok/logika'
 import { aksesSimpanProduk } from '@/lib/admin/produk'
 import { arahDari, aturanHapus, geserUrutan, urutanBerikut } from '@/lib/admin/urutan'
@@ -107,7 +107,12 @@ export async function saveProduct(fd: FormData) {
     const ref = { productId: product.id, branchId, pengguna: penggunaDari(s), refId: `produk:${product.id}` }
     // Cabang bermode kasir tidak pernah menghapus listing dari sini: harganya terkunci, jadi isian harga selalu kosong.
     if (!listing.available && !listing.price && branches.find((b) => b.id === branchId)?.modeStok !== 'kasir') {
-      await hapusListing(ref)
+      try {
+        await hapusListing(ref)
+      } catch (e) {
+        if (e instanceof GalatDipakaiKasir) gagal(`/admin/produk/${product.id}`, e.message)
+        throw e
+      }
       continue
     }
     // Stok diubah lewat buku stok (src/lib/stok), satu transaksi dengan harga listing.
@@ -126,6 +131,7 @@ export async function deleteProduct(fd: FormData) {
     await hapusProduk({ productId: id, pengguna: penggunaDari(s) })
   } catch (e) {
     // Stok cabang bermode kasir tidak bisa dihapus dari sini (src/lib/stok/ubah.ts).
+    if (e instanceof GalatDipakaiKasir) gagal(`/admin/produk/${id}`, e.message)
     if (e instanceof GalatStok) gagal(`/admin/produk/${id}`, `${e.message} Kosongkan stoknya lewat koreksi dulu.`)
     throw e
   }

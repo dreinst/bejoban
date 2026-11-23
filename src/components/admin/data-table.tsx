@@ -23,6 +23,8 @@ export type Column<T> = {
   hanyaHp?: boolean
   /** Hanya dipakai bersama `isianHp`: posisi kolom di kisi 4 kolom kartu HP (nilai `grid-column`, mis. '1 / 3'). */
   hpKolom?: string
+  /** Sembunyikan kolom di lebar tablet (768 sampai 1023 px) supaya tabel tidak melebar. Kartu HP dan layar lebar tetap memuatnya. */
+  sembunyiTablet?: boolean
 }
 
 export function DataTable<T>({
@@ -73,7 +75,7 @@ export function DataTable<T>({
           <tr>
             {thumb && <th scope="col" className="w-16"><span className="sr-only">Gambar</span></th>}
             {columns.map((c) => (
-              <th key={c.key} scope="col" data-align={c.align} className={c.hanyaHp ? 'hidden' : undefined}>{c.header}</th>
+              <th key={c.key} scope="col" data-align={c.align} className={c.hanyaHp ? 'hidden' : c.sembunyiTablet ? 'md:max-lg:hidden' : undefined}>{c.header}</th>
             ))}
             {actions && <th scope="col" data-align="right"><span className="sr-only">Aksi</span></th>}
           </tr>
@@ -86,7 +88,7 @@ export function DataTable<T>({
                 const role = c.mobile ?? (i === 0 ? 'title' : 'meta')
                 const label = role === 'meta' && c.mobileLabel !== false ? c.header : undefined
                 return (
-                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} style={c.hpKolom ? { gridColumn: c.hpKolom } : undefined} className={[c.className, c.hanyaHp && 'md:hidden'].filter(Boolean).join(' ') || undefined}>
+                  <td key={c.key} data-role={role} data-label={label} data-align={c.align} style={c.hpKolom ? { gridColumn: c.hpKolom } : undefined} className={[c.className, c.hanyaHp && 'md:hidden', c.sembunyiTablet && 'md:max-lg:hidden'].filter(Boolean).join(' ') || undefined}>
                     {c.cell(r)}
                   </td>
                 )

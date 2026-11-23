@@ -11,15 +11,16 @@ import { Toast } from '@/components/admin/toast'
 import { FormActions, TextAreaField } from '@/components/admin/field'
 import { CloseButton, Modal, SubmitButton } from '@/components/admin/overlay'
 import { voidKasir } from '../../kasir-actions'
-import { TombolBagikan, TombolCetak } from './nota-aksi'
+import { TombolBagikan, TombolCetak, UkuranKertas } from './nota-aksi'
 
 export const metadata = { title: 'Nota | Bejo Ban', manifest: '/kasir.webmanifest' }
 
-// Kertas cetak: lebar isi nota dan ukuran halaman untuk dialog cetak browser.
+// Kertas cetak: lebar isi nota dan ukuran halaman untuk dialog cetak browser. CSS tidak menerima "58mm auto", jadi
+// kertas gulung diberi tinggi cadangan di sini, lalu UkuranKertas menggantinya dengan tinggi isi nota yang diukur.
 const KERTAS = {
-  '58': { label: '58 mm', lebar: '48mm', halaman: '58mm auto', margin: '3mm 5mm' },
-  '80': { label: '80 mm', lebar: '72mm', halaman: '80mm auto', margin: '3mm 4mm' },
-  a4: { label: 'A4', lebar: '170mm', halaman: 'A4', margin: '15mm 20mm' },
+  '58': { label: '58 mm', lebar: '48mm', halaman: '58mm 200mm', margin: '3mm 5mm', gulung: '58mm' },
+  '80': { label: '80 mm', lebar: '72mm', halaman: '80mm 200mm', margin: '3mm 4mm', gulung: '80mm' },
+  a4: { label: 'A4', lebar: '170mm', halaman: 'A4', margin: '15mm 20mm', gulung: null },
 } as const
 type Kertas = keyof typeof KERTAS
 
@@ -70,6 +71,7 @@ export default async function Nota({ params, searchParams }: PageProps<'/admin/n
   return (
     <div className="min-h-screen bg-soft px-4 py-6 text-ink print:bg-white print:p-0">
       <style>{`@media print { @page { size: ${k.halaman}; margin: ${k.margin}; } }`}</style>
+      {k.gulung && <UkuranKertas isiId="isi-nota" lebar={k.gulung} margin={k.margin} />}
       <div className="mx-auto mb-5 max-w-3xl space-y-3 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/admin/kasir" className="adm-btn min-h-11">Transaksi baru</Link>
@@ -95,7 +97,7 @@ export default async function Nota({ params, searchParams }: PageProps<'/admin/n
         className="relative mx-auto bg-white p-4 font-mono text-[12px] leading-snug shadow-sm print:p-0 print:shadow-none"
         style={{ width: `calc(${k.lebar} + 2rem)`, maxWidth: '100%' }}
       >
-        <div className="mx-auto print:!w-auto" style={{ width: k.lebar, maxWidth: '100%' }}>
+        <div id="isi-nota" className="mx-auto print:!w-auto" style={{ width: k.lebar, maxWidth: '100%' }}>
           {voidAda && (
             <p className="mb-2 border-2 border-ink py-1 text-center text-base font-extrabold tracking-widest">VOID</p>
           )}

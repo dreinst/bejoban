@@ -4,17 +4,23 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireOwner, requireUser } from '@/lib/auth'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
-import { GalatKasir } from '@/lib/kasir/logika'
+import { bacaAngkaIsian, GalatKasir, GalatKunciDipakai, MAKS_HARGA } from '@/lib/kasir/logika'
 import { aktifkanKasir, aturBatasMinimum, koreksiStok, ubahHargaBatch, type SumberStok } from '@/lib/kasir/stok'
-import { bacaInputJual, GalatStokKurang, jual, putuskanPengajuan, voidTransaksi, type StokLain } from '@/lib/kasir/transaksi'
+import { bacaInputJual, cekKunciJual, GalatStokKurang, GalatTotalBerubah, jual, putuskanPengajuan, voidTransaksi, type StatusKunci, type StokLain } from '@/lib/kasir/transaksi'
 import { siarkan } from '@/lib/kasir/siaran'
 import { bacaInputBarangMasuk, catatBarangMasuk, putuskanRestock } from '@/lib/kasir/masuk'
 import { finalkanOpname, hapusBarisOpname, hapusOpname, isiBarisOpname, mulaiOpname, ubahStatusOpname } from '@/lib/kasir/opname'
 
 const str = (fd: FormData, k: string, max = 500) => String(fd.get(k) ?? '').trim().slice(0, max)
-const angka = (fd: FormData, k: string) => {
-  const t = str(fd, k, 15).replace(/\D/g, '')
-  return t ? Number(t) : null
+const MAKS_STOK = 100_000
+// Isian angka owner. Galat dari bacaAngkaIsian (minus, pecahan, teks campuran, terlalu besar) dikembalikan ke halaman.
+const angka = (fd: FormData, k: string, label: string, maks: number, balik: string) => {
+  try {
+    return bacaAngkaIsian(String(fd.get(k) ?? '').slice(0, 30), label, maks)
+  } catch (e) {
+    if (e instanceof GalatKasir) go(balik, e.message, 'err')
+    throw e
+  }
 }
 const go = (path: string, msg: string, kind: 'ok' | 'err' = 'ok'): never => {
   revalidatePath('/admin', 'layout')
@@ -23,7 +29,9 @@ const go = (path: string, msg: string, kind: 'ok' | 'err' = 'ok'): never => {
 const aman = (path: string, cadangan: string) => (/^\/admin\/[\w/?=&%.-]*$/.test(path) && !path.startsWith('//') ? path : cadangan)
 const sumberDari = (fd: FormData): SumberStok => (str(fd, 'sumber', 10) === 'produk' ? 'produk' : 'ban')
 
-export type HasilBayar = { ok: true; id: number; nomor: string } | { ok: false; pesan: string; nama?: string; stokLain?: StokLain[] }
+export type HasilBayar =
+  | { ok: true; id: number; nomor: string }
+  | { ok: false; pesan: string; nama?: string; stokLain?: StokLain[]; nota?: { id: number; nomor: string }; totalBaru?: number }
 
 // Dipanggil layar kasir. Harga dihitung ulang di server dari batch.
 export async function bayarKasir(raw: unknown): Promise<HasilBayar> {
@@ -34,9 +42,25 @@ export async function bayarKasir(raw: unknown): Promise<HasilBayar> {
     return { ok: true, id: h.id, nomor: h.nomor }
   } catch (e) {
     if (e instanceof GalatStokKurang) return { ok: false, pesan: e.message, nama: e.nama, stokLain: e.stokLain }
+    if (e instanceof GalatTotalBerubah) return { ok: false, pesan: e.message, totalBaru: e.totalBaru }
+    if (e instanceof GalatKunciDipakai) return { ok: false, pesan: e.message, nota: e.ref }
     if (e instanceof GalatKasir) return { ok: false, pesan: e.message }
     console.error('bayarKasir gagal', e)
     return { ok: false, pesan: 'Transaksi gagal disimpan. Stok tidak berubah. Coba lagi.' }
+  }
+}
+
+export type HasilCekKunci = ({ ok: true } & StatusKunci) | { ok: false; pesan: string }
+
+// Dipanggil layar kasir sesudah koneksi putus, dengan isi kiriman yang sama. Lihat cekKunciJual.
+export async function cekKunciKasir(raw: unknown): Promise<HasilCekKunci> {
+  const s = await requireUser()
+  try {
+    return { ok: true, ...(await cekKunciJual(s, bacaInputJual(raw))) }
+  } catch (e) {
+    if (e instanceof GalatKasir) return { ok: false, pesan: e.message }
+    console.error('cekKunciKasir gagal', e)
+    return { ok: false, pesan: 'Status kiriman belum bisa dicek. Coba lagi.' }
   }
 }
 
@@ -91,11 +115,12 @@ export async function koreksiStokAksi(fd: FormData) {
   const sumber = sumberDari(fd)
   const barisId = Number(str(fd, 'id', 12)) || 0
   const balik = barangUrl(sumber, barisId)
-  const setKe = angka(fd, 'stok')
+  const setKe = angka(fd, 'stok', 'Stok baru', MAKS_STOK, balik)
   if (setKe === null) go(balik, 'Isi stok baru', 'err')
+  const harga = angka(fd, 'harga', 'Harga batch tambahan', MAKS_HARGA, balik)
   const alasan = str(fd, 'alasan', 200)
   try {
-    const h = await koreksiStok({ sumber, barisId, setKe: setKe!, alasan, harga: angka(fd, 'harga'), pengguna: penggunaDari(s) })
+    const h = await koreksiStok({ sumber, barisId, setKe: setKe!, alasan, harga, pengguna: penggunaDari(s) })
     await catatAktivitas({ pengguna: penggunaDari(s), aksi: 'koreksi_stok', entitas: sumber === 'ban' ? 'stok_ban' : 'listing', data: { id: barisId, dari: h.dari, ke: h.ke, alasan } })
     siarkan({ jenis: 'stok', cabangId: h.cabangId }, ...(h.peringatanBaru ? [{ jenis: 'peringatan' as const, cabangId: h.cabangId, pesan: `Stok ${h.nama} menipis` }] : []))
     go(balik, `Stok ${h.nama} dikoreksi dari ${h.dari} ke ${h.ke}`)
@@ -108,7 +133,7 @@ export async function koreksiStokAksi(fd: FormData) {
 export async function ubahHargaBatchAksi(fd: FormData) {
   const s = await requireOwner()
   const balik = aman(str(fd, 'back', 200), PENGATURAN)
-  const harga = angka(fd, 'harga')
+  const harga = angka(fd, 'harga', 'Harga baru', MAKS_HARGA, balik)
   if (harga === null) go(balik, 'Isi harga baru', 'err')
   const batchId = Number(str(fd, 'batch', 12)) || 0
   try {
@@ -128,7 +153,7 @@ export async function aturBatasAksi(fd: FormData) {
   const sumber = sumberDari(fd)
   const barisId = Number(str(fd, 'id', 12)) || 0
   const balik = aman(str(fd, 'back', 200), barangUrl(sumber, barisId))
-  const batas = angka(fd, 'batas')
+  const batas = angka(fd, 'batas', 'Batas minimum', MAKS_STOK, balik)
   try {
     const h = await aturBatasMinimum({ sumber, barisId, batas })
     await catatAktivitas({ pengguna: penggunaDari(s), aksi: 'batas_minimum', entitas: sumber === 'ban' ? 'stok_ban' : 'listing', data: { id: barisId, batas } })
@@ -142,7 +167,7 @@ export async function aturBatasAksi(fd: FormData) {
 
 /* ---------- Bagian 2: barang masuk, harga restock, opname ---------- */
 
-export type HasilSimpan = { ok: true; id: number; nomor: string } | { ok: false; pesan: string }
+export type HasilSimpan = { ok: true; id: number; nomor: string } | { ok: false; pesan: string; ref?: { id: number; nomor: string } }
 
 // Dipanggil formulir barang masuk. Harga lama dan pengajuan ditentukan di server.
 export async function catatBarangMasukAksi(raw: unknown): Promise<HasilSimpan> {
@@ -152,6 +177,7 @@ export async function catatBarangMasukAksi(raw: unknown): Promise<HasilSimpan> {
     revalidatePath('/admin', 'layout')
     return { ok: true, id: h.id, nomor: h.nomor }
   } catch (e) {
+    if (e instanceof GalatKunciDipakai) return { ok: false, pesan: e.message, ref: e.ref }
     if (e instanceof GalatKasir) return { ok: false, pesan: e.message }
     console.error('catatBarangMasuk gagal', e)
     return { ok: false, pesan: 'Barang masuk gagal disimpan. Stok tidak berubah. Coba lagi.' }

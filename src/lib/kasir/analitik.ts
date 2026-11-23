@@ -142,12 +142,16 @@ const bagi = (a: number, b: number) => (b ? Math.round(a / b) : 0)
 type Kejadian = { waktu: Date; minggu: string; cabangId: number | null; kodeProduk: string; tipe: string; perubahan: number; saldoAkhir: number }
 
 // Kejadian stok habis dan tersedia lagi dari buku_stok: saldo turun ke 0 (habis) atau naik dari 0 (tersedia).
+// Hanya cabang bermode kasir, sejak kasir_aktif_sejak. Penetapan cabang, impor sheet, dan stok baris tanpa cabang
+// tidak ikut, karena saldonya bukan dari barang yang benar-benar habis terjual.
 async function kejadianStok(r: Rentang): Promise<(Kejadian & { kejadian: 'habis' | 'tersedia' })[]> {
   const rows = await db.$queryRaw<{ waktu: Date; minggu: string; cabangId: number | null; kodeProduk: string; tipe: string; perubahan: number; saldoAkhir: number }[]>`
     SELECT bs."waktu" AS "waktu", ${mingguWib(Prisma.sql`bs."waktu"`)} AS "minggu", bs."cabang_id" AS "cabangId", bs."kode_produk" AS "kodeProduk",
            bs."tipe" AS "tipe", bs."perubahan" AS "perubahan", bs."saldo_akhir" AS "saldoAkhir"
-    FROM "buku_stok" bs
+    FROM "buku_stok" bs JOIN "Branch" b ON b."id" = bs."cabang_id"
     WHERE bs."waktu" >= ${ts(r.mulai)} AND bs."waktu" < ${ts(r.akhir)} AND bs."perubahan" <> 0
+      AND b."mode_stok" = 'kasir' AND b."kasir_aktif_sejak" IS NOT NULL AND bs."waktu" >= b."kasir_aktif_sejak"
+      AND bs."tipe" <> 'impor' AND COALESCE(bs."ref_id", '') NOT LIKE 'tetapkan_cabang:%'
       AND ((bs."saldo_akhir" <= 0 AND bs."saldo_akhir" - bs."perubahan" > 0) OR (bs."saldo_akhir" > 0 AND bs."saldo_akhir" - bs."perubahan" <= 0))
     ORDER BY bs."waktu", bs."id"`
   return rows.map((x) => ({ ...x, kejadian: x.saldoAkhir <= 0 ? 'habis' : 'tersedia' }))

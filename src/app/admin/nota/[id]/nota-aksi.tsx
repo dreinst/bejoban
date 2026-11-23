@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import { toast } from '@/components/admin/toast-bus'
 
 // Tombol cetak dan bagikan nota. Bagikan memakai Web Share (HP); kalau tidak tersedia, teks nota disalin.
@@ -33,4 +34,30 @@ export function TombolBagikan({ teks, judul }: { teks: string; judul: string }) 
       Bagikan
     </button>
   )
+}
+
+// Kertas gulung (58 dan 80 mm): tinggi halaman cetak = tinggi isi nota ditambah margin atas dan bawah, supaya printer
+// thermal memakai lebar kertas yang benar dan tidak menyisakan kertas kosong. Diukur ulang tepat sebelum mencetak.
+export function UkuranKertas({ isiId, lebar, margin }: { isiId: string; lebar: string; margin: string }) {
+  useEffect(() => {
+    // Ditaruh di akhir body, sesudah <style> cadangan halaman nota, supaya aturan @page ini yang berlaku.
+    const gaya = document.createElement('style')
+    document.body.append(gaya)
+    const vertikal = Number.parseFloat(margin) * 2
+    const atur = () => {
+      const isi = document.getElementById(isiId)
+      if (!isi) return
+      const tinggi = Math.ceil((isi.getBoundingClientRect().height * 25.4) / 96 + vertikal + 6)
+      gaya.textContent = `@media print { @page { size: ${lebar} ${tinggi}mm; margin: ${margin}; } }`
+    }
+    atur()
+    window.addEventListener('beforeprint', atur)
+    window.addEventListener('resize', atur)
+    return () => {
+      window.removeEventListener('beforeprint', atur)
+      window.removeEventListener('resize', atur)
+      gaya.remove()
+    }
+  }, [isiId, lebar, margin])
+  return null
 }

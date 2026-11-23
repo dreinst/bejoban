@@ -86,8 +86,10 @@ after(async () => {
 type BarisMasuk = { sumber: 'ban' | 'produk'; id: number; jumlah: number; hargaBeli?: number | null; hargaJual?: number | null }
 const masukInput = (cabangId: number, baris: BarisMasuk[], lain: Record<string, unknown> = {}) =>
   m.masuk.bacaInputBarangMasuk({ cabangId, pemasok: 'Distributor Contoh', jenisPemasok: 'distributor', tanggalPesan: '', tanggalTerima: hariIni(), catatan: '', kunci: kunci(), baris, ...lain })
-const jualInput = (cabangId: number, baris: { sumber: 'ban' | 'produk' | 'jasa'; id: number; jumlah: number }[], lain: Partial<import('../src/lib/kasir/transaksi').InputJual> = {}) =>
-  m.trx.bacaInputJual({ cabangId, channel: 'toko', metode: 'qris', diskon: 0, alasanDiskon: '', dibayar: null, kunci: kunci(), baris, ...lain })
+const jualInput = (cabangId: number, baris: { sumber: 'ban' | 'produk' | 'jasa'; id: number; jumlah: number }[], lain: Partial<import('../src/lib/kasir/transaksi').InputJual> = {}) => ({
+  ...m.trx.bacaInputJual({ cabangId, channel: 'toko', metode: 'qris', diskon: 0, alasanDiskon: '', dibayar: null, kunci: kunci(), totalDilihat: 0, baris, ...lain }),
+  totalDilihat: null,
+})
 const stokBan = async (id: number) => (await m.db.stockTire.findUniqueOrThrow({ where: { id } })).stock
 const invarianBersih = async () => assert.deepEqual((await m.stok.periksaInvarian()).masalah, [])
 const negatifTidakAda = async () => {
@@ -243,6 +245,7 @@ test('admin tidak bisa mencatat barang masuk atau opname untuk cabang lain, dan 
   await assert.rejects(m.opname.isiBarisOpname(adminA, { opnameId: o.id, sumber: 'ban', barisId: banA, stokFisik: 1, alasan: 'uji' }), /ditinjau owner/)
   await assert.rejects(m.opname.ubahStatusOpname(adminA, { id: o.id, ke: 'draft' }), /Hanya owner/)
   await m.opname.ubahStatusOpname(owner, { id: o.id, ke: 'draft' })
+  // Draft ini dibuat admin A sendiri, jadi admin A boleh menghapusnya.
   await m.opname.hapusOpname(adminA, o.id)
   assert.equal(await m.db.stokOpname.count({ where: { id: o.id } }), 0)
 })
@@ -338,6 +341,8 @@ test('balapan: penjualan dan finalisasi opname, atau penjualan dan barang masuk,
 })
 
 test('dashboard dan rekap bulanan sama dengan hitungan langsung, termasuk dekat tengah malam WIB dan transaksi void', async () => {
+  // Transaksi di bawah diberi waktu mundur, jadi kasir cabang D dianggap aktif sejak 1 Oktober.
+  await m.db.branch.update({ where: { id: D }, data: { kasirAktifSejak: new Date('2026-10-01T00:00:00Z') } })
   const jual = async (baris: { sumber: 'ban' | 'jasa'; id: number; jumlah: number }[], waktu: string, lain: Partial<import('../src/lib/kasir/transaksi').InputJual> = {}) => {
     const h = await m.trx.jual(owner, jualInput(D, baris, lain))
     await m.db.transaksi.update({ where: { id: h.id }, data: { waktuTransaksi: new Date(waktu) } })
@@ -420,6 +425,20 @@ test('ekspor CSV: kolom dan nilai benar, penanda stok habis dari buku_stok, sel 
   assert.match(bm[0].nomor_penerimaan, /^BM-CTD-\d{6}-001$/)
   // Rentang lain tidak memuat penerimaan ini.
   assert.equal((await m.analitik.isiEkspor('barang-masuk', m.logika.rentangHariWib('2026-11-03', '2026-11-04')!)).trimEnd().split('\r\n').length, 1)
+
+  // K5: kejadian habis hanya dari cabang mode kasir sejak kasir aktif, tanpa impor sheet dan penetapan cabang.
+  await m.db.branch.update({ where: { id: D }, data: { kasirAktifSejak: new Date('2026-10-28T00:00:00Z') } })
+  const buku = (kodeProduk: string, cabangId: number | null, lain: Record<string, unknown> = {}) =>
+    m.db.bukuStok.create({ data: { tipe: 'koreksi', perubahan: -3, saldoAkhir: 0, cabangId, kodeProduk, waktu: new Date('2026-10-29T03:00:00Z'), ...lain } })
+  await buku('k5-sebelum-aktif', D, { waktu: new Date('2026-10-27T03:00:00Z') })
+  await buku('k5-sesudah-aktif', D)
+  await buku('k5-penetapan', D, { refId: `tetapkan_cabang:${D}:uji`, perubahan: 3, saldoAkhir: 3 })
+  await buku('k5-impor', D, { tipe: 'impor' })
+  await buku('k5-cabang-sheet', C)
+  await buku('k5-tanpa-cabang', null)
+  const k5 = (await baca('stok-habis')).filter((x) => x.kode_produk.startsWith('k5-')).map((x) => [x.kode_produk, x.kejadian])
+  assert.deepEqual(k5, [['k5-sesudah-aktif', 'habis']])
+  await m.db.branch.update({ where: { id: D }, data: { kasirAktifSejak: new Date('2026-10-01T00:00:00Z') } })
 })
 
 test('invarian tetap benar sesudah urutan acak penjualan, void, barang masuk, opname, keputusan harga, dan koreksi', async () => {

@@ -75,6 +75,7 @@ export default async function PengaturanKasir({ searchParams }: PageProps<'/admi
                         ? `${[c!.banStok ? `${c!.banStok} baris ban` : '', c!.produkStok ? `${c!.produkStok} produk situs` : ''].filter(Boolean).join(' dan ')} yang berstok akan mendapat batch awal dengan stok dan harga sekarang.`
                         : 'Belum ada ban atau produk situs berstok di cabang ini. Sesudah kasir aktif, barang yang datang dicatat lewat Barang masuk.'}
                     </li>
+                    <li>Produk contoh dan produk nonaktif di Produk situs tidak ikut kasir dan tidak mendapat batch.</li>
                     {c!.hargaNol > 0 && <li>{c!.hargaNol} ban berstok belum punya harga, jadi belum bisa dijual sampai harga batch-nya diatur.</li>}
                     {c!.tanpaCabang > 0 && (
                       <li>

@@ -72,7 +72,7 @@ export default async function DaftarBarangMasuk({ searchParams }: PageProps<'/ad
         rows={rows}
         rowKey={(r) => r.id}
         columns={[
-          { key: 'nomor', header: 'Nomor', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/masuk/${r.id}`} className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">{r.nomorPenerimaan}</Link> },
+          { key: 'nomor', header: 'Nomor', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/masuk/${r.id}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center whitespace-nowrap font-semibold text-ink underline underline-offset-2">{r.nomorPenerimaan}</Link> },
           { key: 'terima', header: 'Diterima', cell: (r) => <span className="block">{tanggalLabel(r.tanggalTerima)}<span className="block text-xs text-mute">dicatat {r.namaPengguna}</span></span> },
           ...(owner && cabangId === null ? [{ key: 'cabang', header: 'Cabang', cell: (r: Baris) => nama(r.cabangId) }] : []),
           { key: 'pemasok', header: 'Pemasok', cell: (r) => <span className="block">{r.pemasok}<span className="block text-xs text-mute">{JENIS_PEMASOK_LABEL[r.jenisPemasok as JenisPemasok] ?? r.jenisPemasok}</span></span> },

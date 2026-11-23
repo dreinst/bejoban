@@ -48,7 +48,7 @@ Stok ban diisi dari pricelist (berkas atau Google Sheets) per cabang. Kalau kasi
 
 Owner mengaktifkan kasir di Pengaturan kasir dengan kode nota cabang (2 sampai 5 huruf, misalnya `BTU`). Saat aktif:
 
-- Tiap baris stok cabang itu (`StockTire` dan `Listing`) yang stoknya di atas 0 mendapat batch awal: `jumlah_awal` dan `sisa` sama dengan stok, `harga_jual` sama dengan harga jual efektif (ban: harga dikurangi potongan, harga kosong menjadi 0), `jenis` = `awal`. Harga awal tercatat di `riwayat_harga`.
+- Tiap baris stok cabang itu (`StockTire`, dan `Listing` dari produk yang ikut kasir) yang stoknya di atas 0 mendapat batch awal: `jumlah_awal` dan `sisa` sama dengan stok, `harga_jual` sama dengan harga jual efektif (ban: harga dikurangi potongan, harga kosong menjadi 0), `jenis` = `awal`. Harga awal tercatat di `riwayat_harga`.
 - Harga baris disamakan dengan harga batch terdepan. Untuk ban, potongan menjadi 0 dan harga menjadi harga sesudah potongan, jadi angka yang dibaca chatbot tidak berubah.
 - Aksi tercatat di `log_aktivitas` (`aktifkan_kasir`).
 
@@ -63,15 +63,31 @@ Selama mode kasir:
 
 Baris tanpa cabang tidak bisa dijual kasir. Pengaktifan menyebut jumlahnya dan menautkan ke alat "Tetapkan baris tanpa cabang" di Stok ban.
 
+### Produk contoh dan produk nonaktif
+
+Keputusan sementara orkestrator (20 November 2026, boleh diubah owner): produk contoh tidak masuk kasir. Yang ikut kasir hanya `Listing` dari `Product` yang aktif dan bukan produk contoh (`active = true`, `isSample = false`), sesuai rancangan bagian 3.
+
+- Pengaktifan kasir melewati listing produk contoh dan produk nonaktif. Stoknya dibiarkan apa adanya, tanpa batch. Pemeriksa invarian juga melewatinya selama baris itu tidak punya batch.
+- Katalog kasir, formulir barang masuk, dan opname tidak menampilkannya. Server menolaknya di penjualan, barang masuk, isi baris opname, finalisasi opname, dan koreksi.
+- Batch produk contoh yang sudah terbentuk di data uji sebelum perbaikan ini tidak dipindah.
+
+Kalau produk dinonaktifkan (atau ditandai produk contoh) sesudah punya batch:
+
+- Barang itu hilang dari katalog kasir dan tidak bisa dijual, dicatat masuk, atau dimasukkan ke opname.
+- Batch, stok baris, riwayat harga, dan nota lamanya tetap ada. Void nota lama tetap jalan dan mengembalikan jumlahnya ke batch asal.
+- Owner masih bisa mengoreksi stoknya, misalnya menolkan sisa barang yang berhenti dijual. Koreksi hanya ditolak untuk baris yang tidak pernah punya batch.
+- Kalau produknya diaktifkan lagi, batch yang tersisa langsung bisa dijual lagi.
+- Produk dan listing yang sudah punya batch atau nota tidak bisa dihapus (lihat bagian Hapus barang).
+
 ## Katalog kasir
 
 Satu daftar cari untuk:
 
 - Ban: `StockTire` aktif milik cabang itu.
-- Produk situs: `Listing` cabang itu.
+- Produk situs: `Listing` cabang itu dari produk yang aktif dan bukan produk contoh.
 - Jasa: `ServicePrice`, tanpa stok. Kalau ada `altLabel` dan `altPrice`, itu pilihan kedua.
 
-Pencarian memakai nama, merek, kode, barcode, dan ukuran yang dinormalkan (`185 65 15` menemukan `185/65 R15`). Enter menambah hasil pertama. Teks yang sama persis dengan kode atau barcode langsung masuk keranjang, jadi pemindai barcode USB bisa dipakai. Tiap barang menampilkan sumber, stok cabang ini, stok cabang lain untuk kode yang sama, dan harga batch yang akan terjual. Barang berharga 0 ditolak sampai owner mengatur harga batch-nya.
+Pencarian memakai nama, merek, kode, barcode, dan ukuran yang dinormalkan (`185 65 15` menemukan `185/65 R15`). Enter menambah hasil pertama. Teks yang sama persis dengan kode atau barcode langsung masuk keranjang, jadi pemindai barcode USB bisa dipakai. Tiap barang menampilkan sumber, stok cabang ini, stok cabang lain untuk kode yang sama, dan harga batch yang akan terjual. Barang yang habis di cabang ini atau belum punya harga tetap tampil di hasil cari (supaya stok cabang lain terlihat), tetapi bukan tombol dan diberi tanda "tidak bisa dijual". Barang berharga 0 ditolak sampai owner mengatur harga batch-nya.
 
 ## Transaksi
 
@@ -84,12 +100,28 @@ Pencarian memakai nama, merek, kode, barcode, dan ukuran yang dinormalkan (`185 
 
 Aturan:
 
-- Klien hanya mengirim sumber dan id barang, jumlah, channel, metode bayar, diskon, alasan diskon, uang diterima, dan kunci idempotency. Harga dihitung ulang di server dari batch.
+- Klien hanya mengirim sumber dan id barang, jumlah, channel, metode bayar, diskon, alasan diskon, uang diterima, total yang dilihat kasir, dan kunci idempotency. Harga dihitung ulang di server dari batch.
+- Total berubah: kalau total hitungan server (subtotal dari batch dikurangi diskon) berbeda dari total yang dilihat kasir di dialog konfirmasi, transaksi ditolak tanpa mengubah apa pun. Penyebabnya bisa owner mengubah harga batch, usulan restock disetujui, atau batch terdepan habis oleh kasir lain sehingga sisa jumlahnya diambil dari batch berikutnya. Layar menampilkan total lama dan total baru, memuat ulang harga, dan kasir menekan Simpan lagi kalau pelanggan setuju. Total dibandingkan sebelum cek uang diterima, jadi kasir melihat total baru, bukan pesan uang kurang.
+- Uang diterima paling banyak Rp 2.147.483.647, batas kolom `INTEGER` di basis data. Isian di atas itu ditolak di layar dan di server dengan pesan yang menyebut batas penyimpanan.
 - FIFO: batch tertua yang masih bersisa (`tanggal_masuk`, lalu `id`). Kalau kurang, baris dipecah per batch.
 - Jumlah melebihi stok cabang ditolak dengan menyebut stok cabang lain.
 - Semua harga sudah termasuk pajak. Nota tidak menghitung pajak.
 - Nomor `KODE-YYMMDD-NNNN`, urut per cabang per hari WIB, misalnya `BTU-261120-0001`. Penghitungnya tabel `penghitung_nota`, dinaikkan dengan satu `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, jadi dua transaksi bersamaan mendapat nomor berbeda.
-- Idempotency: layar membuat kunci acak tiap kali dialog konfirmasi dibuka. Server mengantrekan kiriman dengan kunci yang sama (`pg_advisory_xact_lock(4207002, hashtext(kunci))`), lalu mengembalikan transaksi yang sudah ada. Indeks unik `idempotency_key` menjadi cadangan. Kalau koneksi putus sebelum jawaban sampai, layar mempertahankan kunci yang sama untuk kiriman ulang.
+- Idempotency: layar membuat kunci acak tiap kali dialog konfirmasi dibuka. Server mengantrekan kiriman dengan kunci yang sama (`pg_advisory_xact_lock(4207002, hashtext(kunci))`). Indeks unik `idempotency_key` menjadi cadangan.
+
+### Kiriman ulang sesudah koneksi putus
+
+Dua kesalahan yang harus dicegah: nota salah (kunci lama mengembalikan transaksi yang isinya beda dari keranjang di layar) dan transaksi ganda (kunci baru untuk keranjang yang ternyata sudah tersimpan). Caranya:
+
+1. Sidik isi. Server menyimpan `sidik_isi` (SHA-256 dari cabang, channel, metode bayar, diskon, alasan diskon, uang diterima, dan daftar barang dengan jumlahnya) bersama kuncinya. Kiriman dengan kunci yang sudah ada dan sidik sama mengembalikan transaksi lama. Sidik berbeda ditolak dengan pesan yang menyebut nomor nota yang sudah tersimpan dan tautan ke nota itu. Keranjang yang berbeda tidak pernah dianggap berhasil. Total yang dilihat tidak ikut sidik, supaya kiriman ulang yang isinya sama tetap mengembalikan nota yang sudah tersimpan walau harga di layar sudah berganti.
+2. Keranjang dikunci. Kalau kiriman tidak mendapat jawaban, dialog konfirmasi tidak bisa ditutup (tombol Kembali dan Escape tidak jalan), jadi keranjang tidak bisa diubah diam-diam. Kasir punya dua pilihan: "Kirim ulang yang sama" (isi kiriman yang disimpan, bukan isi layar terbaru) atau "Cek status".
+3. Cek status (`cekKunciJual`). Mengambil kunci antrean yang sama dengan penjualan, jadi kiriman yang masih diproses ditunggu sampai selesai. Kalau transaksi dengan kunci itu ada, layar membuka notanya. Kalau tidak ada, server mencatat kuncinya di tabel `kunci_ditutup`, dan penjualan dengan kunci itu yang baru sampai sesudahnya ditolak. Baru sesudah itu layar membuang kunci lama dan membuka keranjang. Simpan berikutnya memakai kunci baru.
+
+Kenapa tidak ada nota ganda: kunci baru hanya dipakai sesudah server menyatakan kunci lama tidak tersimpan dan menutupnya di transaksi yang sama. Kiriman lama yang tertahan di jaringan lalu datang belakangan ditolak, bukan disimpan. Kenapa tidak ada nota salah: selama status belum jelas, keranjang terkunci, dan kalaupun isi berbeda sampai ke server dengan kunci lama, sidik isinya tidak cocok dan ditolak.
+
+Kiriman yang belum berjawab juga disimpan di `sessionStorage` tab itu. Kalau halaman dimuat ulang, layar mengecek statusnya sekali dan memberi tahu apakah transaksi tadi tersimpan (dengan tautan ke nota) atau tidak. Kalau pengecekan gagal karena koneksi, layar meminta kasir memuat ulang saat sinyal kembali sebelum membuat transaksi baru.
+
+Barang masuk memakai aturan sidik isi yang sama (`sidik_isi` di `barang_masuk`, dari cabang, pemasok, jenis pemasok, tanggal, catatan, dan baris dengan jumlah dan harga). Formulir barang masuk memakai satu kunci selama halaman terbuka. Kiriman ulang dengan isi sama mengembalikan penerimaan yang sudah tersimpan, isi berbeda ditolak dengan tautan ke penerimaan itu. Penerimaan baru dibuat dari formulir baru. Transaksi dan penerimaan lama dari sebelum kolom ini ada (`sidik_isi` kosong) diperlakukan seperti dulu: kiriman ulang mengembalikannya.
 
 ### Kunci dan urutannya
 
@@ -107,7 +139,7 @@ Barang masuk dan opname memakai kunci baris yang sama dengan penjualan, jadi pen
 
 Isi: nama toko, cabang, alamat, WhatsApp cabang, nomor, waktu WIB, nama kasir, channel, baris (nama, jumlah x harga, subtotal), diskon, total, metode bayar, uang diterima dan kembalian untuk tunai, keterangan harga sudah termasuk pajak, dan tanda VOID dengan alasan kalau dibatalkan.
 
-Halaman nota punya pilihan kertas 58 mm, 80 mm, dan A4 untuk dialog cetak browser (`@page` diatur menurut pilihan). Tombol Bagikan memakai Web Share. Kalau perangkat tidak mendukung, teks nota disalin. Tombol Salin teks menyalin versi teks polos untuk ditempel ke chat WhatsApp. Printer thermal khusus belum didukung.
+Halaman nota punya pilihan kertas 58 mm, 80 mm, dan A4 untuk dialog cetak browser. `@page` untuk kertas gulung memakai lebar kertas (58 atau 80 mm) dan tinggi isi nota yang diukur di browser ditambah margin, karena CSS tidak menerima `58mm auto`. Ukurannya dihitung ulang tepat sebelum mencetak. A4 memakai `size: A4`. Tombol Bagikan memakai Web Share. Kalau perangkat tidak mendukung, teks nota disalin. Tombol Salin teks menyalin versi teks polos untuk ditempel ke chat WhatsApp. Printer thermal khusus belum didukung.
 
 ## Diskon nota
 
@@ -122,6 +154,8 @@ Mengikuti keputusan tim 4 November: diskon per nota untuk kasus langka, transaks
 ## Harga batch dan riwayat harga
 
 - Owner mengubah `harga_jual` batch yang masih bersisa di halaman barang (Pengaturan kasir, cari barang, Buka). Tiap perubahan tercatat di `riwayat_harga` dan `log_aktivitas`. Kalau batch itu terdepan, harga baris ikut berubah.
+- Harga batch 0 ditolak di ubah harga batch dan koreksi (keputusan sementara orkestrator), karena barang berharga 0 tidak bisa dijual kasir. Pesannya meminta owner mengisi harga jual sebenarnya. Batas atas semua harga batch 1.000.000.000.
+- Isian angka owner (stok baru, harga batch tambahan, harga baru, batas minimum) dibaca dengan `bacaAngkaIsian`: angka bulat atau format rupiah biasa (`1.250.000`, `Rp 1.250.000`). Tanda minus, pecahan, sen, dan teks campuran ditolak dengan pesan, tidak ditebak. Pembacanya memakai `parsePrice` yang sama dengan impor pricelist.
 - Batch lama tidak ikut berubah saat ada batch baru dengan harga lain.
 - Koreksi stok oleh owner (alasan wajib): pengurangan memakai FIFO, penambahan membuat batch `koreksi` dengan harga yang diisi atau harga batch terdepan. Koreksi untuk membetulkan selisih di luar opname. Barang datang dicatat lewat barang masuk.
 
@@ -165,6 +199,7 @@ Stok opname (`src/lib/kasir/opname.ts`) mencocokkan stok sistem dengan hitungan 
 - Status `draft`, `review`, `final`. Satu cabang hanya boleh punya satu opname yang belum final (diantrekan dengan `pg_advisory_xact_lock(4207004, cabang_id)`).
 - Admin cabang memulai dan mengisi opname cabangnya. Tiap baris menyimpan `stok_sistem` saat baris disimpan, `stok_fisik`, `selisih` (= fisik - sistem), dan `alasan_selisih` yang wajib kalau selisih tidak 0. Mengisi barang yang sama lagi mengganti barisnya dan membaca ulang stok sistem.
 - Admin mengirim opname ke owner (`review`). Selama `review`, hanya owner yang bisa mengubah baris atau mengembalikannya ke `draft`. Draft boleh dihapus tanpa mengubah stok.
+- Menghapus draft (keputusan sementara orkestrator): admin cabang hanya boleh menghapus draft yang ia buat sendiri. Owner boleh menghapus draft siapa pun. Tombol Hapus draft tidak tampil untuk admin yang bukan pembuatnya, dan server tetap menolaknya.
 - Hanya owner yang memfinalkan, dari `draft` atau `review`. Admin yang mencoba ditolak di server.
 
 ### Finalisasi
@@ -186,6 +221,8 @@ Kode di `src/lib/kasir/analitik.ts`, owner saja.
 - Hanya transaksi `selesai`. Transaksi void tidak dihitung. Nilai per barang dan per periode diambil dari `detail_transaksi`: kotor = `subtotal`, diskon = `detail_transaksi.diskon`, bersih = kotor - diskon.
 - Hari dan minggu dihitung dalam WIB (UTC+7). Minggu dimulai Senin. Kolom waktu disimpan sebagai `timestamp` UTC, jadi batas rentang dikirim sebagai teks ISO dan diubah ke UTC di SQL, dan pengelompokan memakai `waktu + interval '7 hours'`. Hasilnya tidak bergantung pada zona sesi basis data.
 - Dashboard: penjualan hari ini dan minggu ini per cabang, tabel 7 hari dan 8 minggu terakhir per cabang, porsi ban, jasa, dan produk, 10 barang atau jasa paling laris (unit, lalu nilai), peringatan stok aktif, dan jumlah usulan restock, diskon, dan opname yang menunggu. Saringan cabang dan rentang rincian (hari ini, 7 hari, 30 hari).
+- Rekap bulanan dihitung menurut tanggal transaksi (keputusan sementara orkestrator, tidak diubah). Transaksi yang di-void tidak dihitung, walau void-nya terjadi di bulan berikutnya, jadi rekap bulan yang sudah lewat bisa berubah sesudah ada void. Aturan ini juga tertulis di keterangan halaman Rekap.
+- Zona waktu basis data dan app produksi UTC, sama dengan container uji. Kode kasir tidak bergantung pada zona sesi basis data: waktu baru (misalnya `kunci_ditutup.dibuat`) diisi dari app, bukan dari bawaan kolom.
 - Rekap bulanan per barang (`sumber` dan `baris_id`) dan cabang untuk satu bulan WIB: masuk (jumlah `detail_barang_masuk` menurut tanggal terima), terjual (unit dari transaksi selesai), nilai terjual (bersih), penyesuaian (jumlah `buku_stok` tipe `opname` dan `koreksi` di bulan itu, bisa minus), dan stok sekarang. Jasa tidak ikut karena tidak punya stok.
 
 ## Ekspor CSV untuk tim data
@@ -211,9 +248,11 @@ Format: UTF-8 tanpa BOM, pemisah koma, baris diakhiri CRLF, baris pertama nama k
 | `nilai_bersih` | `nilai_harga_asli - diskon` |
 | `harga_asli_rata` | `nilai_harga_asli / jumlah`, dibulatkan |
 | `harga_efektif_rata` | `nilai_bersih / jumlah`, dibulatkan |
-| `sempat_habis` | `1` kalau stok barang itu di cabang itu turun ke 0 di minggu itu menurut `buku_stok`, `0` kalau tidak, kosong untuk jasa |
+| `sempat_habis` | `1` kalau ada kejadian `habis` (aturan berkas `stok-habis` di bawah) untuk barang itu di cabang itu di minggu itu, `0` kalau tidak, kosong untuk jasa |
 
 `stok-habis`: satu baris per kejadian di `buku_stok` saat stok turun ke 0 atau naik lagi dari 0. Barang yang habis sepanjang minggu tidak muncul di `penjualan` (karena tidak ada yang terjual), jadi berkas ini dipakai untuk menghitung lama stok kosong.
+
+Yang dihitung hanya kejadian di cabang bermode kasir, sejak waktu `kasir_aktif_sejak` cabang itu. Baris `buku_stok` tipe `impor` dan baris dari penetapan cabang (`ref_id` berawalan `tetapkan_cabang:`) juga tidak dihitung, begitu pula stok ban tanpa cabang. Alasannya, saldo dari sheet dan pemindahan baris antarcabang bukan barang yang benar-benar habis atau datang. Aturan yang sama berlaku untuk kolom `sempat_habis` di `penjualan`.
 
 | Kolom | Arti |
 |---|---|
@@ -222,7 +261,7 @@ Format: UTF-8 tanpa BOM, pemisah koma, baris diakhiri CRLF, baris pertama nama k
 | `cabang_id`, `cabang` | cabang baris stok (kosong untuk ban tanpa cabang) |
 | `kode_produk` | kode barang di `buku_stok` |
 | `kejadian` | `habis` (saldo menjadi 0 atau kurang) atau `tersedia` (saldo naik dari 0) |
-| `tipe` | tipe `buku_stok` penyebabnya: `jual`, `void`, `masuk`, `opname`, `koreksi`, `impor` |
+| `tipe` | tipe `buku_stok` penyebabnya: `jual`, `void`, `masuk`, `opname`, `koreksi` |
 | `perubahan`, `saldo_akhir` | perubahan stok dan saldo sesudahnya |
 
 `barang-masuk`: satu baris per barang yang diterima, menurut tanggal terima.
@@ -242,6 +281,12 @@ Format: UTF-8 tanpa BOM, pemisah koma, baris diakhiri CRLF, baris pertama nama k
 | `harga_batch` | harga jual batch itu sekarang |
 | `status_harga` | `tetap` (sama dengan harga lama), `langsung` (owner memakai harga sendiri), atau status pengajuan: `menunggu`, `disetujui`, `ditolak` |
 
+## Hapus barang
+
+Produk situs dan listing per cabang yang sudah dipakai kasir (punya baris `batch_stok` atau `detail_transaksi`) tidak bisa dihapus, apa pun stoknya. Batch, riwayat harga, rekap, dan void nota lama menunjuk ke baris itu, jadi menghapusnya membuat void gagal dan rekap kehilangan nama barang. Penolakannya menyarankan menonaktifkan produk. Pengecekan ada di `hapusProduk` dan `hapusListing` (`src/lib/stok/ubah.ts`), jadi berlaku untuk Hapus produk dan untuk listing yang dihapus lewat form produk.
+
+Stok ban (`StockTire`) tidak punya jalan hapus. Impor dan sinkron sheet hanya menonaktifkan baris yang hilang dari sumber, dan impor ditolak untuk cabang bermode kasir.
+
 ## Riwayat dan rekap harian
 
 Riwayat menyaring tanggal (WIB) dan cabang, plus status void. Rekap rentang itu per cabang: jumlah transaksi selesai, total per metode bayar untuk tutup kas, total diskon, dan jumlah void. Admin cabang hanya melihat cabangnya.
@@ -251,6 +296,8 @@ Riwayat menyaring tanggal (WIB) dan cabang, plus status void. Rekap rentang itu 
 Server-Sent Events dari `/api/kasir/siaran` (route handler, runtime Node) dengan pemancar di dalam proses (`src/lib/kasir/siaran.ts`), karena aplikasi berjalan sebagai satu proses di VPS. Yang disiarkan: perubahan stok (layar kasir dan daftar stok memuat ulang data), transaksi baru dan void (Riwayat), pengajuan diskon baru (owner), keputusan owner (admin pengaju), dan peringatan stok. Admin cabang hanya menerima siaran cabangnya. Kalau koneksi putus, browser menyambung ulang sendiri, dan layar memuat ulang data saat tab aktif kembali. Kalau nanti aplikasi berjalan lebih dari satu proses, isi `siarkan()` dan `dengar()` diganti `LISTEN/NOTIFY` PostgreSQL.
 
 Caddy meneruskan respons streaming tanpa penyangga, dan route mengirim komentar detak tiap 25 detik supaya koneksi diam tidak ditutup.
+
+Sesi dicek saat tersambung, lalu akun dicek ulang ke database sebelum tiap siaran dan bersama tiap detak. Kalau akun dinonaktifkan atau dihapus, atau peran atau cabangnya berubah, koneksi diputus. Browser lalu menyambung ulang dan melewati cek sesi dari awal, jadi admin yang pindah cabang langsung menerima siaran cabang barunya.
 
 ## Web app
 
@@ -288,6 +335,8 @@ Migrasi bagian 2: `prisma/migrations/20261122000000_kasir_v1_bagian_2`, juga adi
 - `stok_opname`: `cabang_id`, `penginput_id`, `nama_penginput`, `status` (CHECK `draft`, `review`, `final`), `tanggal`, `catatan`, `dikirim`, `finalisator_id`, `difinalkan`.
 - `detail_opname`: `opname_id` (hapus ikut opname draft), `sumber`, `kode_produk`, `baris_id`, `nama`, `stok_sistem`, `stok_fisik`, `selisih` (CHECK = fisik - sistem, fisik >= 0), `alasan_selisih`, `diisi`, `stok_saat_final`, `stok_akhir`. Unik per opname, sumber, dan baris.
 
+Migrasi perbaikan audit: `prisma/migrations/20261123000000_kasir_perbaikan_audit`, aditif. Kolom `sidik_isi` (boleh kosong) di `transaksi` dan `barang_masuk`, dan tabel `kunci_ditutup` (`kunci` sebagai kunci utama, `cabang_id`, `pengguna_id`, `dibuat`) untuk kunci yang dinyatakan tidak tersimpan lewat Cek status.
+
 `cabang_id` dan `pengguna_id` di tabel kasir sengaja tanpa relasi, sama seperti `buku_stok`, supaya riwayat tetap ada walau akun dihapus.
 
 ## Kode
@@ -300,8 +349,8 @@ Migrasi bagian 2: `prisma/migrations/20261122000000_kasir_v1_bagian_2`, juga adi
 - `src/lib/kasir/analitik.ts` dan `src/app/api/kasir/ekspor/route.ts`: dashboard, rekap bulanan, dan ekspor CSV.
 - `src/lib/kasir/katalog.ts` dan `cari.ts`: katalog dan pencarian layar kasir.
 - `src/lib/kasir/siaran.ts` dan `src/app/api/kasir/siaran/route.ts`: realtime.
-- `src/lib/stok/ubah.ts`: jalur stok bersama, sekarang dengan penjaga mode kasir dan peringatan stok.
-- Tes basis data: `tests/kasir-db.test.ts` (bagian 1) dan `tests/kasir-bagian2-db.test.ts` (barang masuk, restock, opname, balapan, dashboard, rekap, CSV, invarian acak).
+- `src/lib/stok/ubah.ts`: jalur stok bersama, sekarang dengan penjaga mode kasir, peringatan stok, dan penjaga hapus.
+- Tes basis data: `tests/kasir-db.test.ts` (bagian 1), `tests/kasir-bagian2-db.test.ts` (barang masuk, restock, opname, balapan, dashboard, rekap, CSV, invarian acak), dan `tests/kasir-audit-db.test.ts` (perbaikan temuan audit: sidik isi, cek status kunci, total berubah, produk contoh, pembaca angka, hapus barang, opname, harga 0).
 
 ## Beda dengan ERD Asah (untuk penyelarasan v2)
 

@@ -129,13 +129,14 @@ export default async function Riwayat({ searchParams }: PageProps<'/admin/kasir/
           rowKey={(t) => t.id}
           muted={(t) => t.status === 'void'}
           columns={[
-            { key: 'nomor', header: 'Nomor', mobile: 'title', cell: (t) => <Link href={`/admin/nota/${t.id}`} className="font-semibold text-ink underline underline-offset-2">{t.nomor}</Link> },
+            { key: 'nomor', header: 'Nomor', mobile: 'title', cell: (t) => <Link href={`/admin/nota/${t.id}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center font-semibold text-ink underline underline-offset-2">{t.nomor}</Link> },
             { key: 'waktu', header: 'Waktu', cell: (t) => waktuWib(t.waktuTransaksi) },
-            ...(owner && cabangId === null ? [{ key: 'cabang', header: 'Cabang', cell: (t: Baris) => nama(t.cabangId) }] : []),
-            { key: 'kasir', header: 'Kasir', mobile: 'hide', cell: (t) => t.namaKasir },
+            // Di tablet kolom cabang disembunyikan: awalan nomor nota sudah menunjukkan cabangnya.
+            ...(owner && cabangId === null ? [{ key: 'cabang', header: 'Cabang', sembunyiTablet: true, cell: (t: Baris) => nama(t.cabangId) }] : []),
+            { key: 'kasir', header: 'Kasir', mobile: 'hide', sembunyiTablet: true, cell: (t) => t.namaKasir },
             { key: 'bayar', header: 'Bayar', cell: (t) => `${METODE_LABEL[t.metodeBayar as MetodeBayar] ?? t.metodeBayar} · ${CHANNEL_LABEL[t.channel as Channel] ?? t.channel}` },
             { key: 'total', header: 'Total', align: 'right', cell: (t) => <span className="font-semibold">{rp(t.total)}</span> },
-            { key: 'status', header: 'Status', cell: (t) => (t.status === 'void' ? <Badge tone="outline">VOID</Badge> : t.diskon > 0 ? <Badge tone="light">diskon</Badge> : '-') },
+            { key: 'status', header: 'Status', cell: (t) => (t.status === 'void' ? <Badge tone="outline">VOID</Badge> : t.diskon > 0 ? <Badge tone="light">selesai, diskon</Badge> : 'Selesai') },
           ]}
           actions={(t) => <Link href={`/admin/nota/${t.id}`} className="adm-btn-line adm-btn-sm" aria-label={`Buka nota ${t.nomor}`}>Nota</Link>}
           empty={<Empty title="Tidak ada transaksi">Ubah tanggal atau cabang.</Empty>}

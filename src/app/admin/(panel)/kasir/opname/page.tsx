@@ -61,7 +61,7 @@ export default async function DaftarOpname() {
         rows={rows}
         rowKey={(r) => r.id}
         columns={[
-          { key: 'tanggal', header: 'Dimulai', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/opname/${r.id}`} className="font-semibold text-ink underline underline-offset-2">{waktuWib(r.tanggal)}</Link> },
+          { key: 'tanggal', header: 'Dimulai', mobile: 'title', cell: (r) => <Link href={`/admin/kasir/opname/${r.id}`} className="max-md:inline-flex max-md:min-h-11 max-md:items-center font-semibold text-ink underline underline-offset-2">{waktuWib(r.tanggal)}</Link> },
           ...(owner ? [{ key: 'cabang', header: 'Cabang', cell: (r: Baris) => nama(r.cabangId) }] : []),
           { key: 'oleh', header: 'Penginput', cell: (r) => r.namaPenginput },
           { key: 'baris', header: 'Baris', align: 'right', cell: (r) => r._count.detail },
