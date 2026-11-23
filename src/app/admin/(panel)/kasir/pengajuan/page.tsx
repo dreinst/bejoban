@@ -53,9 +53,9 @@ export default async function TinjauPengajuan() {
   const kolom = [
     { key: 'nota', header: 'Nota', mobile: 'title' as const, cell: nota },
     { key: 'cabang', header: 'Cabang', sembunyiTablet: true, cell: (p: P) => cabang(p.cabangId) },
-    { key: 'admin', header: 'Admin', cell: (p: P) => orang(p.pengajuId) },
+    { key: 'admin', header: 'Admin', sembunyiTablet: true, cell: (p: P) => orang(p.pengajuId) },
     { key: 'diskon', header: 'Diskon', align: 'right' as const, cell: (p: P) => <span className="whitespace-nowrap font-semibold">{rp(p.hargaLama - p.hargaBaru)}</span> },
-    { key: 'nilai', header: 'Subtotal ke total', mobile: 'hide' as const, cell: (p: P) => `${rp(p.hargaLama)} ke ${rp(p.hargaBaru)}` },
+    { key: 'nilai', header: 'Subtotal ke total', mobile: 'hide' as const, sembunyiTablet: true, cell: (p: P) => `${rp(p.hargaLama)} ke ${rp(p.hargaBaru)}` },
     { key: 'alasan', header: 'Alasan', cell: (p: P) => <span className="line-clamp-2">{p.alasan}</span> },
   ]
 

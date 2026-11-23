@@ -471,6 +471,17 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
           e.preventDefault()
           tutupKonfirmasi()
         }}
+        onClose={() => {
+          // Browser bisa menutup dialog tanpa cancel yang bisa dicegah (Escape kedua, tombol Kembali Android).
+          // Selama status kiriman belum jelas, dialog dibuka lagi supaya keranjang tetap terkunci.
+          if (!konfirmasi) return
+          if (kirim || mengecek || putus) {
+            dlg.current?.showModal()
+            return
+          }
+          setKonfirmasi(false)
+          lepasKunci()
+        }}
       >
         <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
           <header className="border-b border-line px-5 pb-3 pt-5">
