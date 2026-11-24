@@ -27,6 +27,7 @@ Nama pengguna, *Lihat situs*, *Akun saya*, dan *Keluar* ada di satu menu profil 
 | | Kotak uji (`/admin/chatbot/uji`) | ya | tidak |
 | | Templat pesan (`/admin/chatbot/templat`) | ya | tidak |
 | | Pengaturan bot (`/admin/chatbot/pengaturan`) | ya | tidak |
+| | Cermin chat (`/admin/chatbot/cermin`) | ya | tidak |
 | Ongkir | Hitung ongkir (`/admin/ongkir`) | ya | ya |
 | | Tarif (`/admin/ongkir/tarif`) | ya | tidak |
 | | Pengaturan (`/admin/ongkir/pengaturan`) | ya | tidak |
@@ -239,6 +240,7 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
 - **Tab Kotak uji** (owner): tidak membuat percakapan dan tidak mengirim apa pun. Punya pilihan cabang yang diingat, pesan asal untuk mengetes jawaban 1 atau 2, dan saklar *Stok per cabang* khusus untuk uji itu (ikut pengaturan, nyala, atau mati).
 - **Tab Templat pesan** (owner): semua kalimat bot dengan pratinjau, dalam tiga kelompok: Ke pelanggan, Ke admin, dan Untuk sosial media. Kelompok sosial media berisi balasan otomatis Instagram, Facebook, dan TikTok yang memuat tautan pendek tiap cabang. Tombol *Salin* menyalin teks jadi dan memunculkan pesan "tersalin", tombol *Ubah* membuka panel dengan isian, pratinjau, simpan, dan kembalikan ke bawaan. *Kembalikan semua ke bawaan* ikut mengembalikan teks sosial media. Simpan ditolak kalau teks memuat isian dalam kurung kurawal yang tidak dikenal templat itu (mis. `{nama}`), dengan pesan yang menyebut isian mana yang boleh dipakai.
 - **Chatbot, tab Pengaturan bot** (owner): paling atas *Bot aktif dan jam layanan* (saklar, jam, stok per cabang). Angka teknis (jeda antar pesan, batas per hari, lama bot diam, lama cabang diingat, lama menunggu jawaban) dan *Hanya membalas nomor uji* ada di *Pengaturan lanjutan* yang tertutup. Kalau pembatasan nomor uji menyala dengan daftar kosong, bot diam ke semua orang. Halaman memberi peringatan merah di kartu paling atas (juga saat bot sedang mati, sebagai pengingat sebelum dinyalakan) dan membuka Pengaturan lanjutan. Kalau bot sedang aktif dalam keadaan itu, Ringkasan owner juga menampilkan peringatannya. Lalu Sambungan WhatsApp (status bot, tersambung, mode kirim, nomor yang dipakai) dan Nomor admin per cabang. Balasan otomatis sosial media tidak lagi di halaman ini, tempatnya di Templat pesan.
+- **Tab Cermin chat** (owner): salinan hanya baca semua chat di nomor bot, termasuk chat yang tidak ditangani bot. Rinciannya di bagian Cermin chat di bawah.
 - **Worker** (`scripts/bot-wa.ts`, `npm run bot:wa`) membaca WAHA secara berkala. Bawaannya uji kering (hanya mencetak dan mencatat). Isi `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di `.env`, dan tambahkan `BOT_SEND=1` hanya kalau memang mau mengirim. Selama masa uji, pembatasan ke nomor uji aktif. Worker belum pernah dicoba ke WAHA.
 - **Label WhatsApp per cabang**: saat cabang percakapan diketahui atau berubah, worker memasang label "Batu" atau "Karanglo" (nama cabang tanpa "Bejo Ban" dan tanpa kurung) ke chat di akun WhatsApp Business. Label dicari menurut nama, dibuat kalau belum ada, dan id-nya disimpan di memori worker. Label lain yang dipasang admin tetap ada, hanya label cabang lain yang dilepas. Di uji kering worker hanya mencetak permintaan yang akan dikirim. Kalau label gagal (404, 501, engine tidak mendukung, jaringan), kegagalan dicatat sekali dan balasan bot tetap jalan. Pembentuk permintaannya ada di `src/lib/bot/label.ts`.
 
@@ -253,6 +255,29 @@ Bot bukan AI. Alurnya: pesan masuk, kenali cabang dan ukuran atau merek, cari di
   | Event `label.upsert`, `label.deleted` | tidak | tidak | ya | ya |
 
   Jadi label didukung engine GOWS yang kita pakai. Dokumentasi menyebut label adalah fitur WhatsApp Business, dan tidak menjelaskan apa yang terjadi di akun WhatsApp biasa. Bentuk jawaban `POST` membuat label tidak didokumentasikan: worker memakai `id` dari jawaban itu, atau membaca ulang daftar label kalau tidak ada. Semua ini belum dicoba ke WAHA sungguhan.
+
+### Cermin chat
+
+Tab *Cermin chat* (`/admin/chatbot/cermin`) menampilkan semua chat di nomor bot: pesan pelanggan, balasan bot, dan balasan yang diketik manusia dari HP atau WhatsApp Web. Aturannya mengikuti aturan mirroring WhatsApp untuk semua nomor chatbot (ditetapkan 24 November 2026):
+
+- Hanya owner yang bisa membuka. Admin cabang yang mengetik alamatnya dialihkan ke Ringkasan; pemeriksaannya di server (`requireOwner`), bukan hanya di menu.
+- Hanya baca. Tidak ada tombol kirim, balas, atau hapus pesan WhatsApp. Membalas tetap dari HP atau lewat alur bot.
+- Daftar chat berisi nama atau nomor, cuplikan pesan terakhir, waktu, dan jumlah pesan masuk yang belum dilihat di panel. Hitungan itu kembali nol saat chat dibuka. Isi chat tampil sebagai gelembung: putih untuk pelanggan, hitam untuk bot, abu untuk admin. Di grup, nama dan nomor peserta ditulis di atas gelembung.
+- Pencarian mencari isi pesan, nama, dan nomor. Saringan pengirim (Pelanggan, Bot, Admin) dan jenis chat (Pribadi, Grup) menyaring daftar chat dan isi chat yang dibuka. Di HP, saringan berupa dua pilihan berlabel, dan saat satu chat dibuka hanya isi chat dan tombol *Daftar chat* yang tampil.
+- Penanda pengirim: pesan masuk = pelanggan. Pesan keluar yang id-nya dicatat worker bot saat mengirim (tabel `wa_kirim_bot`) = bot. Pesan keluar lain = admin. Kalau webhook tiba sebelum worker mencatat id, pesan itu sempat tertulis admin lalu diganti bot begitu id tercatat.
+- Media tidak diunduh. Yang disimpan hanya jenisnya (gambar, video, pesan suara, dokumen, stiker, lokasi, kontak), nama berkas dokumen, dan keterangannya. Untuk lokasi hanya nama tempatnya (tanpa koordinat), untuk kontak hanya nama tampilannya (tanpa isi vCard).
+- Status (`status@broadcast`), siaran, dan saluran (newsletter) tidak dicatat. Reaksi dan pesan protokol juga tidak.
+- Pesan yang dihapus pengirim tetap tersimpan dan ditandai *dihapus* (teks dicoret). Pesan yang diedit menyimpan isi terakhir dan ditandai *diedit*. Kalau tanda hapus atau edit tiba lebih dulu daripada pesan aslinya, dibuat baris sementara yang dilengkapi begitu pesan asli datang.
+- Lama simpan bawaan 180 hari, diubah di tab Pengaturan bot, bagian Cermin chat (7 sampai 730 hari). Pesan yang lebih tua dihapus otomatis saat webhook atau tarik riwayat berjalan (paling sering sekali per jam per proses, tanpa cron), dan langsung saat lama simpan disimpan.
+- Chat pribadi ber-LID. Engine GOWS bisa mengirim chat pribadi dengan id LID (`...@lid`), bukan nomor (`62...@c.us`) seperti di daftar chat WAHA. Id itu diganti nomornya sebelum disimpan, dari sumber berikut menurut urutan: `_data.Info.SenderAlt` (pesan masuk) atau `RecipientAlt` (pesan keluar) di payload, tabel `wa_lid`, lalu `GET /api/{session}/lids/{lid}` di WAHA. Pemetaan disimpan di `wa_lid` supaya WAHA tidak ditanya tiap pesan; LID yang gagal dicari tidak ditanyakan lagi selama 10 menit. Kalau nomornya belum diketahui, pesan tetap disimpan dengan id LID (webhook tetap menjawab 200) dan chat tampil sebagai "Nomor belum diketahui". Begitu nomornya diketahui (pesan berikutnya, atau Tarik riwayat yang membaca `GET /api/{session}/lids` lalu paling banyak 20 pencarian satu per satu), chat LID lama digabung ke chat nomornya: pesan yang sama menjadi satu baris, tanda dihapus dan diedit dipertahankan. Peserta grup ber-LID juga ditulis nomornya kalau payload membawanya.
+- Isi chat adalah data pribadi pelanggan. Tidak masuk git, tidak dicetak ke log aplikasi, dan tidak dipotret untuk dibagikan. Uji memakai data buatan.
+
+Sumber data:
+
+- **Webhook WAHA** (sumber utama): `POST /api/waha/webhook` menerima event `message.any`, `message.revoked`, dan `message.edited` (ketiganya didukung engine GOWS). Setiap permintaan wajib membawa HMAC SHA-512 atas body mentah di header `X-Webhook-Hmac`, dengan kunci `WAHA_WEBHOOK_HMAC`. HMAC salah atau tidak ada dijawab 401 tanpa menyimpan apa pun. Kalau `WAHA_WEBHOOK_HMAC` kosong, semua permintaan ditolak. Body di atas 1 MB ditolak sebelum HMAC dihitung. Event dari sesi lain selain `WAHA_SESSION` diabaikan. Penyimpanan idempoten per (chat, id pesan), jadi kiriman ulang WAHA tidak membuat baris ganda.
+- **Tarik riwayat** (tombol di kanan atas tab Cermin chat): membaca `GET /api/{session}/chats/overview` lalu `GET /api/{session}/chats/{id}/messages` dari WAHA (`WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION`), paling banyak 30 chat terbaru dan 50 pesan per chat, satu chat per satu. Dipakai untuk mengisi chat lama saat pertama dipasang atau sesudah webhook mati. Juga idempoten. Nama chat dan grup diambil dari daftar chat WAHA.
+
+Kode: pembaca payload dan HMAC di `src/lib/cermin/baca.ts` (murni), penyimpanan dan retensi di `src/lib/cermin/simpan.ts`, pemetaan dan penggabungan LID di `src/lib/cermin/lid.ts`, penarik riwayat di `src/lib/cermin/tarik.ts`. Tesnya di `tests/cermin.test.ts` dan `tests/cermin-db.test.ts`. Bentuk payload diambil dari kode engine GOWS di repo resmi WAHA (dibaca 24 November 2026) dan baru diuji dengan payload buatan, belum dengan WAHA sungguhan.
 
 ## Tampilan situs terbaru dan data lokal
 
@@ -292,6 +317,7 @@ Aturan umum:
 Keterangan teknis yang dulu tampil di halaman admin dan sekarang hanya dicatat di sini:
 
 - **Sambungan WhatsApp**: halaman *Pengaturan bot* hanya menampilkan "Tersambung" kalau `WAHA_URL`, `WAHA_API_KEY`, dan `WAHA_SESSION` terisi di `.env` server, dan "Dikirim ke pelanggan" kalau `BOT_SEND=1`. Satu WAHA (engine GOWS) untuk satu nomor. Worker dijalankan dengan `npm run bot:wa` (`scripts/bot-wa.ts`), belum dijalankan dari aplikasi web.
+- **Cermin chat**: app butuh `WAHA_WEBHOOK_HMAC` (kunci acak, sama dengan `hmac.key` di konfigurasi webhook sesi WAHA) dan, untuk tombol Tarik riwayat, `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` di env container app (bukan hanya worker). Alamat webhook dari dalam jaringan Docker: `http://app:3000/api/waha/webhook`.
 - **Data awal harga jasa**: kalau daftar harga jasa kosong, jalankan `npm run seed:lokal` dengan berkas `data/seed-lokal.json`.
 - **Sinkron Google Sheets**: URL disimpan di tabel pengaturan database per cabang (kunci `stok.sheet`, `stok.sheet.<slug>`, `stok.sheet.gabungan`), bukan di kode. Sinkron mengambil ekspor CSV dari tab yang dibuka (angka `gid` di URL).
 - **Impor stok ban**: baris dikenali dari ukuran dan merek. Baris yang hilang dari sumber dinonaktifkan dan aktif lagi kalau muncul kembali, dan setiap perubahan stok tercatat di buku stok (`docs/PENYELARASAN-BEJOSTOCK.md`).
