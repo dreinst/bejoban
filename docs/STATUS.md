@@ -8,7 +8,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
-- `npm test` lulus 141 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- `npm test` lulus 162 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (semuanya belum punya cabang), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -55,6 +55,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 - Bot tidak memakai AI. Pesan dicocokkan ke cabang, ukuran, merek, atau jasa, lalu dijawab dari data stok dan harga jasa. Kalau barang tidak ada, stok kosong, harga kosong, atau pesan tidak dikenali, bot menyerahkan percakapan ke admin cabang dan diam.
 - Di admin sudah ada Percakapan, Kotak uji, Templat pesan (termasuk teks balasan untuk sosial media), dan Pengaturan bot.
 - Worker `scripts/bot-wa.ts` sudah ditulis dan bawaannya uji kering, yaitu hanya mencetak balasan tanpa mengirim.
+- Cermin chat (24 November 2026, cabang `cermin-wa`, belum dirilis): tab owner *Cermin chat* berisi salinan hanya baca semua chat di nomor bot, diisi webhook WAHA berpengaman HMAC dan tombol Tarik riwayat, dengan penanda pelanggan, bot, atau admin dan lama simpan 180 hari. Worker mencatat id pesan yang ia kirim supaya pesan bot tidak tertulis admin. Rinciannya di [PANDUAN-ADMIN.md](PANDUAN-ADMIN.md), bagian Cermin chat.
 
 ### Server
 
@@ -104,6 +105,12 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 ### Pekerjaan teknis yang belum dikerjakan
 
 - Menyambungkan chatbot: pasang WAHA (engine GOWS) di server, pindai QR, jalankan worker dalam mode uji ke nomor uji, lalu buka ke pelanggan. Worker dan label WhatsApp per cabang belum pernah dicoba ke WAHA sungguhan.
+- Memasang cermin chat di produksi (sesudah cabang `cermin-wa` digabung):
+  1. Isi env container app: `WAHA_WEBHOOK_HMAC` (kunci acak baru, mis. `openssl rand -hex 32`), serta `WAHA_URL=http://waha:3000`, `WAHA_API_KEY`, `WAHA_SESSION` untuk tombol Tarik riwayat.
+  2. Rilis seperti biasa. Migrasi `20261124000000_cermin_wa` hanya menambah tiga tabel dan berjalan otomatis saat container mulai. Jalankan ulang worker bot dengan kode baru supaya id kiriman bot tercatat.
+  3. Pasang webhook di sesi WAHA `default`: url `http://app:3000/api/waha/webhook`, events `message.any`, `message.revoked`, `message.edited`, `hmac.key` sama dengan `WAHA_WEBHOOK_HMAC`, retries misalnya `exponential` 5 kali. Lewat `PUT /api/sessions/default` dengan seluruh `config` lama ikut dikirim (ambil dulu dengan `GET /api/sessions/default`), karena permintaan itu mengganti seluruh konfigurasi sesi. Menurut dokumentasi WAHA, sesi yang sedang jalan dihentikan lalu dinyalakan lagi dengan konfigurasi baru, jadi lakukan saat sepi.
+  4. Tutup alamat webhook dari internet di Caddy, karena WAHA memanggil app langsung lewat jaringan Docker: `@waha path /api/waha/*` lalu `respond @waha 404`. HMAC tetap menolak permintaan tanpa kunci kalau blok ini terlewat.
+  5. Periksa: log WAHA menunjukkan kiriman webhook dijawab 200, tab Cermin chat terisi, lalu tekan Tarik riwayat sekali untuk chat lama.
 - Header keamanan HTTP (CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy).
 - `robots.txt`, `sitemap.xml`, dan penanda noindex untuk halaman admin.
 - Dockerfile dan berkas Compose baru ada di server. Keduanya belum masuk repo.
@@ -117,6 +124,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 - Sinkron pricelist dari Google Sheets. Alamat sheet belum tersimpan di produksi, jadi yang teruji baru impor CSV.
 - Tab Percakapan dengan data nyata, karena bot belum tersambung.
 - Keadaan kosong tab Perlu dicek.
+- Cermin chat dengan WAHA sungguhan. Payload webhook, jawaban `sendText`, dan daftar chat baru diuji dengan data buatan yang mengikuti kode engine GOWS. Yang perlu dilihat saat pertama dipasang: id chat dari webhook dan dari daftar chat sama bentuknya (`@c.us` atau `@lid`), dan pesan bot tertanda Bot.
 
 ## Keputusan yang sudah diambil
 
@@ -130,6 +138,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 - Data nyata toko (pricelist, harga jasa, foto, logo pabrikan) tidak masuk git. Tempatnya di folder `data/` yang diabaikan git.
 - Tampilan situs hitam putih, minimalis, tanpa elemen miring.
 - Halaman daftar di admin memakai tabel ringkas dengan panel samping. Form bertumpuk per item ditolak.
+- Cermin chat hanya untuk owner, hanya baca, dan menyimpan pesan paling lama 180 hari (bisa diatur). Berkas media tidak diunduh.
 
 ## Cara rilis
 
@@ -156,6 +165,7 @@ Migrasi baru diuji dulu pada salinan database produksi sebelum dirilis. Pada 20 
 - `SITE_URL` wajib terisi di `.env` server. Kalau kosong, tautan pendek dan gambar pratinjau memakai alamat dari header permintaan atau `localhost`.
 - Versi Next.js di repo ini punya perubahan yang tidak ada di versi lama. Baca panduannya di `node_modules/next/dist/docs/` sebelum menulis kode (lihat `AGENTS.md`).
 - Auditor tampilan tidak tahu aturan bisnis toko. Usulnya dicek dulu ke aturan di bagian keputusan sebelum diterapkan.
+- Cabang `kasir-v1` membawa migrasi bertanggal 20261121 sampai 20261123, dan cermin chat membawa `20261124000000_cermin_wa`. Saat keduanya digabung, pastikan urutan folder migrasi tetap kasir dulu lalu cermin, dan jalankan `prisma migrate deploy` pada salinan basis data produksi sebelum rilis.
 - Kartu HP dengan tombol selebar penuh membuat halaman sangat panjang. Ukur tinggi halaman di 390 px sesudah mengubah tampilan daftar.
 
 ## Data lokal

@@ -9,6 +9,7 @@ import { loadBotSettings } from '../src/lib/bot/respond'
 import { flushAwaiting, flushClosings, processChat, type Msg } from '../src/lib/bot/process'
 import { cariLabel, labelBaruChat, mintaBuatLabel, mintaDaftarLabel, mintaLabelChat, mintaPasangLabel, rencanaLabelKering, type LabelWaha, type Langkah } from '../src/lib/bot/label'
 import { namaPendek } from '../src/lib/tire/cabang'
+import { catatKirimBot } from '../src/lib/cermin/simpan'
 
 const URL_ = (process.env.WAHA_URL ?? '').replace(/\/$/, '')
 const KEY = process.env.WAHA_API_KEY ?? ''
@@ -24,7 +25,9 @@ async function waha(path: string, init?: RequestInit) {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const send = async (chatId: string, text: string) => {
-  await waha('/api/sendText', { method: 'POST', body: JSON.stringify({ session: SESSION, chatId, text }) })
+  const jawaban = await waha('/api/sendText', { method: 'POST', body: JSON.stringify({ session: SESSION, chatId, text }) })
+  // Id pesan dicatat supaya cermin chat menandainya "bot", bukan "admin". Gagal mencatat tidak boleh mengganggu balasan.
+  await catatKirimBot(jawaban).catch((e) => console.error(`Id kiriman bot tidak tercatat untuk cermin chat: ${(e as Error).message}`))
 }
 // Label WhatsApp Business per cabang ("Batu", "Karanglo") supaya admin bisa memilah chat di aplikasi.
 // Endpoint label WAHA didukung engine GOWS (lihat docs/PANDUAN-ADMIN.md). Pembentuk permintaan ada di

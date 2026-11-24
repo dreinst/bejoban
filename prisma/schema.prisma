@@ -282,3 +282,58 @@ model Kalender {
   @@index([tanggal])
   @@map("kalender")
 }
+
+// ---- Cermin chat WhatsApp (aturan di docs/PANDUAN-ADMIN.md, bagian Cermin chat) ----
+// Salinan hanya baca semua chat di nomor bot, diisi dari webhook WAHA dan penarik riwayat. Khusus owner.
+// Isi chat adalah data pribadi pelanggan: tidak boleh dicetak ke log. Dihapus otomatis sesudah N hari (Setting "cermin").
+
+// Satu baris per chat. dilihat = terakhir kali owner membuka chat ini di panel, untuk hitungan "belum dilihat".
+model WaChat {
+  chatId        String    @id @map("chat_id") // id chat WAHA, mis. 62812...@c.us atau ...@g.us
+  nama          String    @default("") // nama kontak atau grup, kalau diketahui
+  grup          Boolean   @default(false)
+  pesanTerakhir String    @default("") @map("pesan_terakhir") // cuplikan pendek pesan terakhir
+  waktuTerakhir DateTime? @map("waktu_terakhir")
+  dilihat       DateTime?
+
+  @@index([waktuTerakhir])
+  @@map("wa_chat")
+}
+
+// Satu baris per pesan. Kunci idempoten: (chat_id, id_pendek). id_pendek = id pesan WhatsApp tanpa chat dan peserta.
+// pengirim: pelanggan | bot | admin. jenis: teks | gambar | video | suara | dokumen | stiker | lokasi | kontak.
+// Berkas media tidak disimpan, hanya jenis, nama berkas, dan keterangannya (di kolom isi).
+// sementara = baris dibuat dari event hapus atau edit sebelum pesan aslinya tiba; dilengkapi saat pesan asli datang.
+model WaPesan {
+  id           Int      @id @default(autoincrement())
+  chatId       String   @map("chat_id")
+  waId         String   @map("wa_id")
+  idPendek     String   @map("id_pendek")
+  dariSaya     Boolean  @map("dari_saya")
+  pengirim     String
+  peserta      String   @default("") // pengirim di chat grup
+  namaPengirim String   @default("") @map("nama_pengirim")
+  isi          String   @default("")
+  jenis        String   @default("teks")
+  namaBerkas   String   @default("") @map("nama_berkas")
+  waktu        DateTime
+  dihapus      Boolean  @default(false)
+  diedit       Boolean  @default(false)
+  sementara    Boolean  @default(false)
+  dibuat       DateTime @default(now())
+
+  @@unique([chatId, idPendek])
+  @@index([idPendek])
+  @@index([chatId, waktu])
+  @@index([waktu])
+  @@map("wa_pesan")
+}
+
+// Id pesan yang dikirim worker bot (dari jawaban sendText). Pesan keluar dengan id ini ditandai "bot", sisanya "admin".
+model WaKirimBot {
+  idPendek String   @id @map("id_pendek")
+  dibuat   DateTime @default(now())
+
+  @@index([dibuat])
+  @@map("wa_kirim_bot")
+}

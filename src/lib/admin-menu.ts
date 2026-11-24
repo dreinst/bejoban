@@ -52,6 +52,7 @@ export const ADMIN_MENU: AdminMenu[] = [
       { key: 'uji', label: 'Kotak uji', href: '/admin/chatbot/uji', owner: true },
       { key: 'templat', label: 'Templat pesan', href: '/admin/chatbot/templat', owner: true },
       { key: 'pengaturan-bot', label: 'Pengaturan bot', href: '/admin/chatbot/pengaturan', owner: true },
+      { key: 'cermin', label: 'Cermin chat', href: '/admin/chatbot/cermin', owner: true },
     ],
   },
   {

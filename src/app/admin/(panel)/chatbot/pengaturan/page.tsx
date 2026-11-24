@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { db } from '@/lib/db'
 import { requireOwner } from '@/lib/auth'
 import { saveBotAdmins, saveBotHours } from '../../../fitur-actions'
+import { simpanRetensiCermin } from '../../../cermin-actions'
+import { bacaRetensi } from '@/lib/cermin/simpan'
 import { NomorUji } from '@/components/admin/nomor-uji'
 import { FormPulih } from '@/components/admin/form-pulih'
 import { loadBotSettings } from '@/lib/bot/respond'
@@ -15,7 +17,7 @@ import { SubmitButton } from '@/components/admin/overlay'
 // Nilai yang diubah di tempat lain (nomor WhatsApp utama dan nomor cabang) hanya dibaca di sini, dengan tautan ke tempat ubahnya.
 export default async function PengaturanWhatsapp() {
   await requireOwner()
-  const [s, situs, branches] = await Promise.all([loadBotSettings(), getSitus(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] })])
+  const [s, situs, branches, retensi] = await Promise.all([loadBotSettings(), getSitus(), db.branch.findMany({ orderBy: [{ sort: 'asc' }, { id: 'asc' }] }), bacaRetensi()])
   const tersambung = ['WAHA_URL', 'WAHA_API_KEY', 'WAHA_SESSION'].every((k) => !!process.env[k])
   const kirim = process.env.BOT_SEND === '1'
   const mainNumber = situs.mainWhatsapp || null
@@ -106,6 +108,17 @@ export default async function PengaturanWhatsapp() {
                 <TextField className="sm:col-span-2" label="Nomor owner" hint="Dipakai kalau cabang tidak dikenali atau nomor admin kosong." name="ownerNumber" defaultValue={s.ownerNumber} placeholder="0812..." inputMode="tel" />
               </FormGrid>
               <FormActions><SubmitButton>Simpan nomor admin</SubmitButton></FormActions>
+            </form>
+          </FormPulih>
+        </Section>
+
+        <Section id="cermin" title="Cermin chat" description="Salinan hanya baca semua chat di nomor bot, dibuka di tab Cermin chat. Pesan yang lebih tua dari batas ini dihapus otomatis.">
+          <FormPulih nama="cermin">
+            <form action={simpanRetensiCermin}>
+              <FormGrid>
+                <TextField label="Lama simpan (hari)" hint="7 sampai 730 hari. Bawaan 180." name="hari" defaultValue={retensi} inputMode="numeric" />
+              </FormGrid>
+              <FormActions><SubmitButton>Simpan lama simpan</SubmitButton></FormActions>
             </form>
           </FormPulih>
         </Section>

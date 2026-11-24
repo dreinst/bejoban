@@ -132,6 +132,7 @@ Diperbarui tiap kali halaman disesuaikan. "Ya" berarti sudah memakai komponen be
 | Pengaturan, Cabang | `/admin/cabang` | ya | Tanpa hapus. Admin cabang langsung melihat formnya (Data cabang saya), tanpa tabel. |
 | Pengaturan, Pengguna | `/admin/pengguna` | ya | Reset kata sandi di panel terpisah. Akun sendiri tidak bisa dihapus atau dinonaktifkan. |
 | Chatbot, Pengaturan bot | `/admin/chatbot/pengaturan` | ya | Khusus owner. Bot aktif dan jam di atas, angka teknis di Pengaturan lanjutan, peringatan nomor uji kosong di kartu paling atas (dan di Ringkasan owner bila bot aktif), sambungan WhatsApp, nomor admin per cabang. |
+| Chatbot, Cermin chat | `/admin/chatbot/cermin` | ya | Khusus owner, hanya baca. Daftar chat tabel ringkas (kartu di HP, tombol Buka 44 px). Chat terbuka di kanan mulai 1024 px; di bawah itu menggantikan daftar dengan tombol kembali. Saringan pengirim dan jenis chat: chip di layar lebar, `SaringHp` di HP. Diperiksa 24 November 2026 di 1440 dan 390 px. |
 | Ongkir, Pengaturan | `/admin/ongkir/pengaturan` | ya | Khusus owner. Titik toko dari tautan Google Maps. |
 | Kalender (tanpa tab) | `/admin/kalender` | ya | Disembunyikan dari menu, datanya belum dipakai. Saringan Akan datang, Sudah lewat, Semua. |
 | Akun saya | `/admin/akun` | ya | |
