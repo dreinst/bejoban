@@ -164,20 +164,27 @@ export function simpanListing(p: { productId: number; branchId: number; data: Da
 }
 
 // Baris yang sudah dipakai kasir (punya batch atau baris nota) tidak boleh dihapus: batch, riwayat harga, dan void
-// nota lama menunjuk ke baris itu. Stok ban tidak punya jalan hapus (impor hanya menonaktifkan baris yang hilang).
+// nota lama menunjuk ke baris itu. Baris yang masih ada di opname belum final juga ditolak, karena finalisasi opname
+// akan gagal kalau barisnya hilang. Stok ban tidak punya jalan hapus (impor hanya menonaktifkan baris yang hilang).
 export class GalatDipakaiKasir extends GalatStok {
-  constructor(nama: string) {
-    super(`${nama} sudah dipakai kasir (punya batch stok atau nota), jadi tidak bisa dihapus. Nonaktifkan saja supaya riwayat dan void nota lamanya tetap jalan.`)
+  constructor(nama: string, pesan?: string) {
+    super(pesan ?? `${nama} sudah dipakai kasir (punya batch stok atau nota), jadi tidak bisa dihapus. Nonaktifkan saja supaya riwayat dan void nota lamanya tetap jalan.`)
     this.name = 'GalatDipakaiKasir'
   }
 }
 
 async function cekBelumDipakaiKasirTx(tx: Tx, listingIds: number[], nama: string) {
   if (!listingIds.length) return
-  const [r] = await tx.$queryRaw<{ ada: boolean }[]>`
-    SELECT EXISTS (SELECT 1 FROM "batch_stok" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds}))
-        OR EXISTS (SELECT 1 FROM "detail_transaksi" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds})) AS "ada"`
-  if (r?.ada) throw new GalatDipakaiKasir(nama)
+  // Kunci listing dulu. Isi baris opname juga mengunci listing (kunciBarisTx), jadi baris opname yang sedang disimpan
+  // bersamaan sudah terlihat oleh cek di bawah.
+  await tx.$queryRaw`SELECT 1 FROM "Listing" WHERE "id" = ANY(${listingIds}) FOR UPDATE`
+  const [r] = await tx.$queryRaw<{ dipakai: boolean; opname: boolean }[]>`
+    SELECT (EXISTS (SELECT 1 FROM "batch_stok" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds}))
+        OR EXISTS (SELECT 1 FROM "detail_transaksi" WHERE "sumber" = 'produk' AND "baris_id" = ANY(${listingIds}))) AS "dipakai",
+      EXISTS (SELECT 1 FROM "detail_opname" d JOIN "stok_opname" o ON o."id" = d."opname_id"
+        WHERE d."sumber" = 'produk' AND d."baris_id" = ANY(${listingIds}) AND o."status" <> 'final') AS "opname"`
+  if (r?.dipakai) throw new GalatDipakaiKasir(nama)
+  if (r?.opname) throw new GalatDipakaiKasir(nama, `${nama} masih ada di opname yang belum final, jadi tidak bisa dihapus. Hapus barisnya dari opname itu atau finalkan opnamenya dulu.`)
 }
 
 // Hapus listing. Sisa stoknya dicatat keluar (koreksi ke 0) supaya buku stok tetap seimbang.

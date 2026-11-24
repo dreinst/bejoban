@@ -4,7 +4,7 @@
 // menolak kalau totalnya berbeda dari yang dilihat kasir. Aturan kiriman putus: docs/KASIR.md, bagian transaksi.
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus, Search, X } from 'lucide-react'
 import { inputCls } from '@/components/admin/form-cls'
 import { cariKatalog, cocokPersis, hitungKeranjang } from '@/lib/kasir/cari'
@@ -39,6 +39,13 @@ const ingatKiriman = (cabangId: number, k: Kiriman | null) => {
     else sessionStorage.removeItem(simpanan(cabangId))
   } catch {}
 }
+const bacaKiriman = (cabangId: number): Kiriman | null => {
+  try {
+    return JSON.parse(sessionStorage.getItem(simpanan(cabangId)) ?? 'null')
+  } catch {
+    return null
+  }
+}
 
 function Pilihan<T extends string>({ label, nilai, pilihan, ubah }: { label: string; nilai: T; pilihan: readonly { v: T; t: string }[]; ubah: (v: T) => void }) {
   return (
@@ -72,6 +79,9 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   // putus: kiriman terakhir tidak mendapat jawaban. Keranjang dikunci sampai statusnya jelas lewat Cek status.
   const [putus, setPutus] = useState(false)
   const [mengecek, setMengecek] = useState(false)
+  // Kiriman dari sebelum halaman dimuat ulang yang statusnya belum jelas. Selama ada, Bayar dikunci supaya kiriman
+  // baru tidak menimpa catatannya di sessionStorage dan kasir tidak memasukkan nota yang mungkin sudah tersimpan.
+  const [cekAwal, setCekAwal] = useState<{ jalan: boolean; pesan: string } | null>(null)
   const kunci = useRef<string | null>(null)
   const kiriman = useRef<Kiriman | null>(null)
   const cari = useRef<HTMLInputElement>(null)
@@ -94,22 +104,38 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   const alasanKurang = nDiskon > 0 && alasan.trim().length < 3
   const bisaBayar = isi.length > 0 && !hitung.galat && !kurangBayar && !uangLebih && !alasanKurang && nDiskon <= hitung.subtotal
 
-  // Kiriman dari sebelum halaman dimuat ulang yang jawabannya tidak sampai: cek statusnya sekali.
-  useEffect(() => {
-    let k: Kiriman | null = null
+  // Kiriman dari sebelum halaman dimuat ulang yang jawabannya tidak sampai: cek statusnya. Catatannya hanya dihapus
+  // kalau yang tersimpan masih kiriman yang sama dengan yang dicek.
+  const cekSimpanan = useCallback(async (k: Kiriman) => {
+    setCekAwal({ jalan: true, pesan: 'Memeriksa transaksi sebelum halaman dimuat ulang. Tunggu sebentar.' })
+    let h: HasilCekKunci
     try {
-      k = JSON.parse(sessionStorage.getItem(simpanan(cabang.id)) ?? 'null')
-    } catch {}
-    if (!k) return
-    cekKunciKasir(k)
-      .then((h) => {
-        if (!h.ok) return setInfo({ pesan: `Transaksi sebelum halaman dimuat ulang belum bisa dicek: ${h.pesan}` })
-        ingatKiriman(cabang.id, null)
-        if (h.status === 'tersimpan') setInfo({ pesan: `Transaksi sebelum halaman dimuat ulang sudah tersimpan sebagai nota ${h.nomor}. Jangan diulang.`, nota: { id: h.id, nomor: h.nomor }, info: true })
-        else setInfo({ pesan: 'Transaksi sebelum halaman dimuat ulang tidak tersimpan. Kalau pelanggan masih menunggu, masukkan lagi barangnya.', info: true })
-      })
-      .catch(() => setInfo({ pesan: 'Transaksi sebelum halaman dimuat ulang belum bisa dicek karena koneksi. Muat ulang halaman ini saat sinyal kembali, sebelum membuat transaksi baru.' }))
+      h = await cekKunciKasir(k)
+    } catch {
+      setCekAwal({ jalan: false, pesan: 'Transaksi sebelum halaman dimuat ulang belum bisa dicek karena koneksi. Tunggu sinyal kembali, lalu tekan Cek lagi. Bayar dikunci sampai statusnya jelas.' })
+      return
+    }
+    if (!h.ok) {
+      setCekAwal({ jalan: false, pesan: `Transaksi sebelum halaman dimuat ulang belum bisa dicek: ${h.pesan} Tekan Cek lagi. Bayar dikunci sampai statusnya jelas.` })
+      return
+    }
+    if (bacaKiriman(cabang.id)?.kunci === k.kunci) ingatKiriman(cabang.id, null)
+    setCekAwal(null)
+    if (h.status === 'tersimpan') setInfo({ pesan: `Transaksi sebelum halaman dimuat ulang sudah tersimpan sebagai nota ${h.nomor}. Jangan diulang.`, nota: { id: h.id, nomor: h.nomor }, info: true })
+    else setInfo({ pesan: 'Transaksi sebelum halaman dimuat ulang tidak tersimpan. Kalau pelanggan masih menunggu, masukkan lagi barangnya.', info: true })
   }, [cabang.id])
+
+  useEffect(() => {
+    const k = bacaKiriman(cabang.id)
+    // Lewat microtask supaya setState tidak di badan effect. Tetap jalan sebelum kasir sempat mengetuk apa pun.
+    if (k) queueMicrotask(() => void cekSimpanan(k))
+  }, [cabang.id, cekSimpanan])
+
+  const cekLagi = () => {
+    const k = bacaKiriman(cabang.id)
+    if (k) void cekSimpanan(k)
+    else setCekAwal(null)
+  }
 
   useEffect(() => {
     const d = dlg.current
@@ -148,7 +174,7 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
   }
 
   const bukaKonfirmasi = () => {
-    if (!bisaBayar || putus) return
+    if (!bisaBayar || putus || cekAwal) return
     kunci.current ??= kunciBaru()
     setGalat(null)
     setKonfirmasi(true)
@@ -429,7 +455,17 @@ export function LayarKasir({ cabang, katalog, owner }: { cabang: { id: number; n
               </div>
             )}
           </dl>
-          <button type="button" onClick={bukaKonfirmasi} disabled={!bisaBayar} className="adm-btn adm-btn-lg w-full text-base">
+          {cekAwal && (
+            <div role="status" className="rounded-lg border border-line bg-soft px-3 py-2 text-sm text-ink">
+              <p className="font-semibold">{cekAwal.pesan}</p>
+              {!cekAwal.jalan && (
+                <button type="button" onClick={cekLagi} className="adm-btn mt-2 min-h-11">
+                  Cek lagi
+                </button>
+              )}
+            </div>
+          )}
+          <button type="button" onClick={bukaKonfirmasi} disabled={!bisaBayar || cekAwal !== null} className="adm-btn adm-btn-lg w-full text-base">
             {isi.length ? `Bayar ${rp(hitung.total)}` : 'Bayar'}
           </button>
           {isi.length > 0 && !bisaBayar && (

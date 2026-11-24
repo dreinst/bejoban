@@ -301,6 +301,26 @@ test('opname: admin cabang hanya menghapus draft buatannya sendiri, owner boleh 
   assert.equal(await m.db.stokOpname.count(), 0)
 })
 
+test('B4: produk tanpa batch yang masih ada di opname belum final tidak bisa dihapus', async () => {
+  // Produk aktif berstok 0 yang ditambahkan sesudah kasir aktif tidak punya batch.
+  const p = await m.db.product.create({ data: { slug: 'oli-opname', name: 'Produk oli-opname', kode: 'OLI-OPNAME' } })
+  const l = await m.db.listing.create({ data: { productId: p.id, branchId: A, price: 50_000, stock: 0 } })
+  const o = await m.opname.mulaiOpname(adminA, { cabangId: A })
+  await m.opname.isiBarisOpname(adminA, { opnameId: o.id, sumber: 'produk', barisId: l.id, stokFisik: 0, alasan: '' })
+  await assert.rejects(m.ubah.hapusProduk({ productId: p.id }), (e: unknown) => {
+    assert.ok(e instanceof m.ubah.GalatDipakaiKasir)
+    assert.match(e.message, /opname yang belum final/)
+    return true
+  })
+  await assert.rejects(m.ubah.hapusListing({ productId: p.id, branchId: A }), /opname yang belum final/)
+  assert.equal(await m.db.listing.count({ where: { id: l.id } }), 1)
+  // Sesudah barisnya dihapus dari draft, produk boleh dihapus lagi.
+  const d = await m.db.detailOpname.findFirstOrThrow({ where: { opnameId: o.id, barisId: l.id } })
+  await m.opname.hapusBarisOpname(adminA, { opnameId: o.id, detailId: d.id })
+  assert.equal(await m.ubah.hapusProduk({ productId: p.id }), true)
+  await m.opname.hapusOpname(owner, o.id)
+})
+
 test('K6: produk dan listing yang punya batch atau nota tidak bisa dihapus, yang belum dipakai kasir tetap bisa', async () => {
   // Stok oli-aktif dinolkan dulu supaya penolakan bukan karena stok.
   await m.stok.koreksiStok({ sumber: 'produk', barisId: lAktif, setKe: 0, alasan: 'uji hapus', pengguna: String(owner.uid) })
