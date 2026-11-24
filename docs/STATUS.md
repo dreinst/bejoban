@@ -8,7 +8,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 - Situs tayang di https://bejoban.com dengan kode yang sama dengan cabang `main`. Pindah ke PostgreSQL dirilis 20 November 2026 pukul 04.28 UTC, situs mati sekitar 20 detik.
 - Memakai Next.js 16.4.6 dan Prisma 7.10.1 (naik versi 18 November 2026), dengan PostgreSQL 18 sejak 20 November 2026 (sebelumnya SQLite). Rinciannya di [POSTGRES.md](POSTGRES.md).
-- `npm test` lulus 162 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
+- `npm test` lulus 169 tes (butuh PostgreSQL, lihat [POSTGRES.md](POSTGRES.md)). `npm run lint` dan `npm run typecheck` bersih. `npm audit --omit=dev` tanpa temuan.
 - Halaman admin dan stok ban sudah bisa dipakai. Kalkulator ongkir sudah jalan, tetapi tabel tarif di produksi masih kosong, jadi hasilnya belum memuat biaya.
 - Chatbot stok selesai sampai kotak uji di admin. Bot belum tersambung ke WhatsApp.
 - Isi database produksi: 325 baris stok ban (semuanya belum punya cabang), 14 harga jasa, 16 produk (6 tayang), 11 merek, 2 cabang, dan 3 akun admin.
@@ -111,6 +111,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
   3. Pasang webhook di sesi WAHA `default`: url `http://app:3000/api/waha/webhook`, events `message.any`, `message.revoked`, `message.edited`, `hmac.key` sama dengan `WAHA_WEBHOOK_HMAC`, retries misalnya `exponential` 5 kali. Lewat `PUT /api/sessions/default` dengan seluruh `config` lama ikut dikirim (ambil dulu dengan `GET /api/sessions/default`), karena permintaan itu mengganti seluruh konfigurasi sesi. Menurut dokumentasi WAHA, sesi yang sedang jalan dihentikan lalu dinyalakan lagi dengan konfigurasi baru, jadi lakukan saat sepi.
   4. Tutup alamat webhook dari internet di Caddy, karena WAHA memanggil app langsung lewat jaringan Docker: `@waha path /api/waha/*` lalu `respond @waha 404`. HMAC tetap menolak permintaan tanpa kunci kalau blok ini terlewat.
   5. Periksa: log WAHA menunjukkan kiriman webhook dijawab 200, tab Cermin chat terisi, lalu tekan Tarik riwayat sekali untuk chat lama.
+- Perbaikan LID cermin chat (cabang `cermin-wa`, belum dirilis): migrasi aditif `20261124010000_cermin_lid` (tabel `wa_lid`). Sesudah rilis, chat ber-LID yang sudah tersimpan di produksi digabung ke nomornya saat pelanggan itu mengirim pesan lagi atau saat Tarik riwayat ditekan. Tidak perlu langkah manual.
 - Header keamanan HTTP (CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy).
 - `robots.txt`, `sitemap.xml`, dan penanda noindex untuk halaman admin.
 - Dockerfile dan berkas Compose baru ada di server. Keduanya belum masuk repo.

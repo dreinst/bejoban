@@ -4,7 +4,7 @@
 import test, { after, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { siapkanDbUji } from './db-uji'
-import { GRUP, KUNCI, PEL, pesanGows } from './cermin-contoh'
+import { GRUP, KUNCI, LID, PEL, PEL_LID, pesanGows } from './cermin-contoh'
 import { hitungHmac } from '../src/lib/cermin/baca'
 
 let dbUji: Awaited<ReturnType<typeof siapkanDbUji>> | undefined
@@ -14,20 +14,22 @@ type Mod = {
   simpan: typeof import('../src/lib/cermin/simpan')
   baca: typeof import('../src/lib/cermin/baca')
   tarik: typeof import('../src/lib/cermin/tarik')
+  lid: typeof import('../src/lib/cermin/lid')
   POST: typeof import('../src/app/api/waha/webhook/route').POST
 }
 let m: Mod
 
 before(async () => {
   dbUji = await siapkanDbUji('cermin')
-  const [{ db }, simpan, baca, tarik, route] = await Promise.all([
+  const [{ db }, simpan, baca, tarik, route, lid] = await Promise.all([
     import('../src/lib/db'),
     import('../src/lib/cermin/simpan'),
     import('../src/lib/cermin/baca'),
     import('../src/lib/cermin/tarik'),
     import('../src/app/api/waha/webhook/route'),
+    import('../src/lib/cermin/lid'),
   ])
-  m = { db, simpan, baca, tarik, POST: route.POST }
+  m = { db, simpan, baca, tarik, POST: route.POST, lid }
 })
 
 after(async () => {
@@ -39,6 +41,8 @@ const kosongkan = async () => {
   await m.db.waPesan.deleteMany()
   await m.db.waChat.deleteMany()
   await m.db.waKirimBot.deleteMany()
+  await m.db.waLid.deleteMany()
+  m.lid.lupakanGagal()
 }
 const ev = (event: string, payload: unknown) => m.baca.bacaEvent({ event, session: 'default', payload })
 const pesanDi = (chatId = PEL) => m.db.waPesan.findMany({ where: { chatId }, orderBy: { id: 'asc' } })
@@ -144,8 +148,11 @@ test('retensi: pesan lebih tua dari batas dihapus, chat kosong ikut hilang', asy
   await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'T1', body: 'lama sekali', ts: detik(200) })))
   await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'T2', body: 'baru', ts: detik(10) })))
   await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'T3', chat: '6280000000004@c.us', body: 'chat lama', ts: detik(181) })))
+  await m.db.waLid.create({ data: { lid: LID, pn: PEL_LID } })
+  await m.db.$executeRaw`UPDATE "wa_lid" SET "diperbarui" = ${new Date(sekarang.getTime() - 200 * 86400_000)}`
   const h = await m.simpan.bersihkan(180, sekarang)
   assert.equal(h.pesan, 2)
+  assert.equal(await m.db.waLid.count(), 0, 'pemetaan LID ikut lama simpan')
   assert.deepEqual((await m.db.waPesan.findMany()).map((r) => r.idPendek), ['T2'])
   assert.deepEqual((await m.db.waChat.findMany()).map((r) => r.chatId), [PEL])
   // Lama simpan dibaca dari Setting "cermin", bawaan 180.
@@ -167,7 +174,7 @@ test('tarik riwayat: idempoten, terbatas, dan melewati status serta chat yang ga
     return [pesanGows({ id: 'TR1', body: 'satu' }), pesanGows({ id: 'TR2', fromMe: true, body: 'dua' }), pesanGows({ id: 'TR3', body: 'tiga' })]
   }
   const h1 = await m.tarik.tarikRiwayat({ ambil, session: 'default', maksPesan: 2 })
-  assert.deepEqual(h1, { chat: 2, pesan: 3, baru: 3, gagal: 1 })
+  assert.deepEqual(h1, { chat: 2, pesan: 3, baru: 3, gagal: 1, lid: 0 })
   assert.ok(dipanggil[0].startsWith('/api/default/chats/overview?limit=30'))
   assert.ok(dipanggil.every((p) => !p.includes('status')))
   assert.ok(dipanggil.filter((p) => p.includes('/messages')).every((p) => p.includes('limit=2') && p.includes('downloadMedia=false')))
@@ -179,6 +186,102 @@ test('tarik riwayat: idempoten, terbatas, dan melewati status serta chat yang ga
   // Pesan yang datang lewat webhook lalu ditarik lagi tetap satu.
   await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'TR1', body: 'satu' })))
   assert.equal(await m.db.waPesan.count(), 3)
+})
+
+// ---- LID ----
+
+const ALT = '6280000000031@s.whatsapp.net'
+
+test('LID: nomor dari payload dipakai, pemetaan disimpan, WAHA tidak ditanya', async () => {
+  await kosongkan()
+  let ditanya = 0
+  const cari = async () => (ditanya++, PEL_LID)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LA1', chat: LID, body: 'Ada ban ring 14?', alt: ALT, pushName: 'Pelanggan LID' })), cari)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LA2', chat: LID, fromMe: true, body: 'Ada kak', alt: ALT })), cari)
+  assert.equal(ditanya, 0)
+  assert.deepEqual((await m.db.waPesan.findMany({ orderBy: { id: 'asc' } })).map((r) => [r.chatId, r.idPendek, r.pengirim]), [[PEL_LID, 'LA1', 'pelanggan'], [PEL_LID, 'LA2', 'admin']])
+  assert.deepEqual((await m.db.waChat.findMany()).map((c) => [c.chatId, c.nama]), [[PEL_LID, 'Pelanggan LID']])
+  assert.deepEqual((await m.db.waLid.findMany()).map((r) => [r.lid, r.pn]), [[LID, PEL_LID]])
+  // Pesan berikutnya tanpa nomor di payload memakai tabel wa_lid.
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LA3', chat: LID, body: 'tanpa alt' })), cari)
+  assert.equal(ditanya, 0)
+  assert.equal((await m.db.waPesan.findFirstOrThrow({ where: { idPendek: 'LA3' } })).chatId, PEL_LID)
+  // Tarik riwayat dari chat bernomor dengan pesan yang sama tidak menggandakan.
+  const ambil = async (path: string) => (path.includes('/overview') ? [{ id: PEL_LID, name: 'Kontak LID' }] : path.includes('/lids') ? [] : [pesanGows({ id: 'LA1', chat: LID, body: 'Ada ban ring 14?' }), pesanGows({ id: 'LA4', chat: LID, body: 'pesan lama' })])
+  const h = await m.tarik.tarikRiwayat({ ambil, session: 'default', cari })
+  assert.equal(h.baru, 1)
+  assert.equal(await m.db.waPesan.count(), 4)
+  assert.equal(await m.db.waPesan.count({ where: { chatId: LID } }), 0)
+})
+
+test('LID: nomor dicari lewat WAHA sekali, lalu dari tabel', async () => {
+  await kosongkan()
+  const ditanya: string[] = []
+  const cari = async (lid: string) => (ditanya.push(lid), PEL_LID)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LB1', chat: LID, body: 'satu' })), cari)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LB2', chat: LID, body: 'dua' })), cari)
+  assert.deepEqual(ditanya, [LID])
+  assert.equal(await m.db.waPesan.count({ where: { chatId: PEL_LID } }), 2)
+})
+
+test('LID: gagal dipetakan tetap disimpan dengan id LID, WAHA tidak ditanya ulang dalam 10 menit', async () => {
+  await kosongkan()
+  let ditanya = 0
+  const rusak = async () => {
+    ditanya++
+    throw new Error('WAHA 500')
+  }
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LC1', chat: LID, body: 'satu' })), rusak)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LC2', chat: LID, body: 'dua' })), rusak)
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LC3', chat: LID, body: 'tiga' })), async () => (ditanya++, ''))
+  assert.equal(ditanya, 1)
+  assert.equal(await m.db.waPesan.count({ where: { chatId: LID } }), 3)
+  assert.equal((await m.db.waChat.findUniqueOrThrow({ where: { chatId: LID } })).grup, false)
+  // Tanpa pencari sama sekali juga tetap tersimpan.
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LC4', chat: LID, body: 'empat' })))
+  assert.equal(await m.db.waPesan.count({ where: { chatId: LID } }), 4)
+})
+
+test('LID: chat lama digabung ke nomor begitu pemetaan diketahui, tanpa baris ganda', async () => {
+  await kosongkan()
+  // Keadaan seperti produksi sebelum perbaikan: chat LID dari webhook, chat bernomor dari tarik riwayat, sebagian pesan sama.
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LD1', chat: LID, body: 'harga 500rb', ts: 1_795_000_000, pushName: 'Pelanggan LID' })))
+  await m.simpan.terapkanEvent(ev('message.edited', { ...pesanGows({ id: 'AKSI1', chat: LID, body: 'harga 450rb' }), editedMessageId: 'LD1' }))
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LD2', chat: LID, body: 'salah kirim', ts: 1_795_000_100 })))
+  await m.simpan.terapkanEvent(ev('message.revoked', { after: pesanGows({ id: 'AKSI2', chat: LID }), revokedMessageId: 'LD2' }))
+  await m.simpan.terapkanEvent(ev('message.revoked', { after: pesanGows({ id: 'AKSI3', chat: LID }), revokedMessageId: 'LD9' })) // baris sementara
+  await m.db.waChat.update({ where: { chatId: LID }, data: { dilihat: new Date('2026-11-20T00:00:00Z') } })
+  await m.simpan.simpanPesan([pesanGows({ id: 'LD1', body: 'harga 500rb', ts: 1_795_000_000 }), pesanGows({ id: 'LD3', body: 'pesan lain', ts: 1_795_000_200 })].map((p) => m.baca.bacaPesan({ ...p, id: p.id.replace(PEL, PEL_LID), from: PEL_LID, _data: { ...p._data, Info: { ...p._data.Info, Chat: PEL_LID } } })).filter(m.baca.adalahPesan), new Map([[PEL_LID, 'Kontak LID']]))
+  assert.equal(await m.db.waChat.count(), 2)
+  // Pesan baru dengan nomor di payload memicu penggabungan.
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LD4', chat: LID, body: 'masih ada?', ts: 1_795_000_300, alt: ALT })))
+  assert.deepEqual((await m.db.waChat.findMany()).map((c) => [c.chatId, c.nama, c.pesanTerakhir, c.dilihat?.toISOString()]), [[PEL_LID, 'Kontak LID', 'masih ada?', '2026-11-20T00:00:00.000Z']])
+  const rows = await m.db.waPesan.findMany({ orderBy: { idPendek: 'asc' } })
+  assert.deepEqual(rows.map((r) => [r.chatId, r.idPendek]), [[PEL_LID, 'LD1'], [PEL_LID, 'LD2'], [PEL_LID, 'LD3'], [PEL_LID, 'LD4'], [PEL_LID, 'LD9']])
+  const ld1 = rows.find((r) => r.idPendek === 'LD1')!
+  assert.deepEqual([ld1.diedit, ld1.isi, ld1.namaPengirim], [true, 'harga 450rb', 'Pelanggan LID'])
+  assert.equal(rows.find((r) => r.idPendek === 'LD2')!.dihapus, true)
+  assert.equal(rows.find((r) => r.idPendek === 'LD9')!.sementara, true)
+  // Fungsi gabung aman diulang.
+  assert.deepEqual(await m.lid.gabungLid(LID, PEL_LID), { pindah: 0, ganda: 0 })
+  assert.equal(await m.db.waPesan.count(), 5)
+})
+
+test('LID: tarik riwayat menggabungkan chat LID lama lewat daftar lids WAHA, sisanya lewat pencarian', async () => {
+  await kosongkan()
+  const LID2 = '100000000000002@lid'
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LE1', chat: LID, body: 'lama satu' })))
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LE2', chat: LID2, body: 'lama dua' })))
+  await m.simpan.terapkanEvent(ev('message.any', pesanGows({ id: 'LE3', chat: '100000000000003@lid', body: 'tak dikenal' })))
+  assert.equal(await m.db.waChat.count({ where: { chatId: { endsWith: '@lid' } } }), 3)
+  const dicari: string[] = []
+  const ambil = async (path: string) => (path.includes('/overview') ? [] : path.startsWith('/api/default/lids?') ? [{ lid: LID, pn: PEL_LID }, { lid: '100000000000009@lid', pn: '6280000000039@c.us' }] : [])
+  const cari = async (lid: string) => (dicari.push(lid), lid === LID2 ? '6280000000032@c.us' : '')
+  const h = await m.tarik.tarikRiwayat({ ambil, session: 'default', cari })
+  assert.equal(h.lid, 2)
+  assert.deepEqual(dicari.sort(), [LID2, '100000000000003@lid'].sort())
+  assert.deepEqual((await m.db.waChat.findMany({ orderBy: { chatId: 'asc' } })).map((c) => c.chatId), ['100000000000003@lid', PEL_LID, '6280000000032@c.us'])
+  assert.equal(await m.db.waLid.count(), 2, 'pemetaan yang tidak dipakai chat mana pun tidak disimpan')
 })
 
 // ---- Route webhook ----
@@ -226,4 +329,25 @@ test('route: 200 dengan HMAC benar dan pesan tersimpan sekali', async () => {
   // Body terlalu besar ditolak sebelum HMAC dihitung.
   const besar = 'x'.repeat(1_000_001)
   assert.equal((await kirim(besar, hitungHmac(besar, KUNCI))).status, 413)
+})
+
+test('route: chat LID saat WAHA tidak bisa dihubungi tetap 200 dan tersimpan dengan id LID', async () => {
+  await kosongkan()
+  process.env.WAHA_WEBHOOK_HMAC = KUNCI
+  process.env.WAHA_SESSION = 'default'
+  process.env.WAHA_URL = 'http://127.0.0.1:9'
+  process.env.WAHA_API_KEY = 'kunci-uji'
+  try {
+    const body = JSON.stringify({ event: 'message.any', session: 'default', payload: pesanGows({ id: 'RL1', chat: LID, body: 'halo' }) })
+    const r = await kirim(body, hitungHmac(body, KUNCI))
+    assert.equal(r.status, 200)
+    assert.equal((await m.db.waPesan.findFirstOrThrow({ where: { idPendek: 'RL1' } })).chatId, LID)
+    // Dengan nomor di payload, pesan berikutnya masuk ke nomor dan chat LID tadi ikut digabung.
+    const body2 = JSON.stringify({ event: 'message.any', session: 'default', payload: pesanGows({ id: 'RL2', chat: LID, body: 'lagi', alt: ALT }) })
+    assert.equal((await kirim(body2, hitungHmac(body2, KUNCI))).status, 200)
+    assert.deepEqual((await m.db.waPesan.findMany({ orderBy: { id: 'asc' } })).map((r) => r.chatId), [PEL_LID, PEL_LID])
+  } finally {
+    delete process.env.WAHA_URL
+    delete process.env.WAHA_API_KEY
+  }
 })

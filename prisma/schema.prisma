@@ -337,3 +337,15 @@ model WaKirimBot {
   @@index([dibuat])
   @@map("wa_kirim_bot")
 }
+
+// Pemetaan id LID WhatsApp ("123...@lid") ke nomor ("62...@c.us"). Engine GOWS mengirim chat pribadi dengan id LID,
+// sedangkan daftar chat WAHA memakai nomor. Diisi dari SenderAlt/RecipientAlt di payload webhook, dari pesan
+// tarik riwayat, atau dari API lids WAHA. Ikut dihapus menurut lama simpan cermin.
+model WaLid {
+  lid        String   @id
+  pn         String
+  diperbarui DateTime @default(now()) @updatedAt
+
+  @@index([diperbarui])
+  @@map("wa_lid")
+}

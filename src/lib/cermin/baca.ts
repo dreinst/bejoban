@@ -25,6 +25,8 @@ export const JENIS_LABEL: Record<JenisPesan, string> = {
 
 export type PesanCermin = {
   chatId: string
+  // Nomor chat ("62...@c.us") kalau chatId berupa LID ("...@lid") dan payload membawa nomornya. Kosong kalau tidak ada.
+  chatAlt: string
   waId: string
   idPendek: string
   dariSaya: boolean
@@ -39,8 +41,8 @@ export type PesanCermin = {
 
 export type EventCermin =
   | { jenis: 'pesan'; pesan: PesanCermin }
-  | { jenis: 'hapus'; chatId: string; idPendek: string; dariSaya: boolean; waktu: Date }
-  | { jenis: 'edit'; chatId: string; idPendek: string; dariSaya: boolean; isi: string; waktu: Date }
+  | { jenis: 'hapus'; chatId: string; chatAlt: string; idPendek: string; dariSaya: boolean; waktu: Date }
+  | { jenis: 'edit'; chatId: string; chatAlt: string; idPendek: string; dariSaya: boolean; isi: string; waktu: Date }
   | { jenis: 'abaikan'; alasan: string }
 
 // Batas panjang supaya satu pesan raksasa tidak membengkakkan basis data.
@@ -88,6 +90,23 @@ const idDari = (v: unknown): string => {
 }
 
 const keCus = (jid: string) => jid.replace(/@s\.whatsapp\.net$/, '@c.us')
+
+// ---- LID ----
+// Engine GOWS bisa memakai id LID ("123...@lid") untuk chat pribadi. Nomor aslinya ikut di _data.Info:
+// SenderAlt untuk pesan masuk, RecipientAlt untuk pesan keluar (sama dengan integrasi Chatwoot di repo WAHA).
+
+export const chatLid = (chatId: string) => chatId.endsWith('@lid')
+
+// "62812:3@s.whatsapp.net" atau "62812@c.us" menjadi "62812@c.us". Selain nomor (LID, grup, kosong) menjadi ''.
+export function pnDari(jid: unknown): string {
+  const m = /^(\d{6,20})(?:[.:][^@]*)?@(s\.whatsapp\.net|c\.us)$/.exec(teks(jid).trim())
+  return m ? `${m[1]}@c.us` : ''
+}
+
+// Nomor untuk chat LID dari payload pesan (GOWS: _data.Info, NOWEB: _data.key.remoteJidAlt).
+function altDari(data: O | null, info: O | null, dariSaya: boolean): string {
+  return pnDari(dariSaya ? info?.RecipientAlt : info?.SenderAlt) || pnDari(obj(data?.key)?.remoteJidAlt)
+}
 
 // ---- Jenis pesan ----
 
@@ -193,10 +212,13 @@ export function bacaPesan(raw: unknown, sekarang = new Date()): PesanCermin | { 
   const isi = potong(isiDari(p, jenis, bagianLokasi).trim(), MAKS_ISI)
   if (jenis === 'teks' && !isi) return { abaikan: 'pesan kosong' }
 
-  const peserta = grup ? keCus(teks(p.participant) || u.peserta || teks(info?.Sender)) : ''
+  // Peserta grup ber-LID ditulis dengan nomornya kalau payload membawanya.
+  const pesertaMentah = grup ? keCus(teks(p.participant) || u.peserta || teks(info?.Sender)) : ''
+  const peserta = chatLid(pesertaMentah) && !dariSaya ? pnDari(info?.SenderAlt) || pesertaMentah : pesertaMentah
   const namaPengirim = potong((teks(info?.PushName) || teks(data?.notifyName) || teks(data?.pushName)).trim(), MAKS_NAMA)
   return {
     chatId,
+    chatAlt: chatLid(chatId) ? altDari(data, info, dariSaya) : '',
     waId,
     idPendek: u.idPendek,
     dariSaya,
@@ -213,12 +235,14 @@ export function bacaPesan(raw: unknown, sekarang = new Date()): PesanCermin | { 
 export const adalahPesan = (x: PesanCermin | { abaikan: string }): x is PesanCermin => !('abaikan' in x)
 
 // Chat dan arah dari pesan aksi (hapus atau edit).
-function asalAksi(p: O | null): { chatId: string; dariSaya: boolean } {
-  if (!p) return { chatId: '', dariSaya: false }
+function asalAksi(p: O | null): { chatId: string; chatAlt: string; dariSaya: boolean } {
+  if (!p) return { chatId: '', chatAlt: '', dariSaya: false }
   const u = urai(idDari(p.id))
-  const info = obj(obj(p._data)?.Info)
+  const data = obj(p._data)
+  const info = obj(data?.Info)
   const dariSaya = typeof p.fromMe === 'boolean' ? p.fromMe : (u.dariSaya ?? false)
-  return { chatId: keCus(u.chatId || teks(info?.Chat) || (dariSaya ? teks(p.to) : teks(p.from))), dariSaya }
+  const chatId = keCus(u.chatId || teks(info?.Chat) || (dariSaya ? teks(p.to) : teks(p.from)))
+  return { chatId, chatAlt: chatLid(chatId) ? altDari(data, info, dariSaya) : '', dariSaya }
 }
 
 // Body webhook lengkap { event, session, payload } menjadi satu event cermin.
@@ -239,14 +263,14 @@ export function bacaEvent(raw: unknown, sekarang = new Date()): EventCermin {
     if (!idPendek) return { jenis: 'abaikan', alasan: 'id pesan yang dihapus tidak ada' }
     const asal = asalAksi(after ?? before)
     if (asal.chatId && chatDibuang(asal.chatId)) return { jenis: 'abaikan', alasan: 'status atau saluran' }
-    return { jenis: 'hapus', chatId: asal.chatId, idPendek, dariSaya: asal.dariSaya, waktu: waktuDari(after?.timestamp, sekarang) }
+    return { jenis: 'hapus', chatId: asal.chatId, chatAlt: asal.chatAlt, idPendek, dariSaya: asal.dariSaya, waktu: waktuDari(after?.timestamp, sekarang) }
   }
   if (event === 'message.edited') {
     const idPendek = teks(p.editedMessageId)
     if (!idPendek) return { jenis: 'abaikan', alasan: 'id pesan yang diedit tidak ada' }
     const asal = asalAksi(p)
     if (asal.chatId && chatDibuang(asal.chatId)) return { jenis: 'abaikan', alasan: 'status atau saluran' }
-    return { jenis: 'edit', chatId: asal.chatId, idPendek, dariSaya: asal.dariSaya, isi: potong(teks(p.body).trim(), MAKS_ISI), waktu: waktuDari(p.timestamp, sekarang) }
+    return { jenis: 'edit', chatId: asal.chatId, chatAlt: asal.chatAlt, idPendek, dariSaya: asal.dariSaya, isi: potong(teks(p.body).trim(), MAKS_ISI), waktu: waktuDari(p.timestamp, sekarang) }
   }
   return { jenis: 'abaikan', alasan: `event ${event || '(kosong)'} tidak dipakai` }
 }
@@ -275,8 +299,8 @@ export function cuplikan(p: { isi: string; jenis: string; namaBerkas: string; di
   return s.length > n ? `${s.slice(0, n - 1)}…` : s
 }
 
-// "62812345678@c.us" -> "62812345678". Grup dan @lid ditampilkan tanpa akhiran.
-export const nomorDari = (chatId: string) => chatId.replace(/@.*$/, '')
+// "62812345678@c.us" -> "62812345678". Grup tanpa akhiran. LID bukan nomor telepon, jadi kosong.
+export const nomorDari = (chatId: string) => (chatLid(chatId) ? '' : chatId.replace(/@.*$/, ''))
 
 // Hak membuka cermin: owner saja. Dipakai halaman dan aksi di server.
 export const bolehCermin = (role: string | null | undefined) => role === 'OWNER'

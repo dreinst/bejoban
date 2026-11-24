@@ -8,6 +8,7 @@ import { requireOwner } from '@/lib/auth'
 import { catatAktivitas, penggunaDari } from '@/lib/stok/aktivitas'
 import { bersihkan } from '@/lib/cermin/simpan'
 import { pengambilWaha, tarikRiwayat } from '@/lib/cermin/tarik'
+import { pencariWaha } from '@/lib/cermin/lid'
 
 const go = (path: string, msg: string, kind: 'ok' | 'err' = 'ok'): never => {
   revalidatePath('/admin', 'layout')
@@ -29,9 +30,10 @@ export async function tarikRiwayatCermin() {
   let pesan: string
   let jenis: 'ok' | 'err' = 'ok'
   try {
-    const h = await tarikRiwayat({ ambil: pengambilWaha(url, kunci), session: process.env.WAHA_SESSION || 'default' })
-    await catatAktivitas({ pengguna: penggunaDari(s), aksi: 'tarik', entitas: 'cermin_chat', data: { chat: h.chat, baru: h.baru, gagal: h.gagal } })
-    pesan = `Riwayat ditarik dari ${h.chat} chat: ${h.baru} pesan baru, ${h.pesan - h.baru} sudah ada.${h.gagal ? ` ${h.gagal} chat gagal dibaca.` : ''}`
+    const session = process.env.WAHA_SESSION || 'default'
+    const h = await tarikRiwayat({ ambil: pengambilWaha(url, kunci), session, cari: pencariWaha(url, kunci, session) })
+    await catatAktivitas({ pengguna: penggunaDari(s), aksi: 'tarik', entitas: 'cermin_chat', data: { chat: h.chat, baru: h.baru, gagal: h.gagal, lid: h.lid } })
+    pesan = `Riwayat ditarik dari ${h.chat} chat: ${h.baru} pesan baru, ${h.pesan - h.baru} sudah ada.${h.lid ? ` ${h.lid} chat lama digabung ke nomornya.` : ''}${h.gagal ? ` ${h.gagal} chat gagal dibaca.` : ''}`
   } catch (e) {
     console.error('Tarik riwayat cermin gagal:', (e as Error).message)
     pesan = 'WAHA tidak bisa dihubungi. Cek sambungan WhatsApp lalu coba lagi.'

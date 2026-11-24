@@ -2,9 +2,9 @@
 // Semua nomor dan isi pesan karangan (contoh), bukan data toko.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { adalahPesan, bacaEvent, bacaPesan, bolehCermin, chatDibuang, cuplikan, hitungHmac, hmacCocok, idDariKiriman, penanda, retensiDari, urai } from '../src/lib/cermin/baca'
+import { adalahPesan, bacaEvent, bacaPesan, bolehCermin, nomorDari, pnDari, chatDibuang, cuplikan, hitungHmac, hmacCocok, idDariKiriman, penanda, retensiDari, urai } from '../src/lib/cermin/baca'
 
-import { GRUP, KUNCI, PEL, pesanGows } from './cermin-contoh'
+import { GRUP, KUNCI, LID, PEL, PEL_LID, pesanGows } from './cermin-contoh'
 
 test('pesan teks masuk dibaca lengkap', () => {
   const p = bacaPesan(pesanGows({ id: 'AAA111', body: 'Ada ban 185/65R15?', pushName: 'Pelanggan Contoh' }))
@@ -152,4 +152,31 @@ test('cuplikan, hak akses, dan lama simpan', () => {
   assert.equal(retensiDari({ hari: 3 }), 180)
   assert.equal(retensiDari({ hari: 5000 }), 730)
   assert.equal(retensiDari({ hari: 'x' }), 180)
+})
+
+test('LID: nomor dari SenderAlt untuk pesan masuk, RecipientAlt untuk pesan keluar', () => {
+  assert.equal(pnDari('6280000000031@s.whatsapp.net'), PEL_LID)
+  assert.equal(pnDari('6280000000031:12@s.whatsapp.net'), PEL_LID)
+  assert.equal(pnDari(PEL_LID), PEL_LID)
+  for (const x of ['', null, undefined, LID, GRUP, 'abc@s.whatsapp.net', 12]) assert.equal(pnDari(x), '', String(x))
+  const masuk = bacaPesan(pesanGows({ id: 'L1', chat: LID, body: 'halo', alt: '6280000000031@s.whatsapp.net' }))
+  assert.ok(adalahPesan(masuk))
+  assert.equal(masuk.chatId, LID)
+  assert.equal(masuk.chatAlt, PEL_LID)
+  const keluar = bacaPesan(pesanGows({ id: 'L2', chat: LID, fromMe: true, body: 'balas', alt: '6280000000031@s.whatsapp.net' }))
+  assert.ok(adalahPesan(keluar) && keluar.chatAlt === PEL_LID, 'pesan keluar memakai RecipientAlt, bukan SenderAlt (nomor sendiri)')
+  const tanpa = bacaPesan(pesanGows({ id: 'L3', chat: LID, body: 'tanpa nomor' }))
+  assert.ok(adalahPesan(tanpa) && tanpa.chatAlt === '')
+  const biasa = bacaPesan(pesanGows({ id: 'L4', body: 'nomor biasa', alt: '6280000000099@s.whatsapp.net' }))
+  assert.ok(adalahPesan(biasa) && biasa.chatAlt === '', 'chat bernomor tidak butuh nomor alternatif')
+  // NOWEB: _data.key.remoteJidAlt.
+  const noweb = bacaPesan({ id: `false_${LID}_L5`, fromMe: false, body: 'x', _data: { key: { remoteJid: LID, remoteJidAlt: '6280000000031@s.whatsapp.net' } } })
+  assert.ok(adalahPesan(noweb) && noweb.chatAlt === PEL_LID)
+  // Peserta grup ber-LID ditulis nomornya.
+  const g = bacaPesan({ ...pesanGows({ id: 'L6', chat: GRUP, participant: '100000000000002@lid', body: 'di grup', alt: '6280000000032@s.whatsapp.net' }) })
+  assert.ok(adalahPesan(g) && g.peserta === '6280000000032@c.us' && g.chatAlt === '')
+  assert.equal(nomorDari(LID), '')
+  assert.equal(nomorDari(PEL), '6280000000001')
+  const hapus = bacaEvent({ event: 'message.revoked', payload: { after: pesanGows({ id: 'AKSI9', chat: LID, alt: '6280000000031@s.whatsapp.net' }), revokedMessageId: 'L1' } })
+  assert.ok(hapus.jenis === 'hapus' && hapus.chatId === LID && hapus.chatAlt === PEL_LID)
 })

@@ -2,7 +2,8 @@
 // Semua penulisan idempoten per (chat, id pesan): pesan yang datang dua kali tidak membuat baris ganda.
 // Jangan mencetak isi pesan ke log: isi chat adalah data pribadi pelanggan.
 import { db } from '../db'
-import { cuplikan, idDariKiriman, penanda, retensiDari, type EventCermin, type PesanCermin } from './baca'
+import { chatLid, cuplikan, idDariKiriman, penanda, retensiDari, type EventCermin, type PesanCermin } from './baca'
+import { petakanLid, type CariPn } from './lid'
 
 const unik = <T,>(xs: T[]) => [...new Set(xs)]
 
@@ -17,9 +18,20 @@ async function pastikanChat(chatId: string, grup: boolean, nama: string) {
   await db.waChat.upsert({ where: { chatId }, create: { chatId, grup, nama }, update: nama ? { nama, grup } : { grup } })
 }
 
+// Chat pribadi ber-LID diganti nomornya kalau diketahui (payload, tabel wa_lid, atau WAHA). Yang tidak ketemu tetap LID.
+async function normalkan(list: PesanCermin[], cari?: CariPn): Promise<PesanCermin[]> {
+  const lid = list.filter((p) => !p.grup && chatLid(p.chatId))
+  if (!lid.length) return list
+  const alt = new Map(lid.filter((p) => p.chatAlt).map((p) => [p.chatId, p.chatAlt]))
+  const peta = await petakanLid(lid.map((p) => p.chatId), alt, cari)
+  return list.map((p) => (peta.has(p.chatId) ? { ...p, chatId: peta.get(p.chatId)!, chatAlt: '' } : p))
+}
+
 // Simpan sekumpulan pesan. namaChat: nama dari daftar chat WAHA (tarik riwayat), mengalahkan nama tampilan pengirim.
-export async function simpanPesan(list: PesanCermin[], namaChat: Map<string, string> = new Map()): Promise<{ baru: number }> {
-  if (!list.length) return { baru: 0 }
+// cari: pencari nomor untuk chat LID (API WAHA), dipakai kalau payload dan tabel wa_lid belum tahu nomornya.
+export async function simpanPesan(asli: PesanCermin[], namaChat: Map<string, string> = new Map(), cari?: CariPn): Promise<{ baru: number }> {
+  if (!asli.length) return { baru: 0 }
+  const list = await normalkan(asli, cari)
   const idKeluar = unik(list.filter((p) => p.dariSaya).map((p) => p.idPendek))
   const idBot = new Set(idKeluar.length ? (await db.waKirimBot.findMany({ where: { idPendek: { in: idKeluar } }, select: { idPendek: true } })).map((r) => r.idPendek) : [])
   const ada = await db.waPesan.findMany({
@@ -63,7 +75,12 @@ export async function simpanPesan(list: PesanCermin[], namaChat: Map<string, str
 }
 
 // Tandai pesan dihapus atau diedit. Kalau pesan aslinya belum ada, dibuat baris sementara supaya tandanya tidak hilang.
-async function terapkanAksi(ev: Extract<EventCermin, { jenis: 'hapus' | 'edit' }>) {
+async function terapkanAksi(asli: Extract<EventCermin, { jenis: 'hapus' | 'edit' }>, cari?: CariPn) {
+  let ev = asli
+  if (ev.chatId && chatLid(ev.chatId)) {
+    const pn = (await petakanLid([ev.chatId], new Map(ev.chatAlt ? [[ev.chatId, ev.chatAlt]] : []), cari)).get(ev.chatId)
+    if (pn) ev = { ...ev, chatId: pn }
+  }
   const data = ev.jenis === 'hapus' ? { dihapus: true } : { diedit: true, isi: ev.isi }
   const where = ev.chatId ? { chatId: ev.chatId, idPendek: ev.idPendek } : { idPendek: ev.idPendek }
   const { count } = await db.waPesan.updateMany({ where, data })
@@ -81,13 +98,13 @@ async function terapkanAksi(ev: Extract<EventCermin, { jenis: 'hapus' | 'edit' }
   for (const c of unik(chats)) await segarkanChat(c)
 }
 
-export async function terapkanEvent(ev: EventCermin): Promise<{ simpan: boolean }> {
+export async function terapkanEvent(ev: EventCermin, cari?: CariPn): Promise<{ simpan: boolean }> {
   if (ev.jenis === 'pesan') {
-    await simpanPesan([ev.pesan])
+    await simpanPesan([ev.pesan], new Map(), cari)
     return { simpan: true }
   }
   if (ev.jenis === 'hapus' || ev.jenis === 'edit') {
-    await terapkanAksi(ev)
+    await terapkanAksi(ev, cari)
     return { simpan: true }
   }
   return { simpan: false }
@@ -121,6 +138,7 @@ export async function bersihkan(hari: number, sekarang = new Date()) {
   const batas = new Date(sekarang.getTime() - hari * 86400_000)
   const pesan = await db.waPesan.deleteMany({ where: { waktu: { lt: batas } } })
   await db.waKirimBot.deleteMany({ where: { dibuat: { lt: batas } } })
+  await db.waLid.deleteMany({ where: { diperbarui: { lt: batas } } })
   const chat = await db.$executeRaw`DELETE FROM "wa_chat" c WHERE NOT EXISTS (SELECT 1 FROM "wa_pesan" p WHERE p."chat_id" = c."chat_id")`
   return { pesan: pesan.count, chat }
 }

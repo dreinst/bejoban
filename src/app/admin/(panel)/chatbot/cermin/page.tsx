@@ -82,7 +82,8 @@ export default async function CerminChat({ searchParams }: PageProps<'/admin/cha
     belum.set(terbuka.chatId, 0)
   }
 
-  const judulChat = (x: { nama: string; chatId: string }) => x.nama || nomorDari(x.chatId)
+  // Chat LID yang nomornya belum diketahui tidak punya nomor untuk ditampilkan.
+  const judulChat = (x: { nama: string; chatId: string }) => x.nama || nomorDari(x.chatId) || 'Nomor belum diketahui'
   const saringan = (
     <>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-md:hidden">
@@ -127,7 +128,7 @@ export default async function CerminChat({ searchParams }: PageProps<'/admin/cha
               <>
                 {judulChat(x)}
                 {x.grup && <> <Badge tone="outline">Grup</Badge></>}
-                {x.nama && !x.grup && <span className="block text-xs font-normal text-mute">{nomorDari(x.chatId)}</span>}
+                {x.nama && !x.grup && nomorDari(x.chatId) && <span className="block text-xs font-normal text-mute">{nomorDari(x.chatId)}</span>}
               </>
             )
             // Di HP judul kartu teks biasa: sasaran sentuhnya tombol Buka (44 px) di kanan kartu.
@@ -236,7 +237,7 @@ type Chat = { chatId: string; nama: string; grup: boolean }
 type Baris = Awaited<ReturnType<typeof bacaPesanChat>>
 
 function IsiChat({ chat, pesan, kembali, adaSaring, semuaHref }: { chat: Chat; pesan: Baris; kembali: string; adaSaring: boolean; semuaHref: string }) {
-  const judul = chat.nama || nomorDari(chat.chatId)
+  const judul = chat.nama || nomorDari(chat.chatId) || 'Nomor belum diketahui'
   const hariDari = (d: Date) => waktuWib(d).split(',')[0]
   return (
     <section aria-labelledby="judul-chat" className="adm-card min-w-0 overflow-hidden">
@@ -249,7 +250,7 @@ function IsiChat({ chat, pesan, kembali, adaSaring, semuaHref }: { chat: Chat; p
             {judul} {chat.grup && <Badge tone="outline">Grup</Badge>}
           </h2>
           <p className="text-xs text-mute">
-            {chat.nama && !chat.grup ? `${nomorDari(chat.chatId)} · ` : ''}
+            {chat.nama && !chat.grup && nomorDari(chat.chatId) ? `${nomorDari(chat.chatId)} · ` : ''}
             {adaSaring ? `${pesan.jumlah} dari ${pesan.semua} pesan cocok dengan saringan` : `${pesan.semua} pesan`}
             {pesan.jumlah > pesan.list.length && `, ${pesan.list.length} terbaru ditampilkan`}
           </p>

@@ -5,6 +5,7 @@
 // Isi pesan tidak pernah dicetak ke log (data pribadi pelanggan).
 import { bacaEvent, hmacCocok } from '@/lib/cermin/baca'
 import { bersihkanBilaPerlu, terapkanEvent } from '@/lib/cermin/simpan'
+import { pencariDariEnv } from '@/lib/cermin/lid'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 const MAKS_BODY = 1_000_000 // byte; payload pesan tanpa media jauh di bawah ini
@@ -49,7 +50,8 @@ export async function POST(req: Request) {
   if (typeof sesiBody === 'string' && sesiBody !== sesi) return Response.json({ ok: true, simpan: false }, { headers: NO_STORE })
 
   try {
-    const { simpan } = await terapkanEvent(bacaEvent(body))
+    // Chat LID tanpa nomor di payload dicari lewat API lids WAHA. Gagal dicari: tetap disimpan dengan id LID.
+    const { simpan } = await terapkanEvent(bacaEvent(body), pencariDariEnv())
     await bersihkanBilaPerlu()
     return Response.json({ ok: true, simpan }, { headers: NO_STORE })
   } catch (e) {
