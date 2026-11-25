@@ -29,7 +29,7 @@ export function PageBody({ width = 'list', children }: { width?: 'list' | 'form'
 
 /** Bagian-bagian form pengaturan: satu kolom, dua kolom mulai 1280 px. Tiap bagian sekitar 560 sampai 640 px. */
 export function SettingsGrid({ children }: { children: ReactNode }) {
-  return <div className="grid items-start gap-5 xl:grid-cols-2">{children}</div>
+  return <div className="grid items-start gap-5 xl:grid-cols-2 [&>*]:min-w-0">{children}</div>
 }
 
 /** Kartu satu bagian: judul, penjelas singkat, isi. `wide` membuat bagian memakai dua kolom SettingsGrid. */
