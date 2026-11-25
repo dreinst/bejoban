@@ -54,11 +54,11 @@ export function AdminTabs({ menu, badges = {} }: { menu: AdminMenu[]; badges?: R
                 <Link
                   href={t.href}
                   aria-current={on ? 'page' : undefined}
-                  className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm max-md:min-h-11 ${on ? 'border-ink font-bold text-ink' : 'border-transparent text-mute hover:border-neutral-300 hover:text-ink'}`}
+                  className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-[3px] px-3 py-2.5 text-sm max-md:min-h-11 ${on ? 'border-accent font-bold text-ink' : 'border-transparent text-mute hover:border-neutral-300 hover:text-ink'}`}
                 >
                   {t.label}
                   {n > 0 && (
-                    <span className="rounded-full bg-ink px-1.5 py-px text-[11px] font-bold leading-4 text-white">
+                    <span className="rounded-full bg-accent px-1.5 py-px text-[11px] font-bold leading-4 text-ink">
                       {n > 99 ? '99+' : n}
                       <span className="sr-only">{t.key === 'tinjau-pengajuan' || t.key === 'opname' ? ' menunggu tinjauan' : ' perlu dicek'}</span>
                     </span>

@@ -12,7 +12,7 @@ import { branchLabel } from '@/lib/situs'
 const asIcon = (v: unknown, fallback: IconName): IconName => (ICON_NAMES.includes(v as IconName) ? (v as IconName) : fallback)
 const TRUST_ICONS: IconName[] = ['shield', 'balancing', 'nitrogen', 'pin', 'clock']
 
-// Judul bagian: judul Rubik, keterangan, lalu garis pendek di bawahnya.
+// Judul bagian: judul Rubik, keterangan, lalu garis aksen oranye berujung miring di bawahnya.
 function Head({ title, sub, dark, eyebrow, caps }: { title: string; sub?: string; dark?: boolean; eyebrow?: string; caps?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-3 text-center lg:gap-3.5">
@@ -21,7 +21,7 @@ function Head({ title, sub, dark, eyebrow, caps }: { title: string; sub?: string
       )}
       <h2 className={`font-display text-[30px] font-extrabold leading-[36px] tracking-[-0.5px] lg:text-5xl lg:leading-[54px] ${caps ? 'uppercase' : ''} ${dark ? 'text-white' : 'text-ink'}`}>{title}</h2>
       {sub && <p className={`max-w-[330px] text-[15px] leading-[22px] lg:max-w-[640px] lg:text-lg lg:leading-7 ${dark ? 'text-mute-dark' : 'text-mute'}`}>{sub}</p>}
-      <span className={`mt-0.5 h-[3px] w-12 rounded-sm ${dark ? 'bg-white' : 'bg-ink'}`} aria-hidden />
+      <span className="bilah-aksen mt-0.5" aria-hidden />
     </div>
   )
 }
@@ -54,18 +54,20 @@ export default async function Home() {
   return (
     <>
       {/* HERO */}
-      <section className="overflow-hidden bg-ink text-white">
-        <div className="mx-auto grid max-w-[1440px] px-5 lg:min-h-[604px] lg:grid-cols-[1fr_660px] lg:px-20">
+      <section className="relative overflow-hidden bg-ink text-white">
+        {/* Motif tapak ban tipis di belakang foto, memudar ke arah teks supaya judul tetap terbaca. */}
+        <span className="hias-tapak absolute inset-0 opacity-[.07] [mask-image:linear-gradient(180deg,transparent_45%,black_100%)] lg:[mask-image:linear-gradient(100deg,transparent_42%,black_78%)]" aria-hidden />
+        <div className="relative mx-auto grid max-w-[1440px] px-5 lg:min-h-[604px] lg:grid-cols-[1fr_660px] lg:px-20">
           <div className="flex flex-col items-start pb-8 pt-6 lg:justify-start lg:pb-12 lg:pt-[54px]">
-            <span className="tag border border-[#3a3a3a] px-[11px] py-[7px] text-xs text-white lg:px-3.5 lg:py-[9px] lg:text-[13px]">
+            <span className="tag border border-[#3a3a3a] border-l-[3px] border-l-accent px-[11px] py-[7px] text-xs text-white lg:px-3.5 lg:py-[9px] lg:text-[13px]">
               <Icon name="shield" size={16} c="#ffffff" d="#1a1a1a" />
               {c.hero.eyebrow}
             </span>
             <h1 className="mt-5 font-display text-[38px] font-extrabold leading-[44px] tracking-[-1px] lg:mt-6 lg:text-[76px] lg:leading-[80px] lg:tracking-[-1.5px]">{c.hero.title}</h1>
-            <p className="mt-2 max-w-[250px] font-display text-2xl font-bold leading-7 text-mute-dark lg:mt-3 lg:max-w-[480px] lg:text-5xl lg:leading-[54px] lg:tracking-[-0.5px]">{c.hero.highlight}</p>
+            <p className="mt-2 max-w-[250px] font-display text-2xl font-bold leading-7 text-accent lg:mt-3 lg:max-w-[480px] lg:text-5xl lg:leading-[54px] lg:tracking-[-0.5px]">{c.hero.highlight}</p>
             <p className="mt-5 max-w-[520px] text-[15px] leading-[22px] text-soft-dark lg:mt-7 lg:text-lg lg:leading-7">{c.hero.text}</p>
             <div className="mt-7 grid w-full max-w-[360px] grid-cols-[1fr_1.06fr] gap-3 lg:mt-10 lg:flex lg:max-w-none lg:gap-4">
-              <Link href={c.hero.cta1Href || '/produk'} className="btn btn-w h-[50px] text-sm lg:h-[60px] lg:w-[220px] lg:text-[17px]">
+              <Link href={c.hero.cta1Href || '/produk'} className="btn btn-o sudut-potong h-[50px] text-sm lg:h-[60px] lg:w-[220px] lg:text-[17px]">
                 {c.hero.cta1}
                 <span className="hidden lg:inline"><Icon name="arrow" size={20} c="#0a0a0a" d="#ffffff" /></span>
               </Link>
@@ -78,6 +80,8 @@ export default async function Home() {
           </div>
           <div className="relative -mx-5 pb-[68px] pt-2 lg:mx-0 lg:-mr-20 lg:pb-[126px] lg:pt-4">
             <div className="absolute inset-x-0 bottom-[90px] h-px bg-[#2f2f2f] lg:bottom-40" aria-hidden />
+            {/* Bilah oranye miring di garis tanah, seperti jejak ban. */}
+            <div className="absolute bottom-[88px] left-[8%] h-[5px] w-[42%] -skew-x-[30deg] bg-accent lg:bottom-[158px] lg:left-[18%] lg:w-[34%]" aria-hidden />
             <div className="relative mx-auto w-[330px] lg:ml-[120px] lg:w-[580px]" style={{ aspectRatio: '1600 / 1274' }}>
               <span className="absolute left-1/2 top-1/2 aspect-square w-[102%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#262626]" aria-hidden />
               <span className="absolute left-1/2 top-1/2 aspect-square w-[74%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1d1d1d]" aria-hidden />

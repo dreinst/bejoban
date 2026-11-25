@@ -63,7 +63,7 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
   }, [open])
   return (
     <>
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between bg-ink px-4 text-white md:hidden">
+      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-t-[3px] border-accent bg-ink px-4 text-white md:hidden">
         <Link href="/admin" aria-label="Ringkasan admin"><img src="/logo-bejoban-putih.svg" alt="Bejo Ban" className="h-7 w-auto" /></Link>
         <button ref={tombol} type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="menu-admin" aria-label={open ? 'Tutup menu' : 'Buka menu'} className="grid size-10 place-items-center rounded-lg hover:bg-white/10 max-md:size-11">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -72,7 +72,7 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
       <aside
         ref={panel}
         id="menu-admin"
-        className={`bg-ink text-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col ${open ? 'fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col md:inset-auto md:top-0' : 'hidden'}`}
+        className={`bg-ink text-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-t-[3px] md:border-accent ${open ? 'fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col md:inset-auto md:top-0' : 'hidden'}`}
       >
         <div className="hidden px-5 pb-5 pt-6 md:block">
           <Link href="/admin" aria-label="Ringkasan admin"><img src="/logo-bejoban-putih.svg" alt="Bejo Ban" className="h-9 w-auto" /></Link>
@@ -88,9 +88,9 @@ export function AdminSidebar({ menu, name, role, logout }: { menu: AdminMenu[]; 
                     href={m.href}
                     onClick={() => setOpen(false)}
                     aria-current={on ? 'page' : undefined}
-                    className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2.5 text-sm max-md:min-h-11 ${on ? 'border-white bg-white/10 font-bold text-white' : 'border-transparent text-soft-dark hover:bg-white/5 hover:text-white'}`}
+                    className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2.5 text-sm max-md:min-h-11 ${on ? 'border-accent bg-white/10 font-bold text-white' : 'border-transparent text-soft-dark hover:bg-white/5 hover:text-white'}`}
                   >
-                    <Icon className="size-4 shrink-0" aria-hidden />
+                    <Icon className={`size-4 shrink-0 ${on ? 'text-accent' : ''}`} aria-hidden />
                     {m.label}
                   </Link>
                 </li>

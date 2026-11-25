@@ -14,7 +14,7 @@ export function SaringSelect({ label, value, options }: { label: string; value: 
           const o = options.find((x) => x.value === e.target.value)
           if (o) router.push(o.href)
         }}
-        className="min-h-10 rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm font-normal text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 max-md:min-h-11"
+        className="min-h-10 rounded-lg border border-[#cfcfcf] bg-white px-3 py-2 text-sm font-normal text-ink outline-none focus:border-accent-deep focus:ring-2 focus:ring-accent/30 max-md:min-h-11"
       >
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>

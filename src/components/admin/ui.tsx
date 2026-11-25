@@ -56,12 +56,25 @@ export function StatCard({ label, value, href, hint, warn }: { label: string; va
       {href && <ChevronRight aria-hidden className="absolute right-3 top-3 size-4 text-mute" />}
     </>
   )
-  const cls = `adm-card relative block p-5 ${warn ? 'border-l-4 !border-l-ink' : ''} ${href ? 'transition hover:-translate-y-px hover:shadow-md' : ''}`
+  const cls = `adm-card relative block p-5 ${warn ? 'border-l-4 !border-l-danger' : ''} ${href ? 'transition hover:-translate-y-px hover:shadow-md' : ''}`
   return href ? <Link href={href} className={cls}>{body}</Link> : <div className={cls}>{body}</div>
 }
 
-export function Badge({ children, tone = 'dark' }: { children: ReactNode; tone?: 'dark' | 'light' | 'outline' }) {
-  const t = tone === 'dark' ? 'bg-ink text-white' : tone === 'light' ? 'bg-soft text-ink' : 'border border-ink text-ink'
+/**
+ * Lencana. dark, light, outline untuk keterangan biasa. accent (oranye) hanya untuk penanda, bukan status.
+ * danger untuk galat, void, dan stok habis; ok untuk sukses. Keduanya sengaja merah dan hijau supaya beda dari aksen.
+ */
+const NADA_BADGE = {
+  dark: 'bg-ink text-white',
+  light: 'bg-soft text-ink',
+  outline: 'border border-ink text-ink',
+  accent: 'bg-accent text-ink',
+  danger: 'border border-danger-line bg-danger-soft text-danger',
+  ok: 'border border-ok-line bg-ok-soft text-ok',
+} as const
+
+export function Badge({ children, tone = 'dark' }: { children: ReactNode; tone?: keyof typeof NADA_BADGE }) {
+  const t = NADA_BADGE[tone]
   return <span className={`inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold ${t}`}>{children}</span>
 }
 

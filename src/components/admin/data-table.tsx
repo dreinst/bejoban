@@ -158,7 +158,7 @@ export function ListToolbar({
         <form role="search" className="flex min-w-[min(100%,16rem)] flex-1 items-center gap-2 sm:max-w-md">
           {Object.entries(search.keep ?? {}).map(([k, v]) => (v === undefined || v === '' ? null : <input key={k} type="hidden" name={k} value={v} />))}
           <label className="sr-only" htmlFor="cari-daftar">{search.label ?? search.placeholder}</label>
-          <input id="cari-daftar" type="search" name="q" defaultValue={search.value} placeholder={search.placeholder} className="min-h-10 w-full min-w-0 rounded-lg max-md:min-h-11 border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
+          <input id="cari-daftar" type="search" name="q" defaultValue={search.value} placeholder={search.placeholder} className="min-h-10 w-full min-w-0 rounded-lg max-md:min-h-11 border border-[#cfcfcf] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent-deep focus:ring-2 focus:ring-accent/30" />
           <button className="adm-btn-line adm-btn-sm">Cari</button>
         </form>
       )}

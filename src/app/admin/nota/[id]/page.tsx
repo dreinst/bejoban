@@ -74,7 +74,7 @@ export default async function Nota({ params, searchParams }: PageProps<'/admin/n
       {k.gulung && <UkuranKertas isiId="isi-nota" lebar={k.gulung} margin={k.margin} />}
       <div className="mx-auto mb-5 max-w-3xl space-y-3 print:hidden">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/kasir" className="adm-btn min-h-11">Transaksi baru</Link>
+          <Link href="/admin/kasir" className="adm-btn-line min-h-11">Transaksi baru</Link>
           <Link href="/admin/kasir/riwayat" className="adm-btn-line min-h-11">Riwayat</Link>
           <span className="flex-1" />
           <TombolCetak />
@@ -84,12 +84,12 @@ export default async function Nota({ params, searchParams }: PageProps<'/admin/n
         <nav aria-label="Ukuran kertas" className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs font-semibold text-mute">Kertas</span>
           {(Object.keys(KERTAS) as Kertas[]).map((kr) => (
-            <Link key={kr} href={url(kr)} aria-current={kr === kertas ? 'page' : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 font-semibold ${kr === kertas ? 'border-ink bg-ink text-white' : 'border-[#cfcfcf] bg-white'}`}>
+            <Link key={kr} href={url(kr)} aria-current={kr === kertas ? 'page' : undefined} className={`inline-flex min-h-11 items-center rounded-full border px-4 font-semibold ${kr === kertas ? 'border-accent bg-accent text-ink' : 'border-[#cfcfcf] bg-white'}`}>
               {KERTAS[kr].label}
             </Link>
           ))}
         </nav>
-        {sp.baru === '1' && !voidAda && <p role="status" className="rounded-lg border border-line bg-white px-4 py-3 text-sm font-semibold">Transaksi {t.nomor} tersimpan.</p>}
+        {sp.baru === '1' && !voidAda && <p role="status" className="rounded-lg border border-ok-line bg-ok-soft px-4 py-3 text-sm font-semibold text-ok">Transaksi {t.nomor} tersimpan.</p>}
       </div>
 
       <article
