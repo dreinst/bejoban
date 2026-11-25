@@ -67,7 +67,7 @@ export default async function Home() {
             <p className="mt-2 max-w-[250px] font-display text-2xl font-bold leading-7 text-accent lg:mt-3 lg:max-w-[480px] lg:text-5xl lg:leading-[54px] lg:tracking-[-0.5px]">{c.hero.highlight}</p>
             <p className="mt-5 max-w-[520px] text-[15px] leading-[22px] text-soft-dark lg:mt-7 lg:text-lg lg:leading-7">{c.hero.text}</p>
             <div className="mt-7 grid w-full max-w-[360px] grid-cols-[1fr_1.06fr] gap-3 lg:mt-10 lg:flex lg:max-w-none lg:gap-4">
-              <Link href={c.hero.cta1Href || '/produk'} className="btn btn-o sudut-potong h-[50px] text-sm lg:h-[60px] lg:w-[220px] lg:text-[17px]">
+              <Link href={c.hero.cta1Href || '/produk'} className="btn btn-o h-[50px] text-sm lg:h-[60px] lg:w-[220px] lg:text-[17px]">
                 {c.hero.cta1}
                 <span className="hidden lg:inline"><Icon name="arrow" size={20} c="#0a0a0a" d="#ffffff" /></span>
               </Link>
@@ -81,7 +81,7 @@ export default async function Home() {
           <div className="relative -mx-5 pb-[68px] pt-2 lg:mx-0 lg:-mr-20 lg:pb-[126px] lg:pt-4">
             <div className="absolute inset-x-0 bottom-[90px] h-px bg-[#2f2f2f] lg:bottom-40" aria-hidden />
             {/* Bilah oranye miring di garis tanah, seperti jejak ban. */}
-            <div className="absolute bottom-[88px] left-[8%] h-[5px] w-[42%] -skew-x-[30deg] bg-accent lg:bottom-[158px] lg:left-[18%] lg:w-[34%]" aria-hidden />
+            <div className="absolute bottom-[88px] left-[8%] h-[5px] w-[42%] bg-accent lg:bottom-[158px] lg:left-[18%] lg:w-[34%]" aria-hidden />
             <div className="relative mx-auto w-[330px] lg:ml-[120px] lg:w-[580px]" style={{ aspectRatio: '1600 / 1274' }}>
               <span className="absolute left-1/2 top-1/2 aspect-square w-[102%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#262626]" aria-hidden />
               <span className="absolute left-1/2 top-1/2 aspect-square w-[74%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1d1d1d]" aria-hidden />

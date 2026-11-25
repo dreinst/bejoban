@@ -18,7 +18,7 @@ Repo ini publik. Sandi, nomor telepon, harga asli, alamat server, dan urusan tag
 
 ### Situs publik
 
-- Beranda memakai desain hitam putih: hero, bar keunggulan, layanan bengkel, produk, alur, rekomendasi mobil, merek, galeri, dan lokasi cabang. Teks dan fotonya diatur dari admin.
+- Beranda memakai desain hitam putih dengan aksen oranye ala Hankook: hero, bar keunggulan, layanan bengkel, produk, alur, rekomendasi mobil, merek, galeri, dan lokasi cabang. Teks dan fotonya diatur dari admin.
 - Harga tidak ditampilkan. Pengunjung diarahkan menanyakan harga lewat WhatsApp.
 - Bagian merek memuat 11 merek resmi dengan urutan dari toko: Michelin, BFGoodrich, Hankook, Laufenn, Dunlop, Bridgestone, Sailun, Accelera, Falken, Delium, Maxxis. Sembilan sudah berlogo, Accelera dan Delium masih tampil sebagai nama. Empat merek terakhir bertanda by order.
 - Tombol WhatsApp memakai tautan pendek `/wa`, `/wa/batu`, dan `/wa/karanglo`. Satu nomor dipakai dua cabang, dan kalimat pembukanya menyebut nama cabang. Klik dihitung per cabang per hari.
@@ -150,7 +150,7 @@ Admin diuji di lokal memakai salinan database produksi dan sandi uji, tanpa logi
 - Stok ban tampil 50 baris per halaman.
 - Kalender disembunyikan dari menu sampai datanya dipakai.
 - Data nyata toko (pricelist, harga jasa, foto, logo pabrikan) tidak masuk git. Tempatnya di folder `data/` yang diabaikan git.
-- Tampilan situs hitam putih, minimalis, tanpa elemen miring.
+- Tampilan situs hitam putih dengan aksen oranye ala Hankook (diputuskan 24 November 2026), minimalis, tanpa elemen miring. Ornamen dibuat sendiri, bukan grafis resmi Hankook. Peringatan dan stok habis memakai merah, bukan oranye.
 - Halaman daftar di admin memakai tabel ringkas dengan panel samping. Form bertumpuk per item ditolak.
 - Cermin chat hanya untuk owner, hanya baca, dan menyimpan pesan paling lama 180 hari (bisa diatur). Berkas media tidak diunduh.
 

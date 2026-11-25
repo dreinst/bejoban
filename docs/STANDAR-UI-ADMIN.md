@@ -2,7 +2,7 @@
 
 Acuan untuk semua halaman di `/admin`. Halaman baru dan perubahan halaman lama mengikuti aturan di sini dan memakai komponen bersama di `src/components/admin/`. Halaman tidak menata sendiri jarak, tombol, atau tabelnya.
 
-Arah desain hitam putih dengan aksen oranye (rancangan tema Hankook, belum disetujui): hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mute`), Rubik untuk judul, DM Sans untuk isi, sudut 5 sampai 10 px. Oranye hanya lewat token di `src/app/globals.css`: `accent` untuk isian (tombol utama, garis tab aktif, penanda menu aktif, lencana angka) dengan teks hitam di atasnya, dan `accent-deep` untuk teks atau garis fokus oranye di latar terang. Jangan menulis hex oranye di komponen. Warna status memakai `danger` (galat, void, stok habis) dan `ok` (sukses), tidak pernah oranye. Di admin ornamen dipakai hemat: garis oranye di atas sidebar dan penanda aktif saja.
+Arah desain hitam putih dengan aksen oranye (tema ala Hankook, disetujui 24 November 2026, tanpa elemen miring): hitam `#0a0a0a`, putih, abu (`soft`, `line`, `mute`), Rubik untuk judul, DM Sans untuk isi, sudut 5 sampai 10 px. Oranye hanya lewat token di `src/app/globals.css`: `accent` untuk isian (tombol utama, garis tab aktif, penanda menu aktif, lencana angka) dengan teks hitam di atasnya, dan `accent-deep` untuk teks atau garis fokus oranye di latar terang. Jangan menulis hex oranye di komponen. Warna status memakai `danger` (galat, void, stok habis) dan `ok` (sukses), tidak pernah oranye. Di admin ornamen dipakai hemat: garis oranye di atas sidebar dan penanda aktif saja.
 
 ## Aturan
 
