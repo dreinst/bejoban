@@ -19,16 +19,17 @@ export function PageHeader({ title, note, actions }: { title: string; note?: Rea
 }
 
 /**
- * Pembatas lebar halaman. list: tabel melebar sampai 1200 px. form: satu form dibatasi 640 px.
+ * Pembatas lebar halaman. list: isi memakai seluruh lebar area kanan, tanpa ruang kosong di layar lebar.
+ * form: satu form dibatasi 640 px supaya isian tidak terlalu panjang.
  * Halaman pengaturan dengan beberapa bagian memakai SettingsGrid supaya layar lebar tidak separuh kosong.
  */
 export function PageBody({ width = 'list', children }: { width?: 'list' | 'form'; children: ReactNode }) {
-  return <div className={`${width === 'form' ? 'max-w-[640px]' : 'max-w-[1200px]'} space-y-5`}>{children}</div>
+  return <div className={`${width === 'form' ? 'max-w-[640px]' : 'w-full'} space-y-5`}>{children}</div>
 }
 
 /** Bagian-bagian form pengaturan: satu kolom, dua kolom mulai 1280 px. Tiap bagian sekitar 560 sampai 640 px. */
 export function SettingsGrid({ children }: { children: ReactNode }) {
-  return <div className="grid max-w-[1200px] items-start gap-5 xl:grid-cols-2">{children}</div>
+  return <div className="grid items-start gap-5 xl:grid-cols-2">{children}</div>
 }
 
 /** Kartu satu bagian: judul, penjelas singkat, isi. `wide` membuat bagian memakai dua kolom SettingsGrid. */

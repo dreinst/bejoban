@@ -11,7 +11,7 @@ Arah desain hitam putih dengan aksen oranye (tema ala Hankook, disetujui 24 Nove
 3. Hapus lewat dialog konfirmasi (`ConfirmDialog`) yang menyebut nama item dan akibatnya, mis. "Hankook dipakai 6 produk." Centang "Yakin" di halaman tidak dipakai lagi. Item yang masih dipakai tidak bisa dihapus, dialognya menawarkan Nonaktifkan.
 4. Urutan diatur dengan tombol naik turun (`ReorderButtons`), tidak dengan mengetik angka.
 5. Halaman daftar punya: judul, satu kalimat penjelas kalau perlu, tombol utama "Tambah ..." di kanan atas, jumlah item, pencarian atau saringan kalau item bisa lebih dari sepuluh, keadaan kosong yang menjelaskan langkah pertama, dan toast setelah simpan.
-6. Lebar konten terpakai. Tabel melebar sampai 1200 px (`PageBody`). Satu form dibatasi 640 px. Halaman pengaturan dengan beberapa bagian memakai `SettingsGrid` (dua kolom di layar lebar) supaya tidak separuh kosong.
+6. Lebar konten terpakai. Halaman daftar dan pengaturan memakai seluruh lebar area kanan (`PageBody`), tanpa ruang kosong di layar lebar. Tabel yang lebih lebar dari kartunya digulung ke samping di dalam kartu, tidak terpotong. Satu form dibatasi 640 px. Halaman pengaturan dengan beberapa bagian memakai `SettingsGrid` (dua kolom di layar lebar) supaya tidak separuh kosong.
 7. Hierarki tombol. Satu tombol utama oranye (`adm-btn`) per tampilan. Di halaman pengaturan tiap bagian adalah form sendiri, jadi tiap bagian boleh punya satu tombol simpan oranye. Aksi sekunder bergaris (`adm-btn-line`) atau polos (`adm-btn-ghost`). Merah (`adm-btn-danger`) hanya di dialog konfirmasi.
 8. Unggah gambar ringkas (`ImageField`, `ImagesInput`): pratinjau 56 px, tombol Ganti dan Hapus, satu baris keterangan ukuran dengan tautan "Panduan ukuran".
 9. Kepadatan seragam lewat komponen bersama. Jangan menulis kelas tabel, chip, atau kartu sendiri di halaman.
@@ -25,7 +25,7 @@ Arah desain hitam putih dengan aksen oranye (tema ala Hankook, disetujui 24 Nove
 | Komponen | Berkas | Jenis | Untuk |
 | --- | --- | --- | --- |
 | `PageHeader` | `ui.tsx` | server | Judul, penjelas, tombol utama kanan atas |
-| `PageBody` | `ui.tsx` | server | Pembatas lebar: `list` 1200 px, `form` 640 px |
+| `PageBody` | `ui.tsx` | server | Pembatas lebar: `list` selebar area kanan, `form` 640 px |
 | `SettingsGrid`, `Section` | `ui.tsx` | server | Halaman pengaturan: kartu per bagian, dua kolom di layar lebar |
 | `Badge`, `Empty`, `StatCard` | `ui.tsx` | server | Lencana (`dark`, `light`, `outline`, `accent` untuk penanda, `danger` dan `ok` untuk status), keadaan kosong (tombol lewat prop `action`, jangan menulis "tombol di kanan atas"), angka ringkasan |
 | `DataTable`, `Thumb` | `data-table.tsx` | server | Tabel responsif dan gambar kecil di baris. `hanyaHp` menambah kolom khusus kartu HP, `tanpaBingkai` untuk tabel di dalam `Section`, `lainnya` isi menu "Lainnya" di HP, `isianHp` dan `hpKolom` untuk kartu berisi kotak isian |

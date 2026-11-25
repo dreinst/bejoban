@@ -68,7 +68,7 @@ export function DataTable<T>({
 }) {
   if (!rows.length) return <>{empty}</>
   return (
-    <div className={tanpaBingkai ? 'overflow-hidden rounded-[10px] border border-line max-md:overflow-visible' : 'adm-card overflow-hidden max-md:overflow-visible'}>
+    <div className={tanpaBingkai ? 'overflow-x-auto rounded-[10px] border border-line max-md:overflow-visible' : 'adm-card overflow-x-auto max-md:overflow-visible'}>
       <table className="adm-table" data-thumb={thumb ? '' : undefined} data-actions={actionsBelow ? 'below' : undefined} data-lainnya={lainnya ? '' : undefined} data-isian={isianHp ? '' : undefined}>
         <caption className="sr-only">{caption}</caption>
         <thead>
